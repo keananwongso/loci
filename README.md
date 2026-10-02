@@ -10,8 +10,8 @@ The workflow Loci is built around:
 
 1. Click **Try sample calculus notes** (synthetic notes on directional derivatives, included in this repo).
 2. The page is selected. Ask: *I understand the equation, but what is u geometrically?*
-3. Loci highlights `∇f · u` in the theorem box, draws a coordinate plane to the right of the page with the unit circle, the gradient and a unit vector `u`, marks the angle θ between them, writes `D_u f = ∇f · u = ‖∇f‖ cos θ` below the diagram, draws an arrow from the highlight to the diagram, and asks what happens if `u` points along the gradient.
-4. Follow up: *Why does the answer become largest when they point in the same direction?* Loci reuses the same diagram and adds the projection of `∇f` onto `u`, instead of drawing a new one.
+3. The tutor highlights `∇f · u` in the theorem box, draws a coordinate plane to the right of the page with the unit circle, the gradient and a unit vector `u`, marks the angle θ between them, writes `D_u f = ∇f · u = ‖∇f‖ cos θ` below the diagram, draws an arrow from the highlight to the diagram, and asks what happens if `u` points along the gradient. (The exact drawing varies with the model; `LOCI_PROVIDER=mock` replays this lesson exactly.)
+4. Follow up: *Why does the answer become largest when they point in the same direction?* The tutor is instructed to extend the existing diagram (here, adding the projection of `∇f` onto `u`) rather than draw a new one.
 
 To ask about just part of a page, press **Q** (or the dashed box tool) and drag a box around it.
 
