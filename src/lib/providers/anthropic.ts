@@ -15,7 +15,8 @@ export class AnthropicProvider implements TutorModelProvider {
 	readonly setupHint = 'Add ANTHROPIC_API_KEY to .env.local and restart `npm run dev`.'
 	private effort: Effort
 
-	constructor() {
+	/** `makeClient` exists for tests; normally the SDK reads the key from the server environment. */
+	constructor(private makeClient: () => Anthropic = () => new Anthropic()) {
 		this.model = process.env.LOCI_MODEL || 'claude-opus-5-5'
 		const effort = process.env.LOCI_EFFORT
 		this.effort = effort === 'low' || effort === 'high' ? effort : 'medium'
@@ -27,7 +28,7 @@ export class AnthropicProvider implements TutorModelProvider {
 
 	async run(input: TutorInput, session: ActionSession, emit: (e: TutorEvent) => void, signal: AbortSignal) {
 		// The key is read from the server environment only; it never reaches the browser.
-		const client = new Anthropic()
+		const client = this.makeClient()
 
 		const tools: Anthropic.Beta.BetaTool[] = input.tools.map((t) => ({
 			name: t.name,
