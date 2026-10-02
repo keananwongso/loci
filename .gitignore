@@ -1,4 +1,24 @@
-.DS_Store
+# dependencies
 node_modules/
+
+# next.js
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# secrets: never commit real environment files
 .env
+.env.local
+.env.*.local
 .env.*
+!.env.example
+
+# local study material: keep personal PDFs/screenshots out of git
+/materials/
+/private/
+
+# misc
+.DS_Store
+*.log
+coverage/

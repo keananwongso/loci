@@ -1,0 +1,35 @@
+{
+  "name": "loci",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A local-first spatial AI tutor: the AI teaches by drawing on the same canvas as your course material.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "sample": "node scripts/make-sample.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource/instrument-serif": "^5.3.0",
+    "idb-keyval": "^6.3.0",
+    "katex": "^0.19.0",
+    "next": "^16.3.8",
+    "pdfjs-dist": "^6.3.289",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "tldraw": "^5.5.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/katex": "^0.16.8",
+    "@types/node": "^26.6.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.3"
+  }
+}
