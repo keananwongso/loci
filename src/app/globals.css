@@ -871,8 +871,12 @@ button {
 
 .loci-graph__title {
 	position: absolute;
-	bottom: calc(100% + 18px);
-	left: 0;
+	top: 6px;
+	left: 8px;
+	padding: 1px 6px;
+	border-radius: 5px;
+	background: rgba(246, 247, 249, 0.85);
+	z-index: 1;
 	font-size: 15px;
 	font-weight: 550;
 	color: var(--loci-ink-2);

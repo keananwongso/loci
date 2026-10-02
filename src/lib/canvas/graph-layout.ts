@@ -162,10 +162,12 @@ export function layoutGraph(p: GraphProps): GraphLayout {
 				const runs = sampleFunction(f, Math.max(d0, p.xMin), Math.min(d1, p.xMax), [p.yMin, p.yMax])
 				const d = runs.map((run) => run.map((pt, i) => `${i ? 'L' : 'M'}${px(pt).map(f1).join(',')}`).join(' ')).join(' ')
 				if (d) strokes.push({ key: k, d, color, width: 2.4, dashed: it.dashed, itemId: k })
-				const last = runs.at(-1)?.at(-1)
+				// Label the last point of the curve that is actually inside the frame.
+				const visible = runs.flat().filter(([, y]) => y >= p.yMin && y <= p.yMax)
+				const last = visible.at(-1)
 				if (it.label && last) {
 					const [x, y] = px(last)
-					labels.push({ key: k, x: Math.min(x, p.w - 10) + 4, y: Math.max(12, Math.min(p.h - 12, y - 14)), latex: it.label, color, itemId: k })
+					labels.push({ key: k, x: Math.min(x + 6, p.w - 24), y: Math.max(14, Math.min(p.h - 14, y - 14)), latex: it.label, color, itemId: k })
 				}
 				break
 			}

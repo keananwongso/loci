@@ -44,6 +44,8 @@ export class MockProvider implements TutorModelProvider {
 			return
 		}
 
+		if (input.request.question.trim() === '/selftest') return selfTest(call, material.id)
+
 		const plane = board.objects.find((o) => o.id === 'dd-plane')
 		if (!plane) {
 			await call('say', {
@@ -112,4 +114,45 @@ export class MockProvider implements TutorModelProvider {
 			text: 'Since $\\cos\\theta \\le 1$, nothing beats $\\theta = 0$. Which direction would make $D_u f$ zero?',
 		})
 	}
+}
+
+type Call = (name: string, args: unknown) => Promise<{ ok: boolean }>
+
+/** Exercises every tool once, for checking the executor visually. Type "/selftest" in mock mode. */
+async function selfTest(call: Call, materialId: string) {
+	const results: string[] = []
+	const step = async (name: string, args: unknown) => {
+		const r = await call(name, args)
+		results.push(`${name}:${r.ok ? 'ok' : 'FAILED'}`)
+	}
+	await step('write_text', { id: 'st-note', text: 'Self test: every tool once', position: { relativeTo: materialId, placement: 'right', gap: 60 }, size: 'l' })
+	await step('draw_axes', {
+		id: 'st-graph',
+		position: { relativeTo: 'st-note', placement: 'below', gap: 30 },
+		xRange: [-3, 3],
+		yRange: [-2, 4],
+		width: 380,
+		title: 'Plot check',
+		items: [
+			{ kind: 'function', id: 'parabola', expr: 'x^2 - 1', label: 'x^2 - 1', color: 'violet' },
+			{ kind: 'function', id: 'wave', expr: 'sin(2x)', color: 'orange', dashed: true },
+			{ kind: 'point', id: 'p', at: [1, 0], label: 'P' },
+			{ kind: 'segment', id: 's', from: [-2, 3], to: [2, 3], label: '\\text{chord}', dashed: true },
+			{ kind: 'label', id: 'lbl', at: [-2, -1.4], text: '\\text{min at } x=0' },
+		],
+	})
+	await step('remove_from_graph', { graphId: 'st-graph', itemIds: ['wave'] })
+	await step('write_equation', { id: 'st-eq', latex: '\\int_0^1 x^2\\,dx = \\tfrac{1}{3}', position: { relativeTo: 'st-graph', placement: 'right', gap: 40 }, size: 'l', color: 'blue' })
+	await step('draw_rectangle', { id: 'st-box', around: ['st-eq'], label: 'result', color: 'green' })
+	await step('draw_circle', { id: 'st-ring', position: { relativeTo: 'st-eq', placement: 'below', gap: 60 }, width: 120, height: 70, label: 'ring', color: 'red', dashed: true })
+	await step('draw_line', { id: 'st-line', from: { objectId: 'st-ring', side: 'left' }, to: { graphId: 'st-graph', point: [1, 0] }, color: 'grey', dashed: true })
+	await step('draw_arrow', { id: 'st-arrow', from: { objectId: 'st-note', side: 'bottom' }, to: { objectId: 'st-eq', side: 'top' }, label: 'see', bend: 40 })
+	await step('highlight', { id: 'st-hl-box', target: materialId, text: 'Definition', style: 'box', color: 'blue' })
+	await step('highlight', { id: 'st-hl-under', target: materialId, text: 'unit vector', style: 'underline', color: 'pink' })
+	await step('highlight', { id: 'st-hl-eq', target: 'st-eq', style: 'circle' })
+	await step('move_object', { id: 'st-ring', position: { relativeTo: 'st-box', placement: 'below', gap: 30, align: 'center' } })
+	await step('write_text', { id: 'st-temp', text: 'temporary', position: { x: 0, y: -200 } })
+	await step('delete_objects', { ids: ['st-temp'] })
+	await step('focus', { ids: ['st-graph', 'st-eq'] })
+	await call('say', { text: `Self test finished: ${results.join(', ')}` })
 }

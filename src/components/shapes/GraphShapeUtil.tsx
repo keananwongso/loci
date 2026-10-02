@@ -61,7 +61,7 @@ function GraphView({ shape }: { shape: GraphShape }) {
 			<svg width={p.w} height={p.h} className="loci-graph__svg">
 				<defs>
 					<clipPath id={clipId}>
-						<rect x={-20} y={-20} width={p.w + 40} height={p.h + 40} />
+						<rect x={-3} y={-3} width={p.w + 6} height={p.h + 6} />
 					</clipPath>
 				</defs>
 				<Strokes layout={layout} freshIds={freshIds} clipId={clipId} />
