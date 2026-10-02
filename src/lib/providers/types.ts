@@ -13,8 +13,7 @@ export interface TutorInput {
 /**
  * A model backend. Implementations translate the provider-neutral input into their API,
  * run the tool-call loop, and route every tool call through `session.handle`, which
- * validates it and streams it to the browser. Adding Ollama or OpenAI means writing one
- * more of these; nothing else in the app changes.
+ * validates it and streams it to the browser.
  */
 export interface TutorModelProvider {
 	readonly name: string
@@ -23,4 +22,6 @@ export interface TutorModelProvider {
 	/** Short hint shown in the UI when not configured. */
 	setupHint: string
 	run(input: TutorInput, session: ActionSession, emit: (e: TutorEvent) => void, signal: AbortSignal): Promise<void>
+	/** Turn a thrown error into a message the student can act on. */
+	describeError?(err: unknown): string
 }

@@ -108,11 +108,15 @@ export function describeImages(images: ContextImage[]): string {
 	return `Attached images, in order: ${images.map((im, i) => `(${i + 1}) ${im.label} [${im.width}×${im.height}px]`).join('; ')}.`
 }
 
-/** The text part of the current user message. */
-export function buildTurnText(req: TutorRequest): string {
+export const NO_VISION_NOTE =
+	'You cannot see images in this session: work only from the board description and the extracted text above. Objects without extracted text (uploaded images, the student\'s sketches) are opaque to you; if the question depends on one, say so briefly and ask the student to describe or type the relevant part. Highlight images only as a whole object (no `region`).'
+
+/** The text part of the current user message. `vision: false` drops image references for text-only models. */
+export function buildTurnText(req: TutorRequest, opts: { vision?: boolean } = {}): string {
+	const vision = opts.vision ?? true
 	return [
 		describeBoard(req.board),
-		describeImages(req.images),
+		vision ? describeImages(req.images) : NO_VISION_NOTE,
 		`This is turn ${req.turn}.`,
 		`Student: ${req.question}`,
 	]

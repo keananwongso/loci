@@ -31,38 +31,61 @@ To ask about just part of a page, press **Q** (or the dashed box tool) and drag 
 
 ## Local setup
 
-Requirements: Node.js 20.9 or newer, and an Anthropic API key.
+Requirements: Node.js 20.9 or newer, and an API key for any supported model provider (or a local model through Ollama).
 
 ```bash
 git clone https://github.com/keananwongso/loci.git
 cd loci
 npm install
 cp .env.example .env.local
-# open .env.local and set ANTHROPIC_API_KEY=...
+# open .env.local and paste ONE key, e.g. ANTHROPIC_API_KEY=... or DEEPSEEK_API_KEY=...
 npm run dev
 ```
 
 Open http://localhost:3000.
 
-Your API key goes in `.env.local`, which git ignores. It is read only by the local server route (`src/app/api/tutor/route.ts`) and is never sent to the browser.
+Your key goes in `.env.local`, which git ignores. It is read only by the local server route (`src/app/api/tutor/route.ts`) and is never sent to the browser.
 
-Optional settings in `.env.local`:
+### Choosing a model
+
+Loci picks the provider from whichever key you set. Anthropic uses its own API; everything else goes through one OpenAI-compatible provider, so any service that speaks that format with tool calling works.
+
+| Provider | Key in `.env.local` | Model |
+| --- | --- | --- |
+| Anthropic | `ANTHROPIC_API_KEY` | defaults to `claude-opus-5-5` |
+| DeepSeek | `DEEPSEEK_API_KEY` | defaults to `deepseek-flash` |
+| OpenRouter (hundreds of models) | `OPENROUTER_API_KEY` | set `LOCI_MODEL`, e.g. `anthropic/claude-opus-5-5` |
+| Google Gemini (free tier available) | `GEMINI_API_KEY` | set `LOCI_MODEL` |
+| OpenAI | `OPENAI_API_KEY` | set `LOCI_MODEL` |
+| Groq | `GROQ_API_KEY` | set `LOCI_MODEL` |
+| Ollama (local, free) | none; `LOCI_PROVIDER=ollama` | set `LOCI_MODEL` |
+| Anything else OpenAI-compatible | `LOCI_PROVIDER=custom`, `LOCI_BASE_URL`, `LOCI_API_KEY` | set `LOCI_MODEL` |
+
+The model must support tool calling, since that is how it draws. Bigger models are noticeably better at composing clean diagrams.
+
+**Models without vision work too.** Loci always sends a structured text description of the board: every object's id and position, graph contents, and the extracted text of your pdf with the position of each line. Images (the page, a region crop, a view screenshot) are extra. With `LOCI_VISION=auto` (the default) Loci sends images, and if the provider rejects them it retries without them and tells the model it is working from text only. A text-only model can still read your notes, highlight exact text and draw diagrams; it cannot read uploaded photos or screenshots, which have no text layer.
+
+Optional settings:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `LOCI_MODEL` | `claude-opus-5-5` | Model used by the tutor |
-| `LOCI_EFFORT` | `medium` | `low` answers faster, `high` thinks longer |
-| `LOCI_PROVIDER` | `anthropic` | `mock` replays a scripted lesson about the sample notes, for working on the UI without a key (type `/selftest` to draw one of everything) |
+| `LOCI_PROVIDER` | detected from your key | Force a provider (see table) |
+| `LOCI_MODEL` | provider default | Model id |
+| `LOCI_VISION` | `auto` | `on`, `off`, or `auto` |
+| `LOCI_EFFORT` | `medium` | Anthropic only: `low` answers faster, `high` thinks longer |
+| `LOCI_PROVIDER=mock` | | Replays a scripted lesson about the sample notes, for working on the UI without a key (type `/selftest` to draw one of everything) |
 
-The Anthropic requests opt into the API's server side refusal fallback (`fallbacks: "default"`), so a request declined by a safety classifier is retried on a fallback model instead of failing.
+With Anthropic, requests opt into the API's server side refusal fallback (`fallbacks: "default"`), so a request declined by a safety classifier is retried on a fallback model instead of failing.
+
+**Can I use a Claude or ChatGPT subscription instead of an API key?** No. Consumer subscriptions don't include API access, and routing an app through a subscription login (or through browser session cookies) goes against the providers' terms and can get the account suspended. For free or very cheap use, try Gemini's free tier, DeepSeek, or a local model through Ollama.
 
 Other commands: `npm test` (unit tests), `npm run lint` (type check), `npm run build`, `npm run sample` (regenerate the sample PDF; needs a Chromium, see the script).
 
 ## Privacy
 
 * Your PDFs, images, board and conversation are stored in your browser's IndexedDB on your machine. There is no Loci server, database, account or cloud storage.
-* When you ask a question, the local Next.js server sends the context for that one question to the AI provider you configured: your question, a description of the board (including the extracted text of the page in focus), recent conversation turns, and a few images (the selected page or region and sometimes a screenshot of your current view). Nothing is stored by the local server.
-* Review your provider's privacy and data retention policy (for Anthropic: https://www.anthropic.com/legal/privacy) before uploading anything sensitive.
+* When you ask a question, the local Next.js server sends the context for that one question to the AI provider you configured (nothing leaves your machine at all if you use a local model through Ollama): your question, a description of the board (including the extracted text of the page in focus), recent conversation turns, and a few images (the selected page or region and sometimes a screenshot of your current view). Nothing is stored by the local server.
+* Review your provider's privacy and data retention policy before uploading anything sensitive. Policies differ a lot between providers.
 * No analytics, tracking or telemetry. Next.js's own anonymous telemetry is switched off by the npm scripts. Fonts and icons are bundled, so the app makes no requests to third party CDNs.
 * Voice input uses the browser's speech recognition. In some browsers (Chrome, for example) that audio is processed by the browser vendor's servers. Read aloud uses voices installed on your device.
 
@@ -92,7 +115,7 @@ native canvas objects (meta.author = assistant)
 | `src/lib/actions/schema.ts` | The action protocol: one Zod schema per tool, also used to generate the tool definitions |
 | `src/lib/tutor/session.ts` | Validates each tool call against the schema and the live board (ids exist, LaTeX compiles, quoted text is found) and returns precise errors to the model |
 | `src/lib/tutor/prompt.ts` | System prompt and the text description of the board |
-| `src/lib/providers/` | `TutorModelProvider` interface, the Anthropic implementation and the mock |
+| `src/lib/providers/` | `TutorModelProvider` interface, the Anthropic provider, one OpenAI-compatible provider for everything else, and the mock |
 | `src/lib/canvas/executor.ts` | Turns validated actions into tldraw shapes |
 | `src/lib/canvas/placement.ts` | Semantic placement and collision avoidance |
 | `src/lib/canvas/serialize.ts` | Builds the structured board context and captures images |
@@ -101,14 +124,14 @@ native canvas objects (meta.author = assistant)
 
 The model never runs code in the browser. It can only call the declared tools; every call is validated before anything is drawn, and function plots are parsed by a small math expression parser rather than evaluated as JavaScript.
 
-Adding another provider (OpenAI, Gemini, or a local model through Ollama) means implementing `TutorModelProvider.run` in `src/lib/providers/` and routing each tool call through `session.handle`. Nothing else changes.
+Adding a provider with a different API format means implementing `TutorModelProvider.run` in `src/lib/providers/` and routing each tool call through `session.handle`. Nothing else changes.
 
 tldraw is free to use in development and on localhost. Deploying Loci publicly in production requires a tldraw license key (https://tldraw.dev/pricing).
 
 ## Roadmap
 
 * Better graphing: level curves and contour plots, 3D surfaces, parametric curves
-* Local models through Ollama
-* More providers (OpenAI, Gemini)
+* A text protocol fallback for models without tool calling
+* OCR for photos and screenshots, so text-only models can read them
 * Realtime voice conversation
 * iPad and Apple Pencil: a shared canvas where the tutor can see handwritten work and circle the term that went wrong

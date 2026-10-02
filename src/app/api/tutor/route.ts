@@ -5,7 +5,6 @@
  * Nothing is stored here.
  */
 import { getToolDefinitions } from '@/lib/actions/tools'
-import { describeAnthropicError } from '@/lib/providers/anthropic'
 import { getProvider } from '@/lib/providers'
 import { buildTurnText, SYSTEM_PROMPT } from '@/lib/tutor/prompt'
 import { ActionSession } from '@/lib/tutor/session'
@@ -71,7 +70,7 @@ export async function POST(req: Request) {
 			} catch (err) {
 				if (!abort.signal.aborted) {
 					console.error('[loci] tutor request failed:', err instanceof Error ? err.message : err)
-					emit({ type: 'error', message: provider.name === 'anthropic' ? describeAnthropicError(err) : String(err) })
+					emit({ type: 'error', message: provider.describeError?.(err) ?? (err instanceof Error ? err.message : String(err)) })
 				}
 			}
 			emit({ type: 'done' })

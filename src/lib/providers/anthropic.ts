@@ -12,7 +12,7 @@ const MAX_ROUNDS = 6
 export class AnthropicProvider implements TutorModelProvider {
 	readonly name = 'anthropic'
 	readonly model: string
-	readonly setupHint = 'Add ANTHROPIC_API_KEY to .env.local and restart `npm run dev`.'
+	readonly setupHint = 'Add an API key to .env.local (ANTHROPIC_API_KEY, or OPENROUTER_API_KEY, DEEPSEEK_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY...) and restart `npm run dev`.'
 	private effort: Effort
 
 	/** `makeClient` exists for tests; normally the SDK reads the key from the server environment. */
@@ -24,6 +24,10 @@ export class AnthropicProvider implements TutorModelProvider {
 
 	isConfigured() {
 		return Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN)
+	}
+
+	describeError(err: unknown) {
+		return describeAnthropicError(err)
 	}
 
 	async run(input: TutorInput, session: ActionSession, emit: (e: TutorEvent) => void, signal: AbortSignal) {
