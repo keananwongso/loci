@@ -1028,3 +1028,62 @@ button {
 		stroke-dashoffset: 0;
 	}
 }
+
+/* voice mode: the speaking orb on its own dark tile (its particles glow additively, so it needs a dark ground) */
+
+.loci-voice {
+	position: absolute;
+	right: 16px;
+	bottom: 44px;
+	width: 236px;
+	padding: 8px 8px 14px;
+	border-radius: 24px;
+	background: radial-gradient(120% 90% at 50% 30%, #1b1626 0%, #0c0a12 70%);
+	box-shadow: var(--loci-shadow-lg), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+	color: #fff;
+	animation: loci-rise 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.loci-voice__head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 2px 4px 0 10px;
+	font-size: 11.5px;
+	letter-spacing: 0.04em;
+	color: rgba(255, 255, 255, 0.55);
+}
+
+.loci-voice__close {
+	display: grid;
+	place-items: center;
+	width: 26px;
+	height: 26px;
+	border: 0;
+	border-radius: 8px;
+	background: transparent;
+	color: rgba(255, 255, 255, 0.6);
+	cursor: pointer;
+}
+
+.loci-voice__close:hover {
+	background: rgba(255, 255, 255, 0.08);
+	color: #fff;
+}
+
+.loci-voice__close svg {
+	width: 14px;
+	height: 14px;
+}
+
+.loci-voice__orb {
+	--cap-font: var(--loci-sans);
+	margin-top: -6px;
+}
+
+@media (max-width: 900px) {
+	.loci-voice {
+		width: 168px;
+		bottom: 110px;
+	}
+}

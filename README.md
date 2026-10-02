@@ -26,7 +26,7 @@ To ask about just part of a page, press **Q** (or the dashed box tool) and drag 
 * Narration and drawing stream in together, with a cursor showing where the tutor is drawing
 * Conversation history per board; the tutor can refer to anything it drew earlier by id
 * Equations stay editable (double click to edit the LaTeX); undo removes a whole answer's drawing
-* Push to talk and read aloud using the browser's speech APIs
+* Voice mode: push to talk, and the tutor speaks each sentence through an animated speaking orb with live captions while it draws, waiting for each sentence before the next mark. Uses Fish Audio when `FISH_API_KEY` is set, otherwise the browser's built-in voice
 * Board, files and conversation are stored locally in IndexedDB
 
 ## Local setup
@@ -77,6 +77,12 @@ Optional settings:
 
 With Anthropic, requests opt into the API's server side refusal fallback (`fallbacks: "default"`), so a request declined by a safety classifier is retried on a fallback model instead of failing.
 
+### Voice
+
+Click the speaker button in the top bar to turn on voice mode. Hold the mic button to ask out loud; the tutor answers through the speaking orb (bottom right), and the drawing waits for each sentence so you hear "look at this u" just before it gets circled.
+
+For natural voices add `FISH_API_KEY` to `.env.local` ([Fish Audio](https://fish.audio), about $15 per million characters, so roughly a cent per answer). `FISH_VOICE_ID` picks a voice and `LOCI_TTS_MODEL` the model (default `s2-pro`). Without a key, the browser's built-in voice is used. Only the tutor's spoken sentences are sent to Fish Audio, never your files.
+
 **Can I use a Claude or ChatGPT subscription instead of an API key?** No. Consumer subscriptions don't include API access, and routing an app through a subscription login (or through browser session cookies) goes against the providers' terms and can get the account suspended. For free or very cheap use, try Gemini's free tier, DeepSeek, or a local model through Ollama.
 
 Other commands: `npm test` (unit tests), `npm run lint` (type check), `npm run build`, `npm run sample` (regenerate the sample PDF; needs a Chromium, see the script).
@@ -87,7 +93,7 @@ Other commands: `npm test` (unit tests), `npm run lint` (type check), `npm run b
 * When you ask a question, the local Next.js server sends the context for that one question to the AI provider you configured (nothing leaves your machine at all if you use a local model through Ollama): your question, a description of the board (including the extracted text of the page in focus), recent conversation turns, and a few images (the selected page or region and sometimes a screenshot of your current view). Nothing is stored by the local server.
 * Review your provider's privacy and data retention policy before uploading anything sensitive. Policies differ a lot between providers.
 * No analytics, tracking or telemetry. Next.js's own anonymous telemetry is switched off by the npm scripts. Fonts and icons are bundled, so the app makes no requests to third party CDNs.
-* Voice input uses the browser's speech recognition. In some browsers (Chrome, for example) that audio is processed by the browser vendor's servers. Read aloud uses voices installed on your device.
+* Voice input uses the browser's speech recognition. In some browsers (Chrome, for example) that audio is processed by the browser vendor's servers. In voice mode the tutor's spoken sentences go to Fish Audio if you set `FISH_API_KEY`; otherwise speech uses voices installed on your device.
 
 ## Architecture
 
@@ -121,6 +127,7 @@ native canvas objects (meta.author = assistant)
 | `src/lib/canvas/serialize.ts` | Builds the structured board context and captures images |
 | `src/lib/documents/` | pdf.js rendering, text extraction, phrase matching |
 | `src/components/shapes/` | Custom shapes: material page, equation, graph, highlight, region |
+| `src/lib/voice/` | Voice mode: Fish Audio route helper, speech playback queue, speaking orb handle |
 
 The model never runs code in the browser. It can only call the declared tools; every call is validated before anything is drawn, and function plots are parsed by a small math expression parser rather than evaluated as JavaScript.
 
@@ -134,4 +141,9 @@ tldraw is free to use in development and on localhost. Deploying Loci publicly i
 * A text protocol fallback for models without tool calling
 * OCR for photos and screenshots, so text-only models can read them
 * Realtime voice conversation
+* Word-exact captions from Fish Audio's timestamp endpoint
 * iPad and Apple Pencil: a shared canvas where the tutor can see handwritten work and circle the term that went wrong
+
+## Credits
+
+The speaking orb in voice mode is [Speaking Orb](https://github.com/aqualang89/shipnotes-components) by Ship Notes (MIT), included unmodified in `public/vendor/speaking-orb.js`.

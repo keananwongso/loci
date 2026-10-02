@@ -2,7 +2,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { MoreIcon, SpeakerIcon } from './icons'
 import type { TutorStatus } from '../useTutor'
-import { canSpeak } from '@/lib/voice/speech'
 
 interface Props {
 	status: TutorStatus
@@ -31,11 +30,9 @@ export function TopBar({ status, voiceOut, onToggleVoice, onClear, onSample }: P
 					{status.configured ? status.model : 'No model connected'}
 				</span>
 			)}
-			{canSpeak() && (
-				<button className="loci-icon-btn" data-active={voiceOut} onClick={onToggleVoice} title={voiceOut ? 'Stop reading answers aloud' : 'Read answers aloud'}>
-					<SpeakerIcon off={!voiceOut} />
-				</button>
-			)}
+			<button className="loci-icon-btn" data-active={voiceOut} onClick={onToggleVoice} title={voiceOut ? 'Turn voice mode off' : 'Voice mode: Loci speaks its answers'}>
+				<SpeakerIcon off={!voiceOut} />
+			</button>
 			<div className="loci-menu" ref={ref}>
 				<button className="loci-icon-btn" onClick={() => setMenu((m) => !m)} title="Board menu" aria-expanded={menu}>
 					<MoreIcon />

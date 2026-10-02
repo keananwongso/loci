@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useEditor, useValue } from 'tldraw'
 import { describeSelection } from '../selection'
 import { canRecognize, startListening } from '@/lib/voice/speech'
+import { orbListen, orbStopListening } from '@/lib/voice/orb'
 import { LayersIcon, MicIcon, PageIcon, SendIcon, StopIcon } from './icons'
 
 interface Props {
@@ -57,6 +58,7 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason }: Props) {
 		if (busy || listening) return
 		setVoiceError(undefined)
 		setListening(true)
+		orbListen()
 		stopListening.current = startListening(setText, (msg) => {
 			setVoiceError(msg)
 			setListening(false)
@@ -65,6 +67,7 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason }: Props) {
 	const endVoice = async () => {
 		if (!stopListening.current) return
 		const transcript = await stopListening.current()
+		orbStopListening()
 		stopListening.current = null
 		setListening(false)
 		if (transcript) submit(transcript)

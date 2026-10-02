@@ -44,18 +44,24 @@ interface Props {
 	busy: boolean
 	status: TutorStatus
 	onUndo: () => void
+	/** In voice mode the orb's captions carry the answer, so the text panel starts collapsed. */
+	voice?: boolean
 }
 
-export function ResponsePanel({ turns, busy, status, onUndo }: Props) {
-	const [open, setOpen] = useState(true)
+export function ResponsePanel({ turns, busy, status, onUndo, voice }: Props) {
+	const [open, setOpen] = useState(!voice)
 	const [history, setHistory] = useState(false)
 	const bodyRef = useRef<HTMLDivElement>(null)
 	const last = turns.at(-1)
 	const shown = useMemo(() => (history ? turns : last ? [last] : []), [history, turns, last])
 
 	useEffect(() => {
-		if (busy) setOpen(true)
-	}, [busy, turns.length])
+		if (busy) setOpen(!voice)
+	}, [busy, turns.length, voice])
+
+	useEffect(() => {
+		setOpen(!voice)
+	}, [voice])
 
 	useEffect(() => {
 		const el = bodyRef.current
@@ -75,7 +81,7 @@ export function ResponsePanel({ turns, busy, status, onUndo }: Props) {
 	if (!open) {
 		return (
 			<button className="loci-panel-pill" onClick={() => setOpen(true)} onPointerDown={(e) => e.stopPropagation()}>
-				<span className="loci-dot" data-busy={busy} /> Show Loci&rsquo;s answer
+				<span className="loci-dot" data-busy={busy} /> {voice ? 'Show transcript' : <>Show Loci&rsquo;s answer</>}
 			</button>
 		)
 	}

@@ -12,7 +12,10 @@ import type { HistoryTurn, TutorEvent, TutorRequest } from './types'
 
 export interface TurnCallbacks {
 	onPhase(phase: 'looking' | 'thinking' | 'teaching'): void
-	onSay(text: string): void
+	/** Called in order; may return a promise (voice mode) that holds the queue until the sentence is spoken. */
+	onSay(text: string, prepared?: unknown): void | Promise<void>
+	/** Called the moment a sentence arrives, so speech can be synthesized ahead of its turn. */
+	prepareSay?(text: string): unknown
 	onAction(action: CanvasAction, summary: string): void
 	onNotice(message: string): void
 	beforeDraw: BeforeDraw
@@ -75,9 +78,11 @@ export async function runTutorTurn(
 			cb.onPhase('teaching')
 		}
 		switch (event.type) {
-			case 'say':
-				enqueue(() => cb.onSay(event.text))
+			case 'say': {
+				const prepared = cb.prepareSay?.(event.text)
+				enqueue(() => cb.onSay(event.text, prepared))
 				break
+			}
 			case 'action':
 				enqueue(async () => {
 					await executor.execute(event.action)

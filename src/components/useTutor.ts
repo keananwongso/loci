@@ -4,7 +4,8 @@ import type { Editor } from 'tldraw'
 import { lastMark, runTutorTurn } from '@/lib/tutor/client'
 import { clearConversation, loadConversation, saveConversation, type Turn } from '@/lib/storage/conversation'
 import { moveTutorTo, setTutorMode } from '@/lib/canvas/presence'
-import { speak, stopSpeaking } from '@/lib/voice/speech'
+import { playSpeech, prepareSpeech, stopAllSpeech, type PreparedSpeech } from '@/lib/voice/player'
+import { setOrbState } from '@/lib/voice/orb'
 import { describeSelection } from './selection'
 
 export interface TutorStatus {
@@ -43,7 +44,7 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 	const ask = useCallback(
 		async (question: string) => {
 			if (!editor || busy || !question.trim()) return
-			stopSpeaking()
+			stopAllSpeech()
 			const id = crypto.randomUUID()
 			const turnNumber = (turns.at(-1)?.turn ?? 0) + 1
 			const history = turns
@@ -64,6 +65,7 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 			const controller = new AbortController()
 			abortRef.current = controller
 			setTutorMode('thinking')
+			setOrbState('thinking')
 			try {
 				const result = await runTutorTurn(
 					editor,
@@ -72,9 +74,10 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 					turnNumber,
 					{
 						onPhase: (phase) => patch((t) => ({ ...t, status: phase })),
-						onSay: (text) => {
+						prepareSay: (text) => (voiceRef.current ? prepareSpeech(text) : undefined),
+						onSay: async (text, prepared) => {
 							patch((t) => ({ ...t, said: [...t.said, text] }))
-							if (voiceRef.current) speak(text)
+							if (prepared) await playSpeech(prepared as PreparedSpeech)
 						},
 						onAction: (action, summary) => patch((t) => ({ ...t, actions: [...t.actions, summary], lastAction: action.type })),
 						onNotice: (message) => patch((t) => ({ ...t, notices: [...(t.notices ?? []), message] })),
@@ -89,6 +92,7 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 			} finally {
 				abortRef.current = null
 				setTutorMode('idle')
+				setOrbState('listening')
 			}
 		},
 		[editor, busy, turns]
@@ -96,7 +100,7 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 
 	const stop = useCallback(() => {
 		abortRef.current?.abort()
-		stopSpeaking()
+		stopAllSpeech()
 	}, [])
 
 	/** Remove everything the tutor drew in the latest turn. */

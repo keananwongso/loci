@@ -20,6 +20,7 @@ import { ResponsePanel } from './ui/ResponsePanel'
 import { EmptyState } from './ui/EmptyState'
 import { TopBar } from './ui/TopBar'
 import { StylePanel } from './ui/StylePanel'
+import { VoiceOrb } from './ui/VoiceOrb'
 import { useTutor } from './useTutor'
 import { ACCEPTED_TYPES, ingestFiles } from '@/lib/canvas/ingest'
 import { REGION } from '@/lib/canvas/shape-types'
@@ -135,10 +136,11 @@ function Shell() {
 		<div className="loci-ui">
 			<TopBar status={tutor.status} voiceOut={voiceOut} onToggleVoice={toggleVoice} onClear={clearBoard} onSample={loadSample} />
 			<Toolbar onUpload={() => fileRef.current?.click()} />
+			{voiceOut && <VoiceOrb onClose={toggleVoice} />}
 			<EmptyState onUpload={() => fileRef.current?.click()} onSample={loadSample} loading={loading} />
 			{loading && <div className="loci-toast">{loading}</div>}
 			<div className="loci-dock">
-				<ResponsePanel turns={tutor.turns} busy={tutor.busy} status={tutor.status} onUndo={tutor.undoLastTurn} />
+				<ResponsePanel turns={tutor.turns} busy={tutor.busy} status={tutor.status} onUndo={tutor.undoLastTurn} voice={voiceOut} />
 				<PromptBar busy={tutor.busy} onAsk={tutor.ask} onStop={tutor.stop} disabledReason={disabledReason} />
 			</div>
 			<input
