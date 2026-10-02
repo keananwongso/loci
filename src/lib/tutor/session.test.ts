@@ -152,6 +152,11 @@ describe('pdf text helpers', () => {
 		expect(findTextBox(items, 'D_u f = \\nabla f')).toBeNull() // \nabla is not the glyph ∇
 		expect(findTextBox(items, 'D_u f = ∇f')).not.toBeNull()
 	})
+	it('treats look-alike math glyphs as equal', () => {
+		const glyphs = [{ t: 'u = ⟨a, b⟩ with ∣u∣ = 1', b: [0.1, 0.2, 0.3, 0.02] as [number, number, number, number] }]
+		expect(findTextBox(glyphs, '|u| = 1')).not.toBeNull()
+		expect(findTextBox(glyphs, 'u = <a, b>')).not.toBeNull()
+	})
 })
 
 describe('tool definitions', () => {

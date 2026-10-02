@@ -52,7 +52,7 @@ Optional settings in `.env.local`:
 | --- | --- | --- |
 | `LOCI_MODEL` | `claude-opus-5-5` | Model used by the tutor |
 | `LOCI_EFFORT` | `medium` | `low` answers faster, `high` thinks longer |
-| `LOCI_PROVIDER` | `anthropic` | `mock` replays a scripted lesson about the sample notes, for working on the UI without a key |
+| `LOCI_PROVIDER` | `anthropic` | `mock` replays a scripted lesson about the sample notes, for working on the UI without a key (type `/selftest` to draw one of everything) |
 
 The Anthropic requests opt into the API's server side refusal fallback (`fallbacks: "default"`), so a request declined by a safety classifier is retried on a fallback model instead of failing.
 

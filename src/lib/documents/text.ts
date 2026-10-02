@@ -69,6 +69,12 @@ const EQUIVALENTS: Record<string, string> = {
 	'“': '"',
 	'”': '"',
 	'𝑢': 'u',
+	'∣': '|',
+	'‖': '||',
+	'⟨': '<',
+	'⟩': '>',
+	'〈': '<',
+	'〉': '>',
 }
 
 function normChar(c: string, loose: boolean): string {
