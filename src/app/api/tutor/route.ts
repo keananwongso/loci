@@ -5,28 +5,95 @@
  * Nothing is stored here.
  */
 import { getToolDefinitions } from '@/lib/actions/tools'
-import { getProvider } from '@/lib/providers'
+import { getProvider, providerForUserKey } from '@/lib/providers'
+import { MockProvider } from '@/lib/providers/mock'
+import type { TutorModelProvider } from '@/lib/providers/types'
+import { deviceFor, ipHashFor } from '@/lib/server/device'
+import { limitConfigFromEnv, readQuota, takeQuestion, type Quota } from '@/lib/server/limits'
 import { buildTurnText, SYSTEM_PROMPT } from '@/lib/tutor/prompt'
 import { ActionSession } from '@/lib/tutor/session'
 import { TutorRequestSchema, type TutorEvent } from '@/lib/tutor/types'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+// Long tutoring turns stream for a while; hosts like Vercel cap this per plan.
+export const maxDuration = 300
 
 const MAX_BODY_BYTES = 24 * 1024 * 1024
 
-export async function GET() {
+export async function GET(req: Request) {
+	const limits = limitConfigFromEnv()
+	const device = deviceFor(req)
+	let quota: Quota | undefined
+	if (limits.enabled) quota = await readQuota(limits, device.id, ipHashFor(req)).catch(() => undefined)
 	try {
 		const provider = getProvider()
-		return Response.json({
-			provider: provider.name,
-			model: provider.model,
-			configured: provider.isConfigured(),
-			setupHint: provider.setupHint,
-		})
+		return withCookie(
+			Response.json({
+				provider: provider.name,
+				model: provider.model,
+				configured: provider.isConfigured(),
+				setupHint: provider.setupHint,
+				hosted: limits.enabled,
+				quota,
+			}),
+			device.setCookie
+		)
 	} catch (err) {
-		return Response.json({ configured: false, setupHint: (err as Error).message }, { status: 500 })
+		return Response.json({ configured: false, setupHint: (err as Error).message, hosted: limits.enabled }, { status: 500 })
 	}
+}
+
+function withCookie(res: Response, cookie?: string) {
+	if (cookie) res.headers.append('Set-Cookie', cookie)
+	return res
+}
+
+const LIMIT_MESSAGES = {
+	device: "You've used today's free questions on this device.",
+	ip: "Today's free questions for this network are used up.",
+	global: "The free demo has hit today's limit.",
+}
+
+/**
+ * Which model answers: the free scripted lesson, the visitor's own key (sent in headers for this
+ * request only, never stored or logged), or the server's key under the demo limits.
+ */
+async function chooseProvider(req: Request): Promise<{ provider: TutorModelProvider; quota?: Quota; cookie?: string } | Response> {
+	if (req.headers.get('x-loci-demo') === 'scripted') return { provider: new MockProvider() }
+
+	const userKey = req.headers.get('x-loci-key')
+	if (userKey) {
+		try {
+			return {
+				provider: providerForUserKey(
+					req.headers.get('x-loci-provider') ?? '',
+					userKey,
+					req.headers.get('x-loci-model')?.slice(0, 120) || undefined
+				),
+			}
+		} catch (err) {
+			return Response.json({ error: (err as Error).message }, { status: 400 })
+		}
+	}
+
+	let provider: TutorModelProvider
+	try {
+		provider = getProvider()
+	} catch (err) {
+		return Response.json({ error: (err as Error).message }, { status: 500 })
+	}
+	const limits = limitConfigFromEnv()
+	if (!limits.enabled) return { provider }
+	const device = deviceFor(req)
+	const decision = await takeQuestion(limits, device.id, ipHashFor(req))
+	if (!decision.ok) {
+		return withCookie(
+			Response.json({ error: LIMIT_MESSAGES[decision.reason], limitReached: decision.reason, quota: decision.quota }, { status: 429 }),
+			device.setCookie
+		)
+	}
+	return { provider, quota: decision.quota, cookie: device.setCookie }
 }
 
 export async function POST(req: Request) {
@@ -39,12 +106,9 @@ export async function POST(req: Request) {
 	}
 	const request = parsed.data
 
-	let provider
-	try {
-		provider = getProvider()
-	} catch (err) {
-		return Response.json({ error: (err as Error).message }, { status: 500 })
-	}
+	const chosen = await chooseProvider(req)
+	if (chosen instanceof Response) return chosen
+	const { provider, quota, cookie } = chosen
 	if (!provider.isConfigured()) {
 		return Response.json({ error: `No model configured. ${provider.setupHint}` }, { status: 503 })
 	}
@@ -81,7 +145,9 @@ export async function POST(req: Request) {
 		},
 	})
 
-	return new Response(stream, {
+	const res = new Response(stream, {
 		headers: { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-store' },
 	})
+	if (quota) res.headers.set('X-Loci-Quota-Remaining', String(quota.remaining))
+	return withCookie(res, cookie)
 }

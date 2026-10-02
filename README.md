@@ -87,6 +87,20 @@ For natural voices add `FISH_API_KEY` to `.env.local` ([Fish Audio](https://fish
 
 Other commands: `npm test` (unit tests), `npm run lint` (type check), `npm run build`, `npm run sample` (regenerate the sample PDF; needs a Chromium, see the script).
 
+## Hosting a public demo
+
+Loci can also run as a public website, for example to share it. Boards and files still live only in each visitor's browser; the only cost is model calls, and three things keep that bounded:
+
+* **Free scripted demo.** On the sample notes, the suggested questions replay the directional-derivatives lesson without calling a model, for everyone, at no cost.
+* **A few free questions on your key**, limited per device (a signed cookie), more loosely per network (so a campus Wi-Fi isn't locked out), and by a global daily cap that bounds your total spend whatever people do. IPs are stored only as salted hashes, and only counts are kept.
+* **Bring your own key.** Visitors can paste their own API key for unlimited use. It is kept in their browser and passed through the server per request, never stored or logged. Only the built-in providers are accepted, so the server can't be pointed at arbitrary URLs.
+
+To deploy on Vercel: import the repo, then set your model key (e.g. `ANTHROPIC_API_KEY` or a cheaper provider with `LOCI_MODEL`), `LOCI_DEMO_LIMITS=on`, the `LOCI_LIMIT_*` values, `LOCI_COOKIE_SECRET`, and `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` from a free [Upstash](https://upstash.com) Redis database (serverless functions don't share memory, so counters need a store). Set a spending limit with your model provider too, as a backstop.
+
+tldraw requires a license key on a public domain: request a free [hobby license](https://tldraw.dev/get-a-license/hobby) for non-commercial use and set it as `NEXT_PUBLIC_TLDRAW_LICENSE_KEY`.
+
+Visitors using the hosted demo send their questions and page images to that server and on to the model provider for inference. For private material, run Loci locally.
+
 ## Privacy
 
 * Your PDFs, images, board and conversation are stored in your browser's IndexedDB on your machine. There is no Loci server, database, account or cloud storage.

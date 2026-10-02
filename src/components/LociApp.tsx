@@ -21,6 +21,8 @@ import { EmptyState } from './ui/EmptyState'
 import { TopBar } from './ui/TopBar'
 import { StylePanel } from './ui/StylePanel'
 import { VoiceOrb } from './ui/VoiceOrb'
+import { KeyDialog } from './ui/KeyDialog'
+import { Suggestions } from './ui/Suggestions'
 import { useTutor } from './useTutor'
 import { ACCEPTED_TYPES, ingestFiles } from '@/lib/canvas/ingest'
 import { REGION } from '@/lib/canvas/shape-types'
@@ -68,6 +70,13 @@ function Shell() {
 	const editor = useEditor()
 	const [voiceOut, setVoiceOut] = useState(false)
 	const [loading, setLoading] = useState<string | null>(null)
+	const [keyDialog, setKeyDialog] = useState(false)
+
+	useEffect(() => {
+		const open = () => setKeyDialog(true)
+		window.addEventListener('loci:open-key-dialog', open)
+		return () => window.removeEventListener('loci:open-key-dialog', open)
+	}, [])
 	const fileRef = useRef<HTMLInputElement>(null)
 	const tutor = useTutor(editor, voiceOut)
 
@@ -141,8 +150,16 @@ function Shell() {
 			{loading && <div className="loci-toast">{loading}</div>}
 			<div className="loci-dock">
 				<ResponsePanel turns={tutor.turns} busy={tutor.busy} status={tutor.status} onUndo={tutor.undoLastTurn} voice={voiceOut} />
-				<PromptBar busy={tutor.busy} onAsk={tutor.ask} onStop={tutor.stop} disabledReason={disabledReason} />
+				<Suggestions turns={tutor.turns} busy={tutor.busy} hosted={Boolean(tutor.status.hosted)} onAsk={tutor.ask} />
+				<PromptBar
+					busy={tutor.busy}
+					onAsk={(q) => tutor.ask(q)}
+					onStop={tutor.stop}
+					disabledReason={disabledReason}
+					freeLeft={tutor.status.hosted && !tutor.userKey ? tutor.status.quota?.remaining : undefined}
+				/>
 			</div>
+			{keyDialog && <KeyDialog onClose={() => setKeyDialog(false)} />}
 			<input
 				ref={fileRef}
 				type="file"
@@ -173,6 +190,8 @@ export default function LociApp() {
 				components={components}
 				overrides={overrides}
 				assetUrls={assetUrls}
+				// Needed only when deploying on a public domain; localhost works without one.
+				licenseKey={process.env.NEXT_PUBLIC_TLDRAW_LICENSE_KEY || undefined}
 				onMount={onMount}
 			>
 				<Shell />

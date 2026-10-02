@@ -7,6 +7,7 @@ import { moveTutorTo, setTutorMode } from '@/lib/canvas/presence'
 import { playSpeech, prepareSpeech, stopAllSpeech, type PreparedSpeech } from '@/lib/voice/player'
 import { setOrbState } from '@/lib/voice/orb'
 import { describeSelection } from './selection'
+import { loadUserKey, type UserKey } from '@/lib/storage/userKey'
 
 export interface TutorStatus {
 	configured: boolean
@@ -14,6 +15,10 @@ export interface TutorStatus {
 	model?: string
 	setupHint?: string
 	checked: boolean
+	/** Running as a public demo with free-question limits. */
+	hosted?: boolean
+	/** Free questions left today on this device (hosted demo). */
+	quota?: { limit: number; remaining: number }
 }
 
 export function useTutor(editor: Editor | null, voiceOut: boolean) {
@@ -23,6 +28,14 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 	const voiceRef = useRef(voiceOut)
 	voiceRef.current = voiceOut
 	const loaded = useRef(false)
+	const [userKey, setUserKey] = useState<UserKey | null>(null)
+
+	useEffect(() => {
+		const sync = () => setUserKey(loadUserKey())
+		sync()
+		window.addEventListener('loci:user-key', sync)
+		return () => window.removeEventListener('loci:user-key', sync)
+	}, [])
 
 	useEffect(() => {
 		loadConversation().then((t) => {
@@ -42,7 +55,7 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 	const busy = turns.some((t) => ['looking', 'thinking', 'teaching'].includes(t.status))
 
 	const ask = useCallback(
-		async (question: string) => {
+		async (question: string, opts: { scripted?: boolean } = {}) => {
 			if (!editor || busy || !question.trim()) return
 			stopAllSpeech()
 			const id = crypto.randomUUID()
@@ -83,9 +96,13 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 						onNotice: (message) => patch((t) => ({ ...t, notices: [...(t.notices ?? []), message] })),
 						beforeDraw: moveTutorTo,
 					},
-					controller.signal
+					controller.signal,
+					opts
 				)
-				patch((t) => ({ ...t, status: result.error ? 'error' : 'done', error: result.error }))
+				patch((t) => ({ ...t, status: result.error ? 'error' : 'done', error: result.error, limitReached: result.limitReached }))
+				if (result.quotaRemaining !== undefined) {
+					setStatus((st) => ({ ...st, quota: { limit: st.quota?.limit ?? result.quotaRemaining!, remaining: result.quotaRemaining! } }))
+				}
 			} catch (err) {
 				const aborted = controller.signal.aborted
 				patch((t) => ({ ...t, status: aborted ? 'stopped' : 'error', error: aborted ? undefined : (err as Error).message }))
@@ -132,5 +149,8 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 		await clearConversation()
 	}, [stop])
 
-	return { turns, busy, status, ask, stop, undoLastTurn, reset }
+	// A visitor's own key counts as configured even when the server has none.
+	const effective: TutorStatus = userKey ? { ...status, configured: true, provider: userKey.provider, model: userKey.model || `${userKey.provider} (your key)` } : status
+
+	return { turns, busy, status: effective, userKey, ask, stop, undoLastTurn, reset }
 }

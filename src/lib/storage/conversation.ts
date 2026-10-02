@@ -15,6 +15,8 @@ export interface Turn {
 	notices?: string[]
 	lastAction?: CanvasAction['type']
 	undone?: boolean
+	/** Hosted demo: which free-question limit refused this turn. */
+	limitReached?: string
 }
 
 const store = typeof indexedDB !== 'undefined' ? createStore('loci-conversation', 'turns') : undefined

@@ -9,6 +9,7 @@ import { CanvasExecutor, type BeforeDraw } from '@/lib/canvas/executor'
 import { captureImages, serializeBoard } from '@/lib/canvas/serialize'
 import type { CanvasAction } from '@/lib/actions/schema'
 import type { HistoryTurn, TutorEvent, TutorRequest } from './types'
+import { userKeyHeaders } from '@/lib/storage/userKey'
 
 export interface TurnCallbacks {
 	onPhase(phase: 'looking' | 'thinking' | 'teaching'): void
@@ -26,6 +27,15 @@ export const lastMark = new Map<number, string>()
 
 export interface TurnResult {
 	error?: string
+	/** Set when the hosted demo's free-question limit refused the request. */
+	limitReached?: string
+	/** Free questions left today (hosted demo), when the server reports it. */
+	quotaRemaining?: number
+}
+
+export interface TurnOptions {
+	/** Replay the free scripted lesson instead of calling a model. */
+	scripted?: boolean
 }
 
 export async function runTutorTurn(
@@ -34,7 +44,8 @@ export async function runTutorTurn(
 	history: HistoryTurn[],
 	turn: number,
 	cb: TurnCallbacks,
-	signal: AbortSignal
+	signal: AbortSignal,
+	opts: TurnOptions = {}
 ): Promise<TurnResult> {
 	cb.onPhase('looking')
 	const focus = serializeBoard(editor)
@@ -44,14 +55,16 @@ export async function runTutorTurn(
 	cb.onPhase('thinking')
 	const res = await fetch('/api/tutor', {
 		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
+		headers: { 'Content-Type': 'application/json', ...(opts.scripted ? { 'x-loci-demo': 'scripted' } : userKeyHeaders()) },
 		body: JSON.stringify(request),
 		signal,
 	})
 	if (!res.ok || !res.body) {
 		const body = await res.json().catch(() => ({}))
-		return { error: body.error ?? `Request failed (${res.status})` }
+		return { error: body.error ?? `Request failed (${res.status})`, limitReached: body.limitReached, quotaRemaining: body.quota?.remaining }
 	}
+	const quotaHeader = res.headers.get('X-Loci-Quota-Remaining')
+	const quotaRemaining = quotaHeader === null ? undefined : Number(quotaHeader)
 
 	lastMark.set(turn, editor.markHistoryStoppingPoint(`tutor-turn-${turn}`))
 	const executor = new CanvasExecutor(editor, turn, cb.beforeDraw)
@@ -122,5 +135,5 @@ export async function runTutorTurn(
 		}
 	}
 	await queue
-	return { error }
+	return { error, quotaRemaining }
 }

@@ -4,6 +4,7 @@ import type { Turn } from '@/lib/storage/conversation'
 import { renderRich } from '@/lib/canvas/richtext'
 import { CloseIcon, HistoryIcon, UndoIcon } from './icons'
 import type { TutorStatus } from '../useTutor'
+import { REPO_URL } from './KeyDialog'
 
 const PHASE: Record<Turn['status'], string> = {
 	looking: 'Looking at your board',
@@ -30,6 +31,16 @@ function TurnView({ turn, live }: { turn: Turn; live: boolean }) {
 				</p>
 			))}
 			{turn.error && <p className="loci-turn__error">{turn.error}</p>}
+			{turn.limitReached && (
+				<div className="loci-turn__limit">
+					<button className="loci-chip-btn" onClick={() => window.dispatchEvent(new CustomEvent('loci:open-key-dialog'))}>
+						Use your own API key
+					</button>
+					<a className="loci-chip-btn" href={REPO_URL} target="_blank" rel="noreferrer">
+						Run it locally (free, open source)
+					</a>
+				</div>
+			)}
 			{!live && turn.actions.length > 0 && (
 				<p className="loci-turn__meta">
 					{turn.undone ? 'Drawing removed' : `${turn.actions.length} mark${turn.actions.length === 1 ? '' : 's'} on the board`}
@@ -86,7 +97,7 @@ export function ResponsePanel({ turns, busy, status, onUndo, voice }: Props) {
 		)
 	}
 
-	const phase = PHASE[last.status]
+	const phase = last.limitReached ? 'Free questions used up' : PHASE[last.status]
 	const live = ['looking', 'thinking', 'teaching'].includes(last.status)
 	return (
 		<section className="loci-panel" onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()} aria-live="polite">

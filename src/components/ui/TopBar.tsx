@@ -50,6 +50,18 @@ export function TopBar({ status, voiceOut, onToggleVoice, onClear, onSample }: P
 						</button>
 						<button
 							role="menuitem"
+							onClick={() => {
+								setMenu(false)
+								window.dispatchEvent(new CustomEvent('loci:open-key-dialog'))
+							}}
+						>
+							Use your own API key…
+						</button>
+						<a role="menuitem" href="https://github.com/keananwongso/loci" target="_blank" rel="noreferrer">
+							Source code on GitHub
+						</a>
+						<button
+							role="menuitem"
 							className="loci-danger"
 							onClick={() => {
 								setMenu(false)

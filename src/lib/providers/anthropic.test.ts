@@ -89,7 +89,7 @@ describe('AnthropicProvider', () => {
 
 		const events: TutorEvent[] = []
 		const emit = (e: TutorEvent) => events.push(e)
-		const provider = new AnthropicProvider(() => client)
+		const provider = new AnthropicProvider({ makeClient: () => client })
 		await provider.run(
 			{ system: SYSTEM_PROMPT, tools: getToolDefinitions(), request, turnText: buildTurnText(request) },
 			new ActionSession(request.board, emit),

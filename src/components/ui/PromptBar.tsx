@@ -11,9 +11,11 @@ interface Props {
 	onAsk: (question: string) => void
 	onStop: () => void
 	disabledReason?: string
+	/** Hosted demo: free questions left today on this device. */
+	freeLeft?: number
 }
 
-export function PromptBar({ busy, onAsk, onStop, disabledReason }: Props) {
+export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft }: Props) {
 	const editor = useEditor()
 	const [text, setText] = useState('')
 	const [listening, setListening] = useState(false)
@@ -103,6 +105,11 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason }: Props) {
 				}}
 			/>
 			{voiceError && <div className="loci-prompt__error">{voiceError}</div>}
+			{freeLeft !== undefined && (
+				<div className="loci-prompt__quota" data-empty={freeLeft === 0}>
+					{freeLeft === 0 ? 'No free questions left today' : `${freeLeft} free question${freeLeft === 1 ? '' : 's'} left today`}
+				</div>
+			)}
 			{canRecognize() && (
 				<button
 					className="loci-icon-btn"

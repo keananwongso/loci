@@ -52,3 +52,26 @@ export function getProvider(env: NodeJS.ProcessEnv = process.env): TutorModelPro
 		extraHeaders: preset.extraHeaders,
 	})
 }
+
+export const USER_KEY_PROVIDERS = ['anthropic', 'openrouter', 'openai', 'deepseek', 'gemini', 'groq'] as const
+export type UserKeyProvider = (typeof USER_KEY_PROVIDERS)[number]
+
+/**
+ * A provider using a visitor's own API key (hosted demo). The key is used for this one request
+ * and never stored or logged. Custom base URLs are not accepted, so the server can only be
+ * pointed at the known providers above.
+ */
+export function providerForUserKey(provider: string, apiKey: string, model?: string): TutorModelProvider {
+	if (!(USER_KEY_PROVIDERS as readonly string[]).includes(provider)) throw new Error(`Unsupported provider "${provider}".`)
+	if (provider === 'anthropic') return new AnthropicProvider({ apiKey, model })
+	const preset = PRESETS[provider]
+	return new OpenAICompatibleProvider({
+		name: provider,
+		baseUrl: preset.baseUrl,
+		apiKey,
+		keyEnv: preset.keyEnv,
+		model: model || preset.defaultModel,
+		vision: 'auto',
+		extraHeaders: preset.extraHeaders,
+	})
+}

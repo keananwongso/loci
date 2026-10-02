@@ -15,15 +15,23 @@ export class AnthropicProvider implements TutorModelProvider {
 	readonly setupHint = 'Add an API key to .env.local (ANTHROPIC_API_KEY, or OPENROUTER_API_KEY, DEEPSEEK_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY...) and restart `npm run dev`.'
 	private effort: Effort
 
-	/** `makeClient` exists for tests; normally the SDK reads the key from the server environment. */
-	constructor(private makeClient: () => Anthropic = () => new Anthropic()) {
-		this.model = process.env.LOCI_MODEL || 'claude-opus-5-5'
+	private apiKey?: string
+	private makeClient: () => Anthropic
+
+	/**
+	 * By default the SDK reads the key from the server environment. `apiKey` is a visitor's own
+	 * key (hosted demo, bring your own key); `makeClient` exists for tests.
+	 */
+	constructor(opts: { apiKey?: string; model?: string; makeClient?: () => Anthropic } = {}) {
+		this.apiKey = opts.apiKey
+		this.model = opts.model || process.env.LOCI_MODEL || 'claude-opus-5-5'
 		const effort = process.env.LOCI_EFFORT
 		this.effort = effort === 'low' || effort === 'high' ? effort : 'medium'
+		this.makeClient = opts.makeClient ?? (() => (this.apiKey ? new Anthropic({ apiKey: this.apiKey }) : new Anthropic()))
 	}
 
 	isConfigured() {
-		return Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN)
+		return Boolean(this.apiKey || process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN)
 	}
 
 	describeError(err: unknown) {
