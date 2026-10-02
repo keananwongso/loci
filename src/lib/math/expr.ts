@@ -126,8 +126,8 @@ function parse(tokens: Token[]): Node {
 		if (tok.k === 'id') {
 			pos++
 			if (tok.v === 'x') return { t: 'var' }
-			if (tok.v in CONSTANTS) return { t: 'num', v: CONSTANTS[tok.v] }
-			if (tok.v in FUNCTIONS) {
+			if (Object.hasOwn(CONSTANTS, tok.v)) return { t: 'num', v: CONSTANTS[tok.v] }
+			if (Object.hasOwn(FUNCTIONS, tok.v)) {
 				expectOp('(')
 				const args = [expr()]
 				while (isOp(',')) {
