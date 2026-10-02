@@ -56,8 +56,7 @@ export type HighlightShape = TLShape<typeof HIGHLIGHT>
 export type RegionShape = TLShape<typeof REGION>
 
 /** Shape meta Loci writes on everything the tutor creates. */
-export interface LociMeta {
+export type LociMeta = {
 	author?: 'assistant'
 	turn?: number
-	label?: string
 }
