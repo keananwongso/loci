@@ -4,9 +4,9 @@
   "private": true,
   "description": "A local-first spatial AI tutor: the AI teaches by drawing on the same canvas as your course material.",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "node scripts/next.mjs dev",
+    "build": "node scripts/next.mjs build",
+    "start": "node scripts/next.mjs start",
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "sample": "node scripts/make-sample.mjs"
@@ -15,6 +15,7 @@
     "@anthropic-ai/sdk": "^0.131.0",
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource/instrument-serif": "^5.3.0",
+    "@tldraw/assets": "^5.5.0",
     "idb-keyval": "^6.3.0",
     "katex": "^0.19.0",
     "next": "^16.3.8",

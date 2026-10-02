@@ -433,7 +433,7 @@ export class CanvasExecutor {
 		for (const it of action.items) markFresh(`${id}:${it.id}`)
 		const byId = new Map(g.props.items.map((it) => [it.id, it]))
 		for (const it of action.items) byId.set(it.id, it)
-		this.editor.updateShape<GraphShape>({ id, type: GRAPH, props: { items: [...byId.values()] }, meta: { ...g.meta, turn: this.turn } })
+		this.editor.updateShape<GraphShape>({ id, type: GRAPH, props: { items: [...byId.values()] } })
 		this.done(id)
 	}
 
