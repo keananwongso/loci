@@ -253,5 +253,39 @@ export function layoutGraph(p: GraphProps): GraphLayout {
 		}
 	}
 
+	separateLabels(labels)
 	return { grid, axes, tickLabels, strokes, labels }
+}
+
+/** Rough on-screen size of a KaTeX label, from its LaTeX source. */
+function labelSize(latex: string, size = 17) {
+	const visible = latex
+		.replace(/\\(text|mathrm|mathbf)\{([^}]*)\}/g, '$2')
+		.replace(/\\[a-zA-Z]+/g, 'x')
+		.replace(/[{}_^\\ ]/g, '')
+	return { w: Math.max(1, visible.length) * size * 0.6 + 8, h: size * 1.3 }
+}
+
+/** Nudge overlapping labels apart (later labels move), so names stay readable. */
+export function separateLabels(labels: GraphLabel[]) {
+	for (let pass = 0; pass < 6; pass++) {
+		let moved = false
+		for (let i = 0; i < labels.length; i++) {
+			for (let j = 0; j < i; j++) {
+				const a = labels[j]
+				const b = labels[i]
+				const sa = labelSize(a.latex, a.size)
+				const sb = labelSize(b.latex, b.size)
+				const overlapX = (sa.w + sb.w) / 2 - Math.abs(a.x - b.x)
+				const overlapY = (sa.h + sb.h) / 2 - Math.abs(a.y - b.y)
+				if (overlapX > 0 && overlapY > 0) {
+					// Move along the axis that needs the smaller push.
+					if (overlapY < overlapX) b.y += (b.y >= a.y ? 1 : -1) * (overlapY + 2)
+					else b.x += (b.x >= a.x ? 1 : -1) * (overlapX + 2)
+					moved = true
+				}
+			}
+		}
+		if (!moved) break
+	}
 }

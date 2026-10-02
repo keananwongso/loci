@@ -52,7 +52,8 @@ export async function runTutorTurn(
 
 	lastMark.set(turn, editor.markHistoryStoppingPoint(`tutor-turn-${turn}`))
 	const executor = new CanvasExecutor(editor, turn, cb.beforeDraw)
-	executor.focusContext([...focus.board.selectedIds, ...focus.focusMaterials.map((m) => m.id)])
+	// Frame from the region the student drew, if any; whole pages are too big to keep framed.
+	if (focus.board.region) executor.focusContext([focus.board.region.id])
 
 	// One ordered queue for speech and drawing.
 	let queue = Promise.resolve()

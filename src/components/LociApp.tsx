@@ -19,8 +19,10 @@ import { PromptBar } from './ui/PromptBar'
 import { ResponsePanel } from './ui/ResponsePanel'
 import { EmptyState } from './ui/EmptyState'
 import { TopBar } from './ui/TopBar'
+import { StylePanel } from './ui/StylePanel'
 import { useTutor } from './useTutor'
 import { ACCEPTED_TYPES, ingestFiles } from '@/lib/canvas/ingest'
+import { REGION } from '@/lib/canvas/shape-types'
 
 const shapeUtils = [MaterialShapeUtil, EquationShapeUtil, GraphShapeUtil, HighlightShapeUtil, RegionShapeUtil]
 const tools = [RegionTool]
@@ -43,6 +45,7 @@ const components: TLComponents = {
 	HelperButtons: null,
 	Minimap: null,
 	InFrontOfTheCanvas: TutorCursor,
+	StylePanel,
 }
 
 const overrides: TLUiOverrides = {
@@ -95,6 +98,23 @@ function Shell() {
 			}
 		})
 	}, [editor, ingest])
+
+	// A region is a pointing gesture: once it is no longer selected, it disappears.
+	useEffect(() => {
+		return editor.store.listen(
+			() => {
+				const selected = new Set(editor.getSelectedShapeIds())
+				const stale = editor
+					.getCurrentPageShapes()
+					.filter((s) => s.type === REGION && !selected.has(s.id))
+					.map((s) => s.id)
+				if (stale.length && editor.getCurrentToolId() !== 'loci-region' && !tutor.busy) {
+					editor.timers.setTimeout(() => editor.deleteShapes(stale), 0)
+				}
+			},
+			{ scope: 'session', source: 'user' }
+		)
+	}, [editor, tutor.busy])
 
 	const loadSample = useCallback(async () => {
 		setLoading('Loading sample notes…')

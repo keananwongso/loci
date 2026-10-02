@@ -33,6 +33,7 @@ import { DEFAULT_GAP, NORMALIZED_SIDE, placeRelative, sidePoint, union, type Rec
 import { EQUATION_FONT_SIZE, measureLatex } from './katex'
 import { TL_COLOR } from './palette'
 import { markFresh } from './fresh'
+import { fitZoom, frameArea, isFramed } from './camera'
 
 export const toShapeId = (id: string) => (id.startsWith('shape:') ? (id as TLShapeId) : createShapeId(id))
 export const toModelId = (id: string) => id.replace(/^shape:/, '')
@@ -104,21 +105,18 @@ export class CanvasExecutor {
 		}
 	}
 
-	/** Keep what the tutor is drawing in view without jarring jumps. */
+	/**
+	 * Keep what the tutor is drawing in view, in the part of the screen the answer panel
+	 * doesn't cover. Grows the frame to include everything drawn this turn while that stays
+	 * legible; otherwise follows the newest object.
+	 */
 	private reveal(area: Rect) {
-		this.turnArea = this.turnArea ? union([this.turnArea, area]) : area
-		const vp = this.editor.getViewportPageBounds()
-		const a = this.turnArea
-		const inView = a.x >= vp.x && a.y >= vp.y && a.x + a.w <= vp.x + vp.w && a.y + a.h <= vp.y + vp.h
-		if (!inView) {
-			this.editor.zoomToBounds(
-				{ x: a.x - 40, y: a.y - 40, w: a.w + 80, h: a.h + 80 },
-				{ animation: { duration: 500 }, inset: 60, targetZoom: Math.min(1, this.editor.getZoomLevel()) }
-			)
-		}
+		const grown = this.turnArea ? union([this.turnArea, area]) : area
+		this.turnArea = fitZoom(this.editor, grown) >= 0.5 ? grown : area
+		if (!isFramed(this.editor, this.turnArea)) frameArea(this.editor, this.turnArea)
 	}
 
-	/** Include the material the student asked about in the area kept in view. */
+	/** Start the frame from what the student pointed at (a region or highlight, not a whole page). */
 	focusContext(ids: string[]) {
 		const rects = ids.map((id) => this.bounds(id)).filter((r): r is Rect => Boolean(r))
 		if (rects.length) this.turnArea = union(rects)
@@ -169,10 +167,7 @@ export class CanvasExecutor {
 				return
 			case 'focus': {
 				const rects = action.ids.map((id) => this.bounds(id)).filter((r): r is Rect => Boolean(r))
-				if (rects.length) {
-					const u = union(rects)
-					this.editor.zoomToBounds(u, { animation: { duration: 500 }, inset: 80, targetZoom: 1 })
-				}
+				if (rects.length) frameArea(this.editor, union(rects))
 				return
 			}
 		}

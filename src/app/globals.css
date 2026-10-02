@@ -397,7 +397,7 @@ button {
 .loci-panel {
 	display: flex;
 	flex-direction: column;
-	max-height: min(44vh, 460px);
+	max-height: min(36vh, 380px);
 	border-radius: 20px;
 	background: var(--loci-surface);
 	border: 1px solid var(--loci-line);

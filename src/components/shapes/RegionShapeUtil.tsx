@@ -49,8 +49,9 @@ export class RegionTool extends BaseBoxShapeTool {
 	override shapeType = REGION as typeof REGION
 
 	override onCreate() {
-		// Return to selection so the new region stays selected and the student can type.
-		this.editor.setCurrentTool('select')
+		// Return to selection (select.idle also clears the tool-id mask tldraw sets while the
+		// box is being dragged) so the region stays selected and the student can type.
+		this.editor.setCurrentTool('select.idle')
 		window.dispatchEvent(new CustomEvent('loci:focus-prompt'))
 	}
 }

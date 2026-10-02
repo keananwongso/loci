@@ -27,7 +27,7 @@ export function equalAspectHeight(width: number, xRange: [number, number], yRang
 }
 
 /** A "nice" tick step for a range spanning roughly `pixels` on screen. */
-export function niceStep(span: number, pixels: number, minPixelsPerTick = 36): number {
+export function niceStep(span: number, pixels: number, minPixelsPerTick = 56): number {
 	const raw = (span * minPixelsPerTick) / Math.max(pixels, 1)
 	const pow = Math.pow(10, Math.floor(Math.log10(raw)))
 	for (const m of [1, 2, 5, 10]) {
