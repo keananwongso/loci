@@ -83,7 +83,7 @@ With Anthropic, requests opt into the API's server side refusal fallback (`fallb
 
 Click the speaker button in the top bar to turn on voice mode, then hold **Ctrl + Alt** (or the mic button) to ask out loud. The tutor speaks each sentence as it draws what that sentence is about, and the next sentence waits until the last one is finished. The written transcript is one click away (Show transcript).
 
-For natural voices add `FISH_API_KEY` to `.env.local` ([Fish Audio](https://fish.audio), about $15 per million characters, so roughly a cent per answer). `FISH_VOICE_ID` picks a voice and `LOCI_TTS_MODEL` the model (default `s2-pro`). Without a key, the browser's built-in voice is used. Only the tutor's spoken sentences are sent to Fish Audio, never your files.
+For natural voices add `FISH_API_KEY` to `.env.local` ([Fish Audio](https://fish.audio), about $15 per million characters, so roughly a cent per answer). `FISH_VOICE_ID` picks a voice and `LOCI_TTS_MODEL` the model (default `s2-pro`). With a key, hold-to-talk also records your question from the moment you press and Fish Audio transcribes it when you let go. Without a key, the browser's built-in voice and speech recognition are used. Only the tutor's spoken sentences and your recorded question are sent to Fish Audio, never your files.
 
 **Can I use a Claude or ChatGPT subscription instead of an API key?** No. Consumer subscriptions don't include API access, and routing an app through a subscription login (or through browser session cookies) goes against the providers' terms and can get the account suspended. For free or very cheap use, try Gemini's free tier, DeepSeek, or a local model through Ollama.
 

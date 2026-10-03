@@ -53,3 +53,27 @@ export async function fishSpeech(text: string, config: FishConfig, signal?: Abor
 	}
 	return res.body
 }
+
+export const FISH_ASR_URL = 'https://api.fish.audio/v1/asr'
+/** About a minute of compressed speech; a hold-to-talk question is a few seconds. */
+export const MAX_RECORDING_BYTES = 2_000_000
+
+/** Transcribe a recorded question. Returns the text (possibly empty). */
+export async function fishTranscribe(audio: Blob, config: FishConfig, signal?: AbortSignal): Promise<string> {
+	if (!config.apiKey) throw new FishError(503, 'FISH_API_KEY is not set.')
+	const form = new FormData()
+	form.append('audio', audio, 'question.webm')
+	form.append('ignore_timestamps', 'true')
+	const res = await (config.fetch ?? fetch)(FISH_ASR_URL, {
+		method: 'POST',
+		signal,
+		headers: { Authorization: `Bearer ${config.apiKey}` },
+		body: form,
+	})
+	if (!res.ok) {
+		const body = await res.text().catch(() => '')
+		throw new FishError(res.status, `Fish Audio transcription error ${res.status}: ${body.slice(0, 200)}`)
+	}
+	const data = (await res.json()) as { text?: string }
+	return (data.text ?? '').trim()
+}

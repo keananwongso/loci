@@ -58,43 +58,66 @@ export function voiceLevel(): number {
 	return 0
 }
 
-let micWanted = false
+let micStream: MediaStream | null = null
+let micOpening: Promise<MediaStream | null> | null = null
+let micActive = false
+let closeTimer: ReturnType<typeof setTimeout> | undefined
 
-export async function startMic() {
-	micWanted = true
-	if (mic) return
-	try {
-		const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-		// Released before the browser handed over the mic.
-		if (!micWanted || mic) {
-			stream.getTracks().forEach((t) => t.stop())
-			return
-		}
-		const ac = audioContext()
-		const analyser = ac.createAnalyser()
-		analyser.fftSize = 1024
-		const source = ac.createMediaStreamSource(stream)
-		source.connect(analyser)
-		mic = {
-			analyser,
-			buf: new Float32Array(analyser.fftSize),
-			stop: () => {
-				source.disconnect()
-				stream.getTracks().forEach((t) => t.stop())
-			},
-		}
-	} catch {
-		mic = null
-	}
+/**
+ * Open the mic (or reuse it if it is still warm) and start metering its level. The stream stays
+ * open for a short while after release, so the next press records from its very first word.
+ */
+export async function openMic(): Promise<MediaStream | null> {
+	clearTimeout(closeTimer)
+	micActive = true
+	if (micStream?.active) return micStream
+	micOpening ??= navigator.mediaDevices
+		.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } })
+		.then((stream) => {
+			micStream = stream
+			const ac = audioContext()
+			const analyser = ac.createAnalyser()
+			analyser.fftSize = 1024
+			const source = ac.createMediaStreamSource(stream)
+			source.connect(analyser)
+			mic = {
+				analyser,
+				buf: new Float32Array(analyser.fftSize),
+				stop: () => {
+					source.disconnect()
+					stream.getTracks().forEach((t) => t.stop())
+				},
+			}
+			return stream
+		})
+		.catch((err) => {
+			console.warn('[loci] microphone unavailable', err)
+			return null
+		})
+		.finally(() => (micOpening = null))
+	return micOpening
 }
 
+/** Stop metering now; release the mic itself after `ms` unless it is opened again. */
+export function releaseMic(ms = 45000) {
+	micActive = false
+	clearTimeout(closeTimer)
+	closeTimer = setTimeout(() => {
+		mic?.stop()
+		mic = null
+		micStream = null
+	}, ms)
+}
+
+/** Kept for the prompt bar's mic button. */
+export async function startMic() {
+	await openMic()
+}
 export function stopMic() {
-	micWanted = false
-	mic?.stop()
-	mic = null
+	releaseMic()
 }
 
 /** How loud the student is while holding to talk. */
 export function micLevel(): number {
-	return mic ? Math.min(1, rms(mic.analyser, mic.buf) * 9) : 0
+	return mic && micActive ? Math.min(1, rms(mic.analyser, mic.buf) * 9) : 0
 }

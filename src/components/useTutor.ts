@@ -3,7 +3,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Editor } from 'tldraw'
 import { lastMark, runTutorTurn } from '@/lib/tutor/client'
 import { clearConversation, loadConversation, saveConversation, type Turn } from '@/lib/storage/conversation'
-import { endTutorTurn, moveTutorTo, setTutorMode } from '@/lib/canvas/presence'
+import { endTutorTurn, lookAt, moveTutorTo, setBuddyStatus } from '@/lib/canvas/presence'
+import { playAck } from '@/lib/voice/ack'
 import { playSpeech, prepareSpeech, stopAllSpeech, type PreparedSpeech } from '@/lib/voice/player'
 import { describeSelection } from './selection'
 import { loadUserKey, type UserKey } from '@/lib/storage/userKey'
@@ -60,6 +61,12 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 		async (question: string, opts: { scripted?: boolean } = {}) => {
 			if (!editor || busy || !question.trim()) return
 			stopAllSpeech()
+			// Instant feedback, before any model has answered: fly to what they pointed at, say so,
+			// and in voice mode acknowledge out loud.
+			const focus = editor.getSelectionPageBounds()
+			lookAt(focus ? { x: focus.x, y: focus.y, w: focus.w, h: focus.h } : null)
+			setBuddyStatus(focus ? 'Looking at this…' : 'Looking at your board…')
+			const leadIn = voiceRef.current ? playAck().done : undefined
 			const id = crypto.randomUUID()
 			const turnNumber = (turns.at(-1)?.turn ?? 0) + 1
 			const history = turns
@@ -79,7 +86,6 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 
 			const controller = new AbortController()
 			abortRef.current = controller
-			setTutorMode('thinking')
 			try {
 				const result = await runTutorTurn(
 					editor,
@@ -87,7 +93,10 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 					history,
 					turnNumber,
 					{
-						onPhase: (phase) => patch((t) => ({ ...t, status: phase })),
+						onPhase: (phase) => {
+							patch((t) => ({ ...t, status: phase }))
+							setBuddyStatus(phase === 'thinking' ? 'Thinking…' : phase === 'teaching' ? '' : 'Looking at this…')
+						},
 						prepareSay: (text) => (voiceRef.current ? prepareSpeech(text) : undefined),
 						onSay: (text, prepared) => {
 							patch((t) => ({ ...t, said: [...t.said, text] }))
@@ -98,7 +107,7 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 						beforeDraw: moveTutorTo,
 					},
 					controller.signal,
-					opts
+					{ ...opts, leadIn }
 				)
 				patch((t) => ({ ...t, status: result.error ? 'error' : 'done', error: result.error, limitReached: result.limitReached }))
 				if (result.quotaRemaining !== undefined) {
@@ -109,6 +118,7 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 				patch((t) => ({ ...t, status: aborted ? 'stopped' : 'error', error: aborted ? undefined : (err as Error).message }))
 			} finally {
 				abortRef.current = null
+				setBuddyStatus('')
 				endTutorTurn()
 			}
 		},

@@ -27,6 +27,7 @@ import { useTutor } from './useTutor'
 import { ACCEPTED_TYPES, ingestFiles } from '@/lib/canvas/ingest'
 import { REGION } from '@/lib/canvas/shape-types'
 import { checkSpeechProvider } from '@/lib/voice/player'
+import { warmAcks } from '@/lib/voice/ack'
 import { loadHandFont } from '@/lib/canvas/hand'
 import { installDragToPan } from '@/lib/canvas/pan'
 
@@ -92,7 +93,11 @@ function Shell() {
 	// Which voice answers (Fish Audio or the browser's), checked whenever voice is turned on.
 	const [voiceProvider, setVoiceProvider] = useState<'fish' | 'browser' | null>(null)
 	useEffect(() => {
-		if (voiceOut) checkSpeechProvider().then(setVoiceProvider)
+		if (voiceOut)
+			checkSpeechProvider().then((p) => {
+				setVoiceProvider(p)
+				warmAcks()
+			})
 	}, [voiceOut])
 
 	const toggleVoice = () => {

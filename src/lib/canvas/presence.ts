@@ -62,3 +62,19 @@ export function talkKeysLabel() {
 	if (typeof navigator === 'undefined') return 'Ctrl + Alt'
 	return /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? '⌃ + ⌥' : 'Ctrl + Alt'
 }
+
+/** A short line under the buddy saying what it is doing ("Thinking…"); empty hides it. */
+export const buddyStatus = atom<string>('buddyStatus', '')
+
+let statusTimer: ReturnType<typeof setTimeout> | undefined
+export function setBuddyStatus(text: string, clearAfterMs?: number) {
+	clearTimeout(statusTimer)
+	buddyStatus.set(text)
+	if (clearAfterMs) statusTimer = setTimeout(() => buddyStatus.set(''), clearAfterMs)
+}
+
+/** Fly over to what the student pointed at and look at it while thinking. */
+export function lookAt(area: { x: number; y: number; w: number; h: number } | null) {
+	if (!area) return setTutorMode('thinking')
+	tutorPresence.set({ x: area.x + area.w / 2, y: area.y + Math.min(area.h, 160) / 2, away: true, mode: 'thinking' })
+}

@@ -761,7 +761,7 @@ button {
 	transition: opacity 0.2s;
 }
 
-.loci-buddy[data-mode='listening'] .loci-buddy__hint {
+.loci-buddy__hint[data-show='true'] {
 	opacity: 1;
 }
 

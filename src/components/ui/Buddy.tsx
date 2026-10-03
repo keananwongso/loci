@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useRef } from 'react'
 import { useEditor, useValue } from 'tldraw'
-import { heard, tutorPresence } from '@/lib/canvas/presence'
+import { buddyStatus, heard, tutorPresence } from '@/lib/canvas/presence'
 import { micLevel, voiceLevel } from '@/lib/voice/level'
 
 const N = 170
@@ -31,6 +31,9 @@ export function Buddy() {
 	const root = useRef<HTMLDivElement>(null)
 	const canvas = useRef<HTMLCanvasElement>(null)
 	const words = useValue('heard', () => heard.get(), [])
+	const status = useValue('buddy-status', () => buddyStatus.get(), [])
+	const listening = useValue('buddy-listening', () => tutorPresence.get().mode === 'listening', [])
+	const hint = listening ? (words ? lastWords(words) : 'Listening · drag to highlight') : status
 
 	useEffect(() => {
 		const el = root.current
@@ -138,7 +141,9 @@ export function Buddy() {
 	return (
 		<div className="loci-buddy" ref={root} aria-hidden>
 			<canvas ref={canvas} />
-			<span className="loci-buddy__hint">{words ? lastWords(words) : 'Listening · drag to highlight'}</span>
+			<span className="loci-buddy__hint" data-show={Boolean(hint)}>
+				{hint}
+			</span>
 		</div>
 	)
 }

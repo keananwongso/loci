@@ -21,6 +21,9 @@ let provider: 'fish' | 'browser' | 'unknown' = 'unknown'
 let element: HTMLAudioElement | null = null
 let stopCurrent: (() => void) | null = null
 
+/** Fish Audio is set up on the server (known once checkSpeechProvider has run). */
+export const hasFish = () => provider === 'fish'
+
 export async function checkSpeechProvider(): Promise<'fish' | 'browser'> {
 	try {
 		const res = await fetch('/api/speech')

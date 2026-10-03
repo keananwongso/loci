@@ -47,6 +47,8 @@ export interface TurnResult {
 export interface TurnOptions {
 	/** Replay the free scripted lesson instead of calling a model. */
 	scripted?: boolean
+	/** Speech already playing (the instant acknowledgement); the first sentence waits for it. */
+	leadIn?: Promise<void>
 }
 
 export async function runTutorTurn(
@@ -85,7 +87,7 @@ export async function runTutorTurn(
 	// One ordered queue for speech and drawing.
 	let queue = Promise.resolve()
 	// The sentence being spoken. Drawing carries on under it; the next sentence waits for it.
-	let speaking: Promise<void> = Promise.resolve()
+	let speaking: Promise<void> = opts.leadIn?.catch(() => {}) ?? Promise.resolve()
 	let error: string | undefined
 	let started = false
 	const enqueue = (fn: () => Promise<void> | void) => {
