@@ -4,12 +4,13 @@ import { createShapeId, useEditor } from 'tldraw'
 import { REGION, type RegionShape } from '@/lib/canvas/shape-types'
 import { heard, setBuddyStatus, setTutorMode } from '@/lib/canvas/presence'
 import { canRecognize, startListening } from '@/lib/voice/speech'
-import { startRecording, transcribe, type Recording } from '@/lib/voice/recorder'
+import { startRecording, transcribe, within, type Recording } from '@/lib/voice/recorder'
 import { stopAllSpeech } from '@/lib/voice/player'
 
 interface Props {
 	busy: boolean
-	onAsk: (question: string) => void
+	/** Returns false when the question could not be asked (for example, a turn is still running). */
+	onAsk: (question: string) => unknown
 	onStop: () => void
 	disabled?: boolean
 }
@@ -57,24 +58,34 @@ export function HoldToTalk({ busy, onAsk, onStop, disabled }: Props) {
 		// Feedback the instant the keys come up, before the words are even transcribed.
 		setTutorMode('thinking')
 		setBuddyStatus('Got it…')
-		const [clip, browserText] = await Promise.all([
-			recording.current?.stop() ?? Promise.resolve(null),
-			stopRec.current ? stopRec.current() : Promise.resolve(''),
-		])
+		const rec = recording.current
+		const words = stopRec.current
 		recording.current = null
 		stopRec.current = null
+		const [clip, browserText] = await Promise.all([
+			rec ? rec.stop().catch(() => null) : Promise.resolve(null),
+			words ? within(words().catch(() => ''), 2000, heard.get()) : Promise.resolve(heard.get()),
+		])
 		heard.set('')
 		// Clips under about half a second are a tap, not a question.
 		const spoke = Boolean(clip && clip.size > 3000)
-		const fish = spoke ? await transcribe(clip!) : null
+		// Fish is more accurate; if the browser already heard words, don't wait long for it.
+		const fish = spoke ? await transcribe(clip!, browserText.trim() ? 3500 : 7000) : null
 		const transcript = (fish ?? browserText).trim()
-		if (transcript) return live.current.onAsk(transcript)
+		console.info('[loci] hold to talk:', { recordedBytes: clip?.size ?? 0, fish, browser: browserText, asking: transcript })
+		if (transcript) {
+			Promise.resolve(live.current.onAsk(transcript)).then((asked) => {
+				if (asked === false) setBuddyStatus('Still busy. Hold again to interrupt.', 3000)
+			})
+			return
+		}
 		setTutorMode('idle')
 		if (marked.current) {
 			// Pointed at something but said nothing: type the question instead.
 			setBuddyStatus('')
 			window.dispatchEvent(new CustomEvent('loci:focus-prompt'))
 		} else if (spoke) setBuddyStatus("Didn't catch that. Hold and try again?", 3000)
+		else if (!clip) setBuddyStatus("Couldn't use your mic. Check the browser's mic permission.", 4000)
 		else setBuddyStatus('')
 	}, [])
 

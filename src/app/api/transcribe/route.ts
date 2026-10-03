@@ -16,6 +16,7 @@ export async function POST(req: Request) {
 	if (audio.size > MAX_RECORDING_BYTES) return Response.json({ error: 'Recording too long.' }, { status: 413 })
 	try {
 		const text = await fishTranscribe(audio, config, req.signal)
+		console.info(`[loci] transcribed ${Math.round(audio.size / 1024)} KB (${audio.type || 'unknown type'}): ${text ? `"${text.slice(0, 80)}"` : '(no words)'}`)
 		return Response.json({ text })
 	} catch (err) {
 		const status = err instanceof FishError ? err.status : 502

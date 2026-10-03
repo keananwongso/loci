@@ -59,7 +59,11 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 
 	const ask = useCallback(
 		async (question: string, opts: { scripted?: boolean } = {}) => {
-			if (!editor || busy || !question.trim()) return
+			if (!editor || busy || !question.trim()) {
+				setBuddyStatus('')
+				endTutorTurn()
+				return false
+			}
 			stopAllSpeech()
 			// Instant feedback, before any model has answered: fly to what they pointed at, say so,
 			// and in voice mode acknowledge out loud.
