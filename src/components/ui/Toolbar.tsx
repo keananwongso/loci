@@ -1,17 +1,31 @@
 'use client'
 import { GeoShapeGeoStyle, useEditor, useValue } from 'tldraw'
 import type { ReactNode } from 'react'
+import { talkKeysLabel } from '@/lib/canvas/presence'
 import { ArrowIcon, EraserIcon, HandIcon, PenIcon, RectIcon, RegionIcon, SelectIcon, TextIcon, UploadIcon } from './icons'
 
-const TOOLS: Array<{ id: string; label: string; kbd: string; icon: ReactNode; geo?: boolean }> = [
-	{ id: 'select', label: 'Select', kbd: 'V', icon: <SelectIcon /> },
-	{ id: 'hand', label: 'Pan', kbd: 'H', icon: <HandIcon /> },
-	{ id: 'draw', label: 'Draw', kbd: 'D', icon: <PenIcon /> },
-	{ id: 'text', label: 'Text', kbd: 'T', icon: <TextIcon /> },
-	{ id: 'geo', label: 'Rectangle', kbd: 'R', icon: <RectIcon />, geo: true },
-	{ id: 'arrow', label: 'Arrow', kbd: 'A', icon: <ArrowIcon /> },
-	{ id: 'eraser', label: 'Eraser', kbd: 'E', icon: <EraserIcon /> },
+const TOOLS: Array<{ id: string; label: string; kbd: string; tip: string; icon: ReactNode; geo?: boolean }> = [
+	{ id: 'select', label: 'Select', kbd: 'V', tip: 'Click a page or object to ask about it. Drag to move things.', icon: <SelectIcon /> },
+	{ id: 'hand', label: 'Pan', kbd: 'H', tip: 'Drag to move around the board. Dragging an empty spot works too.', icon: <HandIcon /> },
+	{ id: 'draw', label: 'Pen', kbd: 'D', tip: 'Sketch on the board. Loci can see your sketches when you ask.', icon: <PenIcon /> },
+	{ id: 'text', label: 'Text', kbd: 'T', tip: 'Click anywhere to type a note.', icon: <TextIcon /> },
+	{ id: 'geo', label: 'Box', kbd: 'R', tip: 'Drag to draw a rectangle.', icon: <RectIcon />, geo: true },
+	{ id: 'arrow', label: 'Arrow', kbd: 'A', tip: 'Drag from one thing to another to connect them.', icon: <ArrowIcon /> },
+	{ id: 'eraser', label: 'Eraser', kbd: 'E', tip: 'Drag over marks to erase them.', icon: <EraserIcon /> },
 ]
+
+/** A tooltip that appears beside the button: what it is, its key, and what it does. */
+function Tip({ label, kbd, children }: { label: string; kbd?: string; children: ReactNode }) {
+	return (
+		<span className="loci-tip" role="tooltip">
+			<span className="loci-tip__head">
+				{label}
+				{kbd && <kbd>{kbd}</kbd>}
+			</span>
+			<span className="loci-tip__body">{children}</span>
+		</span>
+	)
+}
 
 export function Toolbar({ onUpload }: { onUpload: () => void }) {
 	const editor = useEditor()
@@ -23,28 +37,33 @@ export function Toolbar({ onUpload }: { onUpload: () => void }) {
 					key={t.id}
 					className="loci-tool"
 					data-active={current === t.id}
-					title={`${t.label} (${t.kbd})`}
-					aria-label={t.label}
+					aria-label={`${t.label} (${t.kbd})`}
 					onClick={() => {
 						if (t.geo) editor.setStyleForNextShapes(GeoShapeGeoStyle, 'rectangle')
 						editor.setCurrentTool(t.id)
 					}}
 				>
 					{t.icon}
+					<Tip label={t.label} kbd={t.kbd}>
+						{t.tip}
+					</Tip>
 				</button>
 			))}
 			<div className="loci-toolbar__sep" />
 			<button
 				className="loci-tool loci-tool--accent"
 				data-active={current === 'loci-region'}
-				title="Ask about an area (Q): drag a box around part of a page"
-				aria-label="Ask about an area"
+				aria-label="Ask about an area (Q)"
 				onClick={() => editor.setCurrentTool('loci-region')}
 			>
 				<RegionIcon />
+				<Tip label="Ask about an area" kbd="Q">
+					Drag a box around part of a page, then ask about it. Or hold {talkKeysLabel()} and drag while you talk.
+				</Tip>
 			</button>
-			<button className="loci-tool" title="Upload pdf or image" aria-label="Upload" onClick={onUpload}>
+			<button className="loci-tool" aria-label="Upload a pdf or image" onClick={onUpload}>
 				<UploadIcon />
+				<Tip label="Upload">Add a pdf or an image of your notes. You can also drop files onto the board.</Tip>
 			</button>
 		</nav>
 	)

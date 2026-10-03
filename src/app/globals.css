@@ -283,6 +283,62 @@ button {
 	box-shadow: none;
 }
 
+/* toolbar tooltips: what the tool is, its key, and what it does */
+
+.loci-tool {
+	position: relative;
+}
+
+.loci-tip {
+	position: absolute;
+	left: calc(100% + 14px);
+	top: 50%;
+	z-index: 20;
+	display: grid;
+	gap: 3px;
+	width: max-content;
+	max-width: 240px;
+	padding: 8px 11px 9px;
+	border-radius: 10px;
+	background: var(--loci-ink);
+	color: color-mix(in srgb, var(--color-eggshell) 75%, transparent);
+	font-size: 12px;
+	line-height: 1.4;
+	text-align: left;
+	white-space: normal;
+	box-shadow: var(--loci-shadow-lg);
+	pointer-events: none;
+	opacity: 0;
+	transform: translate(-4px, -50%);
+	transition:
+		opacity 0.12s,
+		transform 0.12s;
+}
+
+.loci-tip__head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: var(--color-eggshell);
+	font-weight: 500;
+	font-size: 12.5px;
+}
+
+.loci-tip__head kbd {
+	padding: 0 5px;
+	border-radius: 4px;
+	background: color-mix(in srgb, var(--color-eggshell) 16%, transparent);
+	color: var(--color-eggshell);
+	font: 500 11px/1.5 var(--loci-sans);
+}
+
+.loci-tool:hover .loci-tip,
+.loci-tool:focus-visible .loci-tip {
+	opacity: 1;
+	transform: translate(0, -50%);
+	transition-delay: 0.25s;
+}
+
 .loci-toolbar__sep {
 	height: 1px;
 	margin: 4px 8px;
