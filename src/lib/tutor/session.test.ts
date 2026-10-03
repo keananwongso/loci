@@ -196,6 +196,16 @@ describe('repeats', () => {
 		expect(repeats('So f sub x is four.', 'So f sub y is thirteen.')).toBe(false)
 	})
 
+	it('drops the rest of a re-answer once it starts repeating', () => {
+		const { s, events } = session()
+		s.handle('say', { text: "I'm doing well, thanks. Your notes are up." })
+		expect(s.handle('say', { text: "I'm doing well, thanks. Ready when you are." }).ok).toBe(false)
+		expect(s.handle('say', { text: 'What would you like to focus on first?' }).ok).toBe(false)
+		expect(s.handle('highlight', { target: 'notes-p1', text: '∇f · u' }).ok).toBe(true)
+		expect(s.handle('say', { text: 'This is the line that matters.' }).ok).toBe(true)
+		expect(events.filter((e) => e.type === 'say')).toHaveLength(2)
+	})
+
 	it('refuses to say the same thing twice in a turn', () => {
 		const { s, events } = session()
 		expect(s.handle('say', { text: "I'm doing well, thanks. Your notes are up." }).ok).toBe(true)

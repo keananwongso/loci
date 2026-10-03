@@ -43,6 +43,8 @@ const ID_PREFIX: Partial<Record<ToolName, string>> = {
 }
 
 export class ActionSession {
+	/** The model began saying again what it already said; refuse sentences until it draws. */
+	private repeating = false
 	private ids = new Set<string>()
 	private assistantIds = new Set<string>()
 	private materials = new Map<string, { textItems?: TextItem[]; kind: string }>()
@@ -98,7 +100,9 @@ export class ActionSession {
 			if (action.type === 'say') {
 				const text = toSpoken(action.text)
 				if (!text) return { ok: true, result: 'Said nothing: the text was empty once markup was removed.' }
-				if (this.spoken.some((prev) => repeats(prev, text))) {
+				if (this.repeating || this.spoken.some((prev) => repeats(prev, text))) {
+					// A repeat means the model is answering again; the rest of that re-answer goes too.
+					this.repeating = true
 					this.emit({ type: 'rejected', tool, reason: 'repeats an earlier sentence' })
 					return {
 						ok: false,
@@ -109,6 +113,7 @@ export class ActionSession {
 				this.emit({ type: 'say', text, ...(action.look_at ? { look: action.look_at } : {}) })
 				return { ok: true, result: `Said aloud; the student heard it.${lookNote}` }
 			}
+			this.repeating = false
 			const summary = summarize(outcome.action)
 			this.summaries.push(summary)
 			this.emit({ type: 'action', action: outcome.action, summary })

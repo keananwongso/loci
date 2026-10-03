@@ -154,9 +154,9 @@ export class OpenAICompatibleProvider implements TutorModelProvider {
 				...(reasoning ? { reasoning_content: reasoning } : {}),
 			})
 			for (const t of toolCalls) messages.push({ role: 'tool', tool_call_id: t.call.id, content: t.result })
-			// Only spoke: the answer is complete (several sentences, or any later round). A lone first
-			// sentence may be a model that calls one tool at a time, so it gets another round.
-			if (toolCalls.every((t) => t.call.function.name === 'say') && (round > 0 || toolCalls.length > 1)) return
+			// A later round that only spoke has nothing left to draw: done. A first round that only spoke
+			// may just be the opening line, so it always gets another round (repeats are refused).
+			if (round > 0 && toolCalls.every((t) => t.call.function.name === 'say')) return
 		}
 	}
 

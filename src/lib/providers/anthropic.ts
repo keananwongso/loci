@@ -138,9 +138,9 @@ export class AnthropicProvider implements TutorModelProvider {
 			})
 
 			// Stop early once the model has only spoken; a final round would add nothing.
-			// Only spoke: the answer is complete (several sentences, or any later round). A lone first
-			// sentence may be a model that calls one tool at a time, so it gets another round.
-			if (toolUses.every((t) => t.name === 'say') && (round > 0 || toolUses.length > 1)) return
+			// A later round that only spoke has nothing left to draw: done. A first round that only spoke
+			// may just be the opening line, so it always gets another round (repeats are refused).
+			if (round > 0 && toolUses.every((t) => t.name === 'say')) return
 		}
 	}
 }
