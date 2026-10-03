@@ -14,16 +14,17 @@ const SEEDS = Array.from({ length: N }, (_, i) => {
 })
 
 type Rgb = readonly [number, number, number]
-const BLUE: Rgb = [36, 87, 230]
-const VIOLET: Rgb = [116, 69, 224]
-const ORANGE: Rgb = [224, 103, 15]
+// The product sparks: violet and ember, blended through pink while it thinks.
+const SPARK: Rgb = [4, 71, 255]
+const PINK: Rgb = [255, 112, 170]
+const EMBER: Rgb = [255, 71, 4]
 const mix = (a: Rgb, b: Rgb, k: number): Rgb => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k]
 
 /** Where the buddy rests relative to the student's cursor, like a companion beside it. */
 const REST = { x: 30, y: 30 }
 
 /**
- * The tutor's presence: a small particle orb in the board's own ink. It rests beside your cursor,
+ * The tutor's presence: a small particle orb in violet and ember. It rests beside your cursor,
  * listens while you hold to talk, swirls while it thinks, flies to wherever it draws and pulses
  * with its voice. Drawn every frame straight to a canvas; React only mounts it.
  */
@@ -113,7 +114,7 @@ export function Buddy() {
 
 			const listening = p.mode === 'listening'
 			const R = (listening ? 13.5 : p.mode === 'idle' ? 11 : 12.5) * (1 + 0.35 * env) + (still ? 0 : Math.sin(t * 2.2) * 0.4)
-			const base = listening ? mix(BLUE, ORANGE, 0.75) : p.mode === 'thinking' ? mix(BLUE, VIOLET, 0.7) : BLUE
+			const base = listening ? mix(SPARK, EMBER, 0.75) : p.mode === 'thinking' ? mix(SPARK, PINK, 0.7) : SPARK
 			const glow = g.createRadialGradient(36, 36, 0, 36, 36, R * 2.6)
 			glow.addColorStop(0, `rgba(${base.map(Math.round).join(',')},${0.16 + 0.22 * env})`)
 			glow.addColorStop(1, `rgba(${base.map(Math.round).join(',')},0)`)
@@ -133,7 +134,7 @@ export function Buddy() {
 				const lobe = still ? 0 : Math.sin(s.y * 3 + t * (speaking ? 7 : 2.4) + s.a * 0.05) * (0.04 + 0.3 * env)
 				const r = R * (1 + lobe)
 				const depth = (z + 1) / 2
-				const c = mix(base, VIOLET, listening ? 0 : (1 - s.y) * 0.25)
+				const c = mix(base, PINK, listening ? 0 : (1 - s.y) * 0.25)
 				g.fillStyle = `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${(0.18 + 0.82 * depth).toFixed(3)})`
 				const d = 0.55 + 1.05 * depth
 				g.fillRect(36 + x * r - d / 2, 36 + y * r - d / 2, d, d)

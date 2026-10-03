@@ -38,7 +38,7 @@ export class RegionShapeUtil extends ShapeUtil<RegionShape> {
 	}
 
 	override toSvg(shape: RegionShape) {
-		return <rect width={shape.props.w} height={shape.props.h} fill="none" stroke="#2457e6" strokeWidth={2} strokeDasharray="6 5" rx={6} />
+		return <rect width={shape.props.w} height={shape.props.h} fill="none" stroke="#000000" strokeWidth={1.5} strokeDasharray="6 5" rx={12} />
 	}
 }
 

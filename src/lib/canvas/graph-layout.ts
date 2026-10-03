@@ -85,7 +85,7 @@ export function layoutGraph(p: GraphProps): GraphLayout {
 	}
 	const axisY = p.yMin <= 0 && p.yMax >= 0 ? px([0, 0])[1] : p.h
 	const axisX = p.xMin <= 0 && p.xMax >= 0 ? px([0, 0])[0] : 0
-	const axisColor = '#3a4150'
+	const axisColor = '#44403b'
 	const axes: Stroke[] = [
 		{ key: 'ax', d: `M0,${f1(axisY)} H${f1(p.w)}`, color: axisColor, width: 1.4 },
 		{ key: 'ay', d: `M${f1(axisX)},${f1(p.h)} V0`, color: axisColor, width: 1.4 },

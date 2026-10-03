@@ -8,9 +8,9 @@ export function EmptyState({ onUpload, onSample, loading }: { onUpload: () => vo
 	if (!empty && !loading) return null
 	return (
 		<div className="loci-empty">
-			<div className="loci-empty__glow" aria-hidden />
 			<div className="loci-empty__inner" onPointerDown={(e) => e.stopPropagation()}>
-				<span className="loci-badge">Runs locally · your files stay on this machine</span>
+				<div className="loci-sphere" aria-hidden />
+				<span className="loci-badge">Runs locally · files stay on this machine</span>
 				<h1 className="loci-empty__title">
 					Learn right
 					<br />
