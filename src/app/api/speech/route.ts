@@ -4,6 +4,7 @@
  */
 import { z } from 'zod'
 import { FishError, MAX_SPEECH_CHARS, fishConfigFromEnv, fishSpeech } from '@/lib/voice/fish'
+import { guardUsage } from '@/lib/server/usage'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -20,10 +21,15 @@ export async function POST(req: Request) {
 	if (!parsed.success) return Response.json({ error: 'Invalid request.' }, { status: 400 })
 	const start = performance.now()
 	const config = fishConfigFromEnv()
+	if (!config.apiKey) return Response.json({ error: 'FISH_API_KEY is not set.' }, { status: 503 })
+	const { refused, cookie } = await guardUsage(req, 'speech', parsed.data.text.length)
+	if (refused) return refused
 	try {
 		const audio = await fishSpeech(parsed.data.text, config, req.signal)
 		const timed = audio.pipeThrough(timeStream(parsed.data.text.length, config.model, start))
-		return new Response(timed, { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store' } })
+		const res = new Response(timed, { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store' } })
+		if (cookie) res.headers.append('Set-Cookie', cookie)
+		return res
 	} catch (err) {
 		const status = err instanceof FishError ? err.status : 502
 		const message = err instanceof Error ? err.message : 'Speech failed.'

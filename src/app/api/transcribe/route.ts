@@ -4,6 +4,7 @@
  * browser's own speech recognition is used instead.
  */
 import { FishError, MAX_RECORDING_BYTES, fishConfigFromEnv, fishTranscribe } from '@/lib/voice/fish'
+import { guardUsage } from '@/lib/server/usage'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -14,12 +15,16 @@ export async function POST(req: Request) {
 	const audio = await req.blob().catch(() => null)
 	if (!audio || audio.size === 0) return Response.json({ error: 'No audio.' }, { status: 400 })
 	if (audio.size > MAX_RECORDING_BYTES) return Response.json({ error: 'Recording too long.' }, { status: 413 })
+	const { refused, cookie } = await guardUsage(req, 'transcribe', 1)
+	if (refused) return refused
 	const start = performance.now()
 	try {
 		const text = await fishTranscribe(audio, config, req.signal)
 		const took = ((performance.now() - start) / 1000).toFixed(2)
 		console.info(`[loci] transcribed ${Math.round(audio.size / 1024)} KB (${audio.type || 'unknown type'}) in ${took}s: ${text ? `"${text.slice(0, 80)}"` : '(no words)'}`)
-		return Response.json({ text })
+		const res = Response.json({ text })
+		if (cookie) res.headers.append('Set-Cookie', cookie)
+		return res
 	} catch (err) {
 		const status = err instanceof FishError ? err.status : 502
 		const message = err instanceof Error ? err.message : 'Transcription failed.'

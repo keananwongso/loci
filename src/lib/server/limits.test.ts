@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { MemoryStore, UpstashStore, limitConfigFromEnv, readQuota, takeQuestion } from './limits'
+import { MemoryStore, UpstashStore, limitConfigFromEnv, readQuota, takeQuestion, takeUsage } from './limits'
 import { deviceFor, ipHashFor } from './device'
 
-const config = { enabled: true, perDevice: 2, perIp: 3, global: 5 }
+const config = {
+	enabled: true,
+	perDevice: 2,
+	perIp: 3,
+	global: 5,
+	speech: { perDevice: 100, perIp: 300, global: 1000 },
+	transcribe: { perDevice: 2, perIp: 4, global: 10 },
+}
 
 describe('demo limits', () => {
 	it('limits a device, then the network, then everyone', async () => {
@@ -26,6 +33,18 @@ describe('demo limits', () => {
 		expect((await readQuota(config, 'dev-z', 'ip-9', s)).remaining).toBe(0)
 	})
 
+	it('counts speech in characters, separately from questions', async () => {
+		const s = new MemoryStore()
+		expect((await takeUsage('speech', config.speech, 'dev-a', 'ip-1', 60, s)).ok).toBe(true)
+		// 60 + 50 would pass the device's 100 characters
+		const over = await takeUsage('speech', config.speech, 'dev-a', 'ip-1', 50, s)
+		expect(!over.ok && over.reason).toBe('device')
+		expect(over.quota.remaining).toBe(40)
+		expect((await takeUsage('speech', config.speech, 'dev-a', 'ip-1', 40, s)).ok).toBe(true)
+		// speech used none of the questions
+		expect((await readQuota(config, 'dev-a', 'ip-1', s)).remaining).toBe(2)
+	})
+
 	it('is off unless enabled', () => {
 		expect(limitConfigFromEnv({} as unknown as NodeJS.ProcessEnv).enabled).toBe(false)
 		expect(limitConfigFromEnv({ LOCI_DEMO_LIMITS: 'on', LOCI_LIMIT_PER_DEVICE: '7' } as unknown as NodeJS.ProcessEnv)).toMatchObject({ enabled: true, perDevice: 7, perIp: 20, global: 300 })
@@ -36,12 +55,12 @@ describe('demo limits', () => {
 		const fake = (async (url: string, init: RequestInit) => {
 			sent.push({ url, body: JSON.parse(String(init.body)), auth: new Headers(init.headers).get('authorization') })
 			const cmds = JSON.parse(String(init.body)) as unknown[][]
-			return Response.json(cmds.map((c) => ({ result: c[0] === 'MGET' ? [null, '2', '7'] : c[0] === 'INCR' ? 3 : 1 })))
+			return Response.json(cmds.map((c) => ({ result: c[0] === 'MGET' ? [null, '2', '7'] : c[0] === 'INCRBY' ? 3 : 1 })))
 		}) as unknown as typeof fetch
 		const s = new UpstashStore('https://x.upstash.io/', 'tok', fake)
 		expect(await s.get(['a', 'b', 'c'])).toEqual([0, 2, 7])
 		expect(await s.incr(['a'], 100)).toEqual([3])
-		expect(sent[1]).toMatchObject({ url: 'https://x.upstash.io/pipeline', auth: 'Bearer tok', body: [['INCR', 'a'], ['EXPIRE', 'a', 100, 'NX']] })
+		expect(sent[1]).toMatchObject({ url: 'https://x.upstash.io/pipeline', auth: 'Bearer tok', body: [['INCRBY', 'a', 1], ['EXPIRE', 'a', 100, 'NX']] })
 	})
 })
 

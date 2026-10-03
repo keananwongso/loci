@@ -1,19 +1,28 @@
 import 'server-only'
 /**
- * Free-question limits for a hosted demo running on the owner's API key.
+ * Free-use limits for a hosted demo running on the owner's API keys.
  *
  * Three layers, all per UTC day: a per-device count (signed cookie), a looser per-IP count (so a
  * whole campus network is not locked out but incognito hopping on one connection is), and a global
- * cap that bounds total spend no matter what. Limits are off unless LOCI_DEMO_LIMITS=on.
+ * cap that bounds total spend no matter what. Questions are counted one by one; Fish Audio speech
+ * is counted in characters (what Fish bills) and transcription in requests, so the voice endpoints
+ * can't be used to spend the owner's credits either. Limits are off unless LOCI_DEMO_LIMITS=on.
  * Counts live in Upstash Redis when configured (needed on serverless hosts, where memory does not
  * persist between requests); otherwise in this process's memory.
  */
 
-export interface LimitConfig {
-	enabled: boolean
+export interface UsageLimits {
 	perDevice: number
 	perIp: number
 	global: number
+}
+
+export interface LimitConfig extends UsageLimits {
+	enabled: boolean
+	/** Characters of Fish Audio speech. */
+	speech: UsageLimits
+	/** Fish Audio transcriptions. */
+	transcribe: UsageLimits
 }
 
 const int = (v: string | undefined, d: number) => {
@@ -27,12 +36,22 @@ export function limitConfigFromEnv(env: NodeJS.ProcessEnv = process.env): LimitC
 		perDevice: int(env.LOCI_LIMIT_PER_DEVICE, 5),
 		perIp: int(env.LOCI_LIMIT_PER_IP, 20),
 		global: int(env.LOCI_LIMIT_GLOBAL, 300),
+		speech: {
+			perDevice: int(env.LOCI_LIMIT_SPEECH_CHARS_PER_DEVICE, 8000),
+			perIp: int(env.LOCI_LIMIT_SPEECH_CHARS_PER_IP, 32000),
+			global: int(env.LOCI_LIMIT_SPEECH_CHARS_GLOBAL, 400000),
+		},
+		transcribe: {
+			perDevice: int(env.LOCI_LIMIT_TRANSCRIBE_PER_DEVICE, 15),
+			perIp: int(env.LOCI_LIMIT_TRANSCRIBE_PER_IP, 60),
+			global: int(env.LOCI_LIMIT_TRANSCRIBE_GLOBAL, 1500),
+		},
 	}
 }
 
 export interface CounterStore {
-	/** Increment each key, setting a TTL on first use; returns the new values. */
-	incr(keys: string[], ttlSeconds: number): Promise<number[]>
+	/** Add `by` to each key, setting a TTL on first use; returns the new values. */
+	incr(keys: string[], ttlSeconds: number, by?: number): Promise<number[]>
 	get(keys: string[]): Promise<number[]>
 }
 
@@ -43,10 +62,10 @@ export class MemoryStore implements CounterStore {
 		if (c && c.expires < Date.now()) this.counts.delete(key)
 		return this.counts.get(key)
 	}
-	async incr(keys: string[], ttl: number) {
+	async incr(keys: string[], ttl: number, by = 1) {
 		return keys.map((k) => {
 			const c = this.live(k) ?? { n: 0, expires: Date.now() + ttl * 1000 }
-			c.n += 1
+			c.n += by
 			this.counts.set(k, c)
 			return c.n
 		})
@@ -76,9 +95,9 @@ export class UpstashStore implements CounterStore {
 			return r.result
 		})
 	}
-	async incr(keys: string[], ttl: number) {
+	async incr(keys: string[], ttl: number, by = 1) {
 		const commands = keys.flatMap((k) => [
-			['INCR', k],
+			['INCRBY', k, by],
 			['EXPIRE', k, ttl, 'NX'],
 		])
 		const results = await this.pipeline(commands)
@@ -101,9 +120,11 @@ export function getStore(env: NodeJS.ProcessEnv = process.env): CounterStore {
 }
 
 const day = () => new Date().toISOString().slice(0, 10)
-const keysFor = (deviceId: string, ipHash: string) => {
-	const d = day()
-	return [`loci:${d}:dev:${deviceId}`, `loci:${d}:ip:${ipHash}`, `loci:${d}:all`]
+export type UsageKind = 'question' | 'speech' | 'transcribe'
+const keysFor = (kind: UsageKind, deviceId: string, ipHash: string) => {
+	// Questions keep their original keys, so counts survive this change mid-day.
+	const k = `loci:${day()}:${kind === 'question' ? '' : `${kind}:`}`
+	return [`${k}dev:${deviceId}`, `${k}ip:${ipHash}`, `${k}all`]
 }
 
 export interface Quota {
@@ -113,19 +134,31 @@ export interface Quota {
 
 export type LimitDecision = { ok: true; quota: Quota } | { ok: false; reason: 'device' | 'ip' | 'global'; quota: Quota }
 
+const remainingOf = (l: UsageLimits, [dev, ip, all]: number[]) => Math.max(0, Math.min(l.perDevice - dev, l.perIp - ip, l.global - all))
+
 /** Remaining questions for this device today (the number shown in the UI). */
 export async function readQuota(config: LimitConfig, deviceId: string, ipHash: string, s = getStore()): Promise<Quota> {
-	const [dev, ip, all] = await s.get(keysFor(deviceId, ipHash))
-	const remaining = Math.max(0, Math.min(config.perDevice - dev, config.perIp - ip, config.global - all))
-	return { limit: config.perDevice, remaining }
+	return { limit: config.perDevice, remaining: remainingOf(config, await s.get(keysFor('question', deviceId, ipHash))) }
+}
+
+/** Count `amount` of one kind of use; refuse it if it would take any layer over its limit. */
+export async function takeUsage(
+	kind: UsageKind,
+	limits: UsageLimits,
+	deviceId: string,
+	ipHash: string,
+	amount = 1,
+	s = getStore()
+): Promise<LimitDecision> {
+	const keys = keysFor(kind, deviceId, ipHash)
+	const [dev, ip, all] = await s.get(keys)
+	const reason = all + amount > limits.global ? 'global' : dev + amount > limits.perDevice ? 'device' : ip + amount > limits.perIp ? 'ip' : null
+	if (reason) return { ok: false, reason, quota: { limit: limits.perDevice, remaining: remainingOf(limits, [dev, ip, all]) } }
+	const counts = await s.incr(keys, 60 * 60 * 26, amount)
+	return { ok: true, quota: { limit: limits.perDevice, remaining: remainingOf(limits, counts) } }
 }
 
 /** Count one question; refuse it if any layer is over its limit. */
-export async function takeQuestion(config: LimitConfig, deviceId: string, ipHash: string, s = getStore()): Promise<LimitDecision> {
-	const [dev, ip, all] = await s.get(keysFor(deviceId, ipHash))
-	const reason = all >= config.global ? 'global' : dev >= config.perDevice ? 'device' : ip >= config.perIp ? 'ip' : null
-	if (reason) return { ok: false, reason, quota: { limit: config.perDevice, remaining: 0 } }
-	const [d2, i2, a2] = await s.incr(keysFor(deviceId, ipHash), 60 * 60 * 26)
-	const remaining = Math.max(0, Math.min(config.perDevice - d2, config.perIp - i2, config.global - a2))
-	return { ok: true, quota: { limit: config.perDevice, remaining } }
+export function takeQuestion(config: LimitConfig, deviceId: string, ipHash: string, s = getStore()): Promise<LimitDecision> {
+	return takeUsage('question', config, deviceId, ipHash, 1, s)
 }
