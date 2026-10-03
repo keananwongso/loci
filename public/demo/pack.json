@@ -3,23 +3,60 @@
   "title": "Directional derivatives",
   "greeting": "Hi, I'm Loci. These are some calculus notes on directional derivatives, and I teach by drawing right beside them.",
   "outro": "That's how I work. Ask me anything else about these notes, by voice or by typing.",
-  "materials": [{ "file": "directional-derivatives.pdf", "role": "notes" }],
+  "materials": [
+    {
+      "file": "directional-derivatives.pdf",
+      "role": "notes"
+    }
+  ],
   "steps": [
     {
       "id": "what-is-u",
       "kind": "ask",
       "intro": "Point at the formula in the theorem box, and ask me what u means.",
       "prompt": "I understand the equation, but what is u geometrically?",
-      "point": { "file": "directional-derivatives.pdf", "page": 1, "text": "∇f · u" },
-      "branches": [{ "id": "any", "match": [], "next": "continue" }]
+      "point": {
+        "file": "directional-derivatives.pdf",
+        "page": 1,
+        "text": "∇f · u"
+      },
+      "branches": [
+        {
+          "id": "any",
+          "match": [],
+          "next": "continue",
+          "sample": "I understand the equation, but what is u geometrically?",
+          "take": "takes/what-is-u--any.json"
+        }
+      ]
     },
     {
       "id": "slope-check",
       "kind": "answer",
       "prompt": "Answer my question, out loud or by typing",
       "branches": [
-        { "id": "right", "match": ["largest", "biggest", "max", "maximum", "steepest", "greatest", "increases", "bigger"], "next": "continue", "sample": "It would be the biggest it can be." },
-        { "id": "other", "match": [], "next": "retry", "sample": "I'm not sure." }
+        {
+          "id": "right",
+          "match": [
+            "largest",
+            "biggest",
+            "max",
+            "maximum",
+            "steepest",
+            "greatest",
+            "increases",
+            "bigger"
+          ],
+          "next": "continue",
+          "sample": "It would be the biggest it can be.",
+          "take": "takes/slope-check--right.json"
+        },
+        {
+          "id": "other",
+          "match": [],
+          "next": "retry",
+          "sample": "I'm not sure."
+        }
       ]
     }
   ]

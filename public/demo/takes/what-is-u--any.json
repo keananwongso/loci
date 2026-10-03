@@ -1,0 +1,238 @@
+{
+ "version": 1,
+ "question": "I understand the equation, but what is u geometrically?",
+ "model": "mock/scripted-demo",
+ "recordedAt": "2026-10-03T23:31:33.482Z",
+ "events": [
+  {
+   "type": "say",
+   "t": 0,
+   "text": "In this formula, u isn't a point. It's a direction, the way you choose to walk away from where you're standing."
+  },
+  {
+   "type": "thought",
+   "t": 1,
+   "text": "finding the spot in your notes"
+  },
+  {
+   "type": "thought",
+   "t": 300,
+   "text": "finding “∇f · u”"
+  },
+  {
+   "type": "action",
+   "t": 453,
+   "action": {
+    "type": "highlight",
+    "id": "hl-u",
+    "target": "directional-derivatives-p1",
+    "text": "∇f · u",
+    "style": "marker",
+    "color": "yellow",
+    "region": {
+     "x": 0.5006,
+     "y": 0.50742,
+     "w": 0.09199999999999996,
+     "h": 0.04606000000000006
+    }
+   },
+   "summary": "highlight hl-u on directional-derivatives-p1: \"∇f · u\" (marker)"
+  },
+  {
+   "type": "say",
+   "t": 905,
+   "text": "Picture the input plane. Every possible u has length one, so they all end on this dashed circle."
+  },
+  {
+   "type": "thought",
+   "t": 905,
+   "text": "setting up axes"
+  },
+  {
+   "type": "thought",
+   "t": 1205,
+   "text": "adding a circle"
+  },
+  {
+   "type": "thought",
+   "t": 1358,
+   "text": "drawing the vector",
+   "latex": "\\nabla f"
+  },
+  {
+   "type": "action",
+   "t": 1358,
+   "action": {
+    "type": "draw_axes",
+    "id": "dd-plane",
+    "position": {
+     "relativeTo": "directional-derivatives-p1",
+     "placement": "right",
+     "gap": 80
+    },
+    "width": 440,
+    "xRange": [
+     -1.5,
+     3.5
+    ],
+    "yRange": [
+     -1.5,
+     2.5
+    ],
+    "xLabel": "x",
+    "yLabel": "y",
+    "items": [
+     {
+      "kind": "circle",
+      "id": "unit-circle",
+      "center": [
+       0,
+       0
+      ],
+      "radius": 1,
+      "label": "|u| = 1",
+      "color": "grey",
+      "dashed": true
+     },
+     {
+      "kind": "vector",
+      "id": "grad",
+      "to": [
+       2.4,
+       1.2
+      ],
+      "label": "\\nabla f",
+      "color": "red"
+     }
+    ]
+   },
+   "summary": "draw_axes dd-plane x∈[-1.5,3.5] y∈[-1.5,2.5] with circle unit-circle, vector grad"
+  },
+  {
+   "type": "say",
+   "t": 1810,
+   "text": "The red arrow is the gradient. It points uphill, the steepest way up. Now let's pick a direction u."
+  },
+  {
+   "type": "thought",
+   "t": 1811,
+   "text": "adding to the graph"
+  },
+  {
+   "type": "thought",
+   "t": 1961,
+   "text": "drawing a vector"
+  },
+  {
+   "type": "thought",
+   "t": 2112,
+   "text": "marking the angle"
+  },
+  {
+   "type": "thought",
+   "t": 2264,
+   "text": "marking the angle",
+   "latex": "\\theta"
+  },
+  {
+   "type": "action",
+   "t": 2264,
+   "action": {
+    "type": "add_to_graph",
+    "graphId": "dd-plane",
+    "items": [
+     {
+      "kind": "vector",
+      "id": "u",
+      "to": [
+       0.34,
+       0.94
+      ],
+      "label": "u",
+      "color": "blue"
+     },
+     {
+      "kind": "angle",
+      "id": "theta",
+      "between": [
+       "grad",
+       "u"
+      ],
+      "label": "\\theta",
+      "color": "violet"
+     }
+    ]
+   },
+   "summary": "add_to_graph dd-plane: vector u (u), angle theta (\\theta)"
+  },
+  {
+   "type": "thought",
+   "t": 2265,
+   "text": "connecting the pieces"
+  },
+  {
+   "type": "action",
+   "t": 2716,
+   "action": {
+    "type": "draw_arrow",
+    "id": "arrow-u",
+    "from": {
+     "objectId": "hl-u"
+    },
+    "to": {
+     "graphId": "dd-plane",
+     "point": [
+      0.34,
+      0.94
+     ]
+    },
+    "color": "blue",
+    "bend": 30
+   },
+   "summary": "draw_arrow arrow-u"
+  },
+  {
+   "type": "say",
+   "t": 3169,
+   "text": "Since u has length one, the dot product only cares about the angle between them. That's theta."
+  },
+  {
+   "type": "thought",
+   "t": 3169,
+   "text": "writing an equation"
+  },
+  {
+   "type": "thought",
+   "t": 3471,
+   "text": "writing",
+   "latex": "D_u f = \\nabla f \\cdot u = \\|\\nabla f\\|\\,\\cos\\theta"
+  },
+  {
+   "type": "action",
+   "t": 3622,
+   "action": {
+    "type": "write_equation",
+    "id": "eq-cos",
+    "latex": "D_u f = \\nabla f \\cdot u = \\|\\nabla f\\|\\,\\cos\\theta",
+    "position": {
+     "relativeTo": "dd-plane",
+     "placement": "below",
+     "gap": 36
+    }
+   },
+   "summary": "write_equation eq-cos: D_u f = \\nabla f \\cdot u = \\|\\nabla f\\|\\,\\cos\\theta"
+  },
+  {
+   "type": "say",
+   "t": 4075,
+   "text": "Quick check. If u pointed the same way as the red arrow, what would happen to the slope?",
+   "look": {
+    "graphId": "dd-plane",
+    "point": [
+     2.4,
+     1.2
+    ]
+   }
+  }
+ ]
+}

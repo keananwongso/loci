@@ -1,0 +1,127 @@
+{
+ "version": 1,
+ "question": "It would be the biggest it can be.",
+ "model": "mock/scripted-demo",
+ "recordedAt": "2026-10-03T23:31:47.081Z",
+ "events": [
+  {
+   "type": "say",
+   "t": 0,
+   "text": "Look at the angle theta in your diagram. The dot product measures how much of the gradient lies along u.",
+   "look": {
+    "objectId": "dd-plane"
+   }
+  },
+  {
+   "type": "say",
+   "t": 453,
+   "text": "And this is the equation we wrote for it.",
+   "look": {
+    "objectId": "eq-cos"
+   }
+  },
+  {
+   "type": "thought",
+   "t": 454,
+   "text": "adding to the graph"
+  },
+  {
+   "type": "thought",
+   "t": 754,
+   "text": "projecting one onto the other"
+  },
+  {
+   "type": "action",
+   "t": 906,
+   "action": {
+    "type": "add_to_graph",
+    "graphId": "dd-plane",
+    "items": [
+     {
+      "kind": "projection",
+      "id": "proj",
+      "of": "grad",
+      "onto": "u",
+      "label": "\\nabla f \\cdot u",
+      "color": "blue"
+     }
+    ]
+   },
+   "summary": "add_to_graph dd-plane: projection proj (\\nabla f \\cdot u)"
+  },
+  {
+   "type": "say",
+   "t": 1356,
+   "text": "This bold blue piece is the shadow of the gradient on u. Turn u toward the gradient and the shadow grows."
+  },
+  {
+   "type": "thought",
+   "t": 1356,
+   "text": "adding to the graph"
+  },
+  {
+   "type": "thought",
+   "t": 1657,
+   "text": "drawing a vector"
+  },
+  {
+   "type": "thought",
+   "t": 1810,
+   "text": "drawing the vector",
+   "latex": "u^{*}"
+  },
+  {
+   "type": "action",
+   "t": 1810,
+   "action": {
+    "type": "add_to_graph",
+    "graphId": "dd-plane",
+    "items": [
+     {
+      "kind": "vector",
+      "id": "u-best",
+      "to": [
+       0.894,
+       0.447
+      ],
+      "label": "u^{*}",
+      "color": "green"
+     }
+    ]
+   },
+   "summary": "add_to_graph dd-plane: vector u-best (u^{*})"
+  },
+  {
+   "type": "thought",
+   "t": 1810,
+   "text": "writing an equation"
+  },
+  {
+   "type": "thought",
+   "t": 2112,
+   "text": "writing",
+   "latex": "\\theta = 0 \\;\\Rightarrow\\; \\cos\\theta = 1 \\;\\Rightarrow\\; D_u f = \\|\\nabla f\\|"
+  },
+  {
+   "type": "action",
+   "t": 2263,
+   "action": {
+    "type": "write_equation",
+    "id": "eq-max-2",
+    "latex": "\\theta = 0 \\;\\Rightarrow\\; \\cos\\theta = 1 \\;\\Rightarrow\\; D_u f = \\|\\nabla f\\|",
+    "position": {
+     "relativeTo": "eq-cos",
+     "placement": "below",
+     "gap": 24
+    },
+    "color": "green"
+   },
+   "summary": "write_equation eq-max-2: \\theta = 0 \\;\\Rightarrow\\; \\cos\\theta = 1 \\;\\Rightarrow\\; D_u f = \\|\\nabla f\\|"
+  },
+  {
+   "type": "say",
+   "t": 2714,
+   "text": "Cosine never goes above one, so nothing beats pointing straight at the gradient. Now, which direction would make the slope zero?"
+  }
+ ]
+}
