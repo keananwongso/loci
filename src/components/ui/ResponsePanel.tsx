@@ -90,22 +90,14 @@ export function ResponsePanel({ turns, busy, status, onUndo, voice }: Props) {
 	}
 	if (!last) return null
 	if (!open) {
-		// A one-line live caption: the sentence being said right now. Click for the full transcript.
+		// Just the sentence being said right now, as one line of text. The orb's thought line covers
+		// the wait before the first sentence.
 		const line = last.said.at(-1)
-		const idle = ['looking', 'thinking', 'teaching'].includes(last.status) ? 'Thinking…' : voice ? 'Transcript' : 'Loci’s answer'
+		if (!line) return null
 		return (
-			<button
-				className="loci-caption"
-				onClick={() => setOpen(true)}
-				onPointerDown={(e) => e.stopPropagation()}
-				title={line ? `${line}\n\nClick for the full transcript` : 'Show the full transcript'}
-			>
-				<span className="loci-dot" data-busy={busy} />
-				<span key={line ?? idle} className="loci-caption__text" data-muted={!line}>
-					{line ?? idle}
-				</span>
-				<span className="loci-caption__more">Full</span>
-			</button>
+			<p key={line} className="loci-caption" aria-live="polite">
+				{line}
+			</p>
 		)
 	}
 
