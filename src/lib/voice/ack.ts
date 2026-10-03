@@ -1,7 +1,8 @@
 'use client'
 /**
- * The tutor's instant "I heard you": a short, fixed phrase spoken the moment the student lets go
- * of the talk keys, before the words are even transcribed. The phrase fits what they pointed at.
+ * The tutor's "let me look": a short, fixed phrase spoken while the model works on a real question,
+ * fitting what the student pointed at. Small talk, thanks and answers to the tutor's own question
+ * get none (the release blip already says "heard you"), so "hi" is never met with "one sec".
  * All phrases are synthesized when voice mode turns on, so playing one costs nothing and starts
  * immediately.
  */
@@ -20,8 +21,6 @@ const PHRASES: Record<AckKind, string[]> = {
 const KINDS = Object.keys(PHRASES) as AckKind[]
 let prepared: Partial<Record<AckKind, PreparedSpeech[]>> = {}
 const next: Record<AckKind, number> = { part: 0, graph: 0, object: 0, none: 0 }
-/** The acknowledgement just played on release, waiting for the question it belongs to. */
-let pending: { playback: Playback; at: number } | null = null
 
 /**
  * Synthesize the phrases ahead of time (call after the speech provider is known). The first
@@ -50,14 +49,17 @@ export function playAck(kind: AckKind = 'object'): Playback {
 	return playSpeech(p)
 }
 
-/** Acknowledge the instant the talk keys come up; the question that follows picks it up with takeAck. */
-export function ackRelease(kind: AckKind) {
-	pending = { playback: playAck(kind), at: performance.now() }
-}
+const SOCIAL = /^(hi|hey|hello|hiya|yo|sup|thanks|thank you|thx|ok|okay|cool|nice|great|got it|i see|yes|yeah|yep|no|nope|sure|right|good (morning|afternoon|evening))\b/
 
-/** The acknowledgement already playing for this question, if it was played in the last few seconds. */
-export function takeAck(): Playback | null {
-	const p = pending
-	pending = null
-	return p && performance.now() - p.at < 15000 ? p.playback : null
+/**
+ * Whether a question deserves a spoken "let me look": a real request, not small talk, thanks, a
+ * one or two word reply, or the student answering the question the tutor just asked.
+ */
+export function wantsAck(question: string, lastSaid?: string): boolean {
+	const q = question.toLowerCase().trim()
+	const words = q.split(/\s+/).filter(Boolean)
+	if (words.length < 4) return false
+	if (SOCIAL.test(q) && words.length <= 8) return false
+	if (lastSaid?.trim().endsWith('?')) return false
+	return true
 }

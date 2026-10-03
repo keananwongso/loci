@@ -4,7 +4,7 @@ import type { Editor } from 'tldraw'
 import { lastMark, runTutorTurn } from '@/lib/tutor/client'
 import { clearConversation, loadConversation, saveConversation, type Turn } from '@/lib/storage/conversation'
 import { clearThinking, endTutorTurn, lookAt, lookAtWhileTalking, moveTutorTo, setBuddyStatus, setThought, showAsked } from '@/lib/canvas/presence'
-import { playAck, takeAck } from '@/lib/voice/ack'
+import { playAck, wantsAck } from '@/lib/voice/ack'
 import { endTimeline, mark, startTimeline } from '@/lib/tutor/timeline'
 import { playSpeech, prepareSpeech, stopAllSpeech, type PreparedSpeech } from '@/lib/voice/player'
 import { ackKindFor, describeSelection, firstThought } from './selection'
@@ -61,14 +61,12 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 
 	const ask = useCallback(
 		async (question: string, opts: { scripted?: boolean; spoken?: boolean } = {}) => {
-			// An acknowledgement played the instant the talk keys came up belongs to this question.
-			const releaseAck = takeAck()
 			if (!editor || busy || !question.trim()) {
 				setBuddyStatus('')
 				endTutorTurn()
 				return false
 			}
-			if (!releaseAck) stopAllSpeech()
+			stopAllSpeech()
 			if (!opts.spoken) startTimeline('asked')
 			// Instant feedback, before any model has answered: fly to what they pointed at, show what
 			// was heard and what it is looking at, and in voice mode acknowledge out loud.
@@ -82,7 +80,9 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 			setBuddyStatus('')
 			setThought(firstThought(editor))
 			if (opts.spoken) showAsked(question.trim())
-			const leadIn = voiceRef.current ? (releaseAck ?? playAck(ackKindFor(editor))).done : undefined
+			// "Let me look" only for real questions, not "hi", thanks, or answers to its own question.
+			const lastSaid = turns.at(-1)?.said.at(-1)
+			const leadIn = voiceRef.current && wantsAck(question, lastSaid) ? playAck(ackKindFor(editor)).done : undefined
 			// The thinking line folds away the moment the answer starts: first words heard, or first mark.
 			let answering = false
 			const answerStarted = () => {

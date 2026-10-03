@@ -3,9 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createShapeId, useEditor } from 'tldraw'
 import { REGION, type RegionShape } from '@/lib/canvas/shape-types'
 import { clearThinking, heard, setBuddyStatus, setThought, setTutorMode } from '@/lib/canvas/presence'
-import { ackRelease } from '@/lib/voice/ack'
 import { endTimeline, mark as markTime, startTimeline } from '@/lib/tutor/timeline'
-import { ackKindFor } from '../selection'
 import { canRecognize, startListening } from '@/lib/voice/speech'
 import { startRecording, transcribe, within, type Recording } from '@/lib/voice/recorder'
 import { stopAllSpeech } from '@/lib/voice/player'
@@ -77,11 +75,6 @@ export function HoldToTalk({ busy, onAsk, onStop, disabled, voice }: Props) {
 		const clip = rec ? await rec.stop().catch(() => null) : null
 		// Clips under about half a second are a tap, not a question.
 		const spoke = Boolean(clip && clip.size > 3000)
-		// Say "I heard you" now, while the words are still being transcribed.
-		if (spoke && live.current.voice) {
-			ackRelease(ackKindFor(editor))
-			markTime('acknowledgement started')
-		}
 		const browserText = await browserWords
 		heard.set('')
 		// Fish is more accurate; if the browser already heard words, don't wait long for it.
