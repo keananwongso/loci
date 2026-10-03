@@ -11,6 +11,8 @@ export interface TutorPresence {
 	y: number
 	away: boolean
 	mode: 'idle' | 'listening' | 'thinking' | 'drawing'
+	/** What it is looking at or about to draw on: it hovers beside this, not on top of it. */
+	beside?: { x: number; y: number; w: number; h: number }
 }
 
 export const tutorPresence = atom<TutorPresence>('tutorPresence', { x: 0, y: 0, away: false, mode: 'idle' })
@@ -23,7 +25,7 @@ export async function moveTutorTo(area: { x: number; y: number; w: number; h: nu
 	const x = area.x + Math.min(area.w, 240) * 0.5
 	const y = area.y + Math.min(area.h, 160) * 0.5
 	const distance = Math.hypot(x - prev.x, y - prev.y)
-	tutorPresence.set({ x, y, away: true, mode: 'drawing' })
+	tutorPresence.set({ x, y, away: true, mode: 'drawing', beside: area })
 	await wait(prev.away ? Math.min(520, 160 + distance * 0.35) : 360)
 }
 
@@ -77,7 +79,7 @@ export function setBuddyStatus(text: string, clearAfterMs?: number) {
 /** Fly over to what the student pointed at and look at it while thinking. */
 export function lookAt(area: { x: number; y: number; w: number; h: number } | null) {
 	if (!area) return setTutorMode('thinking')
-	tutorPresence.set({ x: area.x + area.w / 2, y: area.y + Math.min(area.h, 160) / 2, away: true, mode: 'thinking' })
+	tutorPresence.set({ x: area.x + area.w / 2, y: area.y + Math.min(area.h, 160) / 2, away: true, mode: 'thinking', beside: area })
 }
 
 /**

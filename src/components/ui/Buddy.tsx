@@ -22,6 +22,8 @@ const mix = (a: Rgb, b: Rgb, k: number): Rgb => [a[0] + (b[0] - a[0]) * k, a[1] 
 
 /** Where the buddy rests relative to the student's cursor, like a companion beside it. */
 const REST = { x: 30, y: 30 }
+/** Space between the orb's centre and the edge of what it is looking at, in screen pixels. */
+const GAP = 34
 
 /**
  * The tutor's presence: a small particle orb in violet and ember. It rests beside your cursor,
@@ -69,6 +71,16 @@ export function Buddy() {
 		let frame = 0
 		let mode = ''
 
+		// Hover just off the right edge of what it is looking at (left edge near the screen's right
+		// side), level with its top part, so it never covers the thing it is talking about.
+		const besideArea = (a: { x: number; y: number; w: number; h: number }) => {
+			const vw = editor.getViewportScreenBounds().w
+			const y = editor.pageToViewport({ x: a.x, y: a.y + Math.min(a.h, 160) / 2 }).y
+			const right = editor.pageToViewport({ x: a.x + a.w, y: a.y }).x + GAP
+			if (right < vw - 40) return { x: right, y }
+			return { x: editor.pageToViewport({ x: a.x, y: a.y }).x - GAP, y }
+		}
+
 		const tick = (now: number) => {
 			const dt = Math.min(0.05, (now - last) / 1000)
 			last = now
@@ -78,7 +90,8 @@ export function Buddy() {
 
 			// Target: the pen while it is drawing, otherwise beside the cursor.
 			let target: { x: number; y: number }
-			if (p.away) target = editor.pageToViewport({ x: p.x, y: p.y })
+			if (p.away && p.beside) target = besideArea(p.beside)
+			else if (p.away) target = editor.pageToViewport({ x: p.x, y: p.y })
 			else if (pointer) target = { x: pointer.x + REST.x, y: pointer.y + REST.y }
 			else {
 				const b = editor.getViewportScreenBounds()
