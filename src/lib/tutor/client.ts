@@ -119,6 +119,7 @@ export async function runTutorTurn(
 					await speaking
 					if (signal.aborted) return
 					const area = event.look ? executor.lookArea(event.look) : null
+					if (event.look) console.info(`[loci] looking at ${JSON.stringify(event.look)}${area ? '' : ' (not found)'}`)
 					if (area) cb.onLook?.(area)
 					const playback = cb.onSay(event.text, prepared)
 					if (!playback) return
