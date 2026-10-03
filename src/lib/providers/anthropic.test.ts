@@ -104,7 +104,12 @@ describe('AnthropicProvider', () => {
 		expect(first.body.system[0].cache_control).toEqual({ type: 'ephemeral' })
 		expect(first.body.fallbacks).toBe('default')
 		expect(first.headers.get('anthropic-beta')).toContain('server-side-fallback-2026-07-01')
-		expect(first.body.messages[0]).toEqual({ role: 'user', content: 'earlier' })
+		// Earlier turns arrive as a transcript in the one user message, never as assistant replies.
+		expect(first.body.messages).toHaveLength(1)
+		expect(first.body.messages.some((m: any) => m.role === 'assistant')).toBe(false)
+		const turnText = first.body.messages[0].content.at(-1).text
+		expect(turnText).toContain('Student: earlier')
+		expect(turnText).toContain('You drew: write_equation eq-1: x')
 		const current = first.body.messages.at(-1).content
 		expect(current.some((b: any) => b.type === 'image')).toBe(true)
 		expect(current.at(-1).text).toContain('Student: what is u geometrically?')

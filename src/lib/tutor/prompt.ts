@@ -129,6 +129,7 @@ export const NO_VISION_NOTE =
 export function buildTurnText(req: TutorRequest, opts: { vision?: boolean } = {}): string {
 	const vision = opts.vision ?? true
 	return [
+		describeHistory(req.history),
 		describeBoard(req.board),
 		vision ? describeImages(req.images) : NO_VISION_NOTE,
 		`This is turn ${req.turn}.`,
@@ -138,8 +139,16 @@ export function buildTurnText(req: TutorRequest, opts: { vision?: boolean } = {}
 		.join('\n\n')
 }
 
-/** Prior turns as plain text. Each answer lists the board actions taken, with their ids. */
-export function historyAsText(turn: TutorRequest['history'][number]): { user: string; assistant: string } {
-	const actions = turn.actions.length ? `\n\n[Board actions I took: ${turn.actions.join('; ')}]` : ''
-	return { user: turn.question, assistant: `${turn.answer || '(drew on the board)'}${actions}` }
+/**
+ * Earlier turns, as a transcript inside the current message. They are deliberately not replayed as
+ * assistant messages: a past reply written as plain text teaches the model to answer in plain text
+ * (it once copied the "board actions" footer instead of calling tools, and it was read aloud).
+ */
+export function describeHistory(history: TutorRequest['history']): string {
+	if (!history.length) return ''
+	const lines = history.map((t, i) => {
+		const drew = t.actions.length ? `\n  You drew: ${t.actions.join('; ')}` : ''
+		return `Turn ${i + 1}\n  Student: ${t.question}\n  You said: ${t.answer || '(nothing)'}${drew}`
+	})
+	return `Conversation so far (for context only; your words reach the student only through \`say\`, and the board only through the drawing tools):\n${lines.join('\n')}`
 }

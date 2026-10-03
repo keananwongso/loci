@@ -1,6 +1,5 @@
 import 'server-only'
 import Anthropic from '@anthropic-ai/sdk'
-import { historyAsText } from '@/lib/tutor/prompt'
 import { toSpoken } from '@/lib/voice/spoken'
 import type { ActionSession } from '@/lib/tutor/session'
 import type { TutorEvent } from '@/lib/tutor/types'
@@ -51,10 +50,6 @@ export class AnthropicProvider implements TutorModelProvider {
 		}))
 
 		const messages: Anthropic.Beta.BetaMessageParam[] = []
-		for (const turn of input.request.history) {
-			const { user, assistant } = historyAsText(turn)
-			messages.push({ role: 'user', content: user }, { role: 'assistant', content: assistant })
-		}
 
 		const current: Anthropic.Beta.BetaContentBlockParam[] = []
 		for (const image of input.request.images) {

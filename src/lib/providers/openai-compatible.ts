@@ -4,7 +4,7 @@ import 'server-only'
  * OpenAI, OpenRouter, DeepSeek, Gemini (OpenAI endpoint), Groq, Ollama, LM Studio, and others.
  * Plain fetch, no SDK: only `/chat/completions` with streaming is used.
  */
-import { historyAsText, buildTurnText } from '@/lib/tutor/prompt'
+import { buildTurnText } from '@/lib/tutor/prompt'
 import { toSpoken } from '@/lib/voice/spoken'
 import type { ActionSession } from '@/lib/tutor/session'
 import type { TutorEvent } from '@/lib/tutor/types'
@@ -121,10 +121,6 @@ export class OpenAICompatibleProvider implements TutorModelProvider {
 		}))
 
 		const messages: ChatMessage[] = [{ role: 'system', content: input.system }]
-		for (const turn of input.request.history) {
-			const { user, assistant } = historyAsText(turn)
-			messages.push({ role: 'user', content: user }, { role: 'assistant', content: assistant })
-		}
 		if (vision) {
 			const parts: ContentPart[] = []
 			for (const image of input.request.images) {
