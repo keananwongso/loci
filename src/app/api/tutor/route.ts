@@ -12,7 +12,8 @@ import { deviceFor, ipHashFor } from '@/lib/server/device'
 import { limitConfigFromEnv, readQuota, takeQuestion, type Quota } from '@/lib/server/limits'
 import { buildTurnText, SYSTEM_PROMPT } from '@/lib/tutor/prompt'
 import { ActionSession } from '@/lib/tutor/session'
-import { TutorRequestSchema, type TutorEvent } from '@/lib/tutor/types'
+import { TutorRequestSchema, type TutorEvent, type TutorRequest } from '@/lib/tutor/types'
+import demoPack from '../../../../public/demo/pack.json'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -59,7 +60,17 @@ const LIMIT_MESSAGES = {
  * Which model answers: the free scripted lesson, the visitor's own key (sent in headers for this
  * request only, never stored or logged), or the server's key under the demo limits.
  */
-async function chooseProvider(req: Request): Promise<{ provider: TutorModelProvider; quota?: Quota; cookie?: string } | Response> {
+const DEMO_FILES = new Set(demoPack.materials.map((m) => m.file))
+
+/**
+ * Free questions on the owner's key are only about the demo's own notes. The client never lets a
+ * visitor upload on the hosted demo; this catches a modified one.
+ */
+function onlyDemoMaterial(request: TutorRequest) {
+	return request.board.objects.every((o) => !o.material || DEMO_FILES.has(o.material.name))
+}
+
+async function chooseProvider(req: Request, request: TutorRequest): Promise<{ provider: TutorModelProvider; quota?: Quota; cookie?: string } | Response> {
 	if (req.headers.get('x-loci-demo') === 'scripted') return { provider: new MockProvider() }
 
 	const userKey = req.headers.get('x-loci-key')
@@ -85,6 +96,9 @@ async function chooseProvider(req: Request): Promise<{ provider: TutorModelProvi
 	}
 	const limits = limitConfigFromEnv()
 	if (!limits.enabled) return { provider }
+	if (!onlyDemoMaterial(request)) {
+		return Response.json({ error: 'This demo only teaches from its sample notes. Run Loci locally to use your own.', ownNotes: true }, { status: 403 })
+	}
 	const device = deviceFor(req)
 	const decision = await takeQuestion(limits, device.id, ipHashFor(req))
 	if (!decision.ok) {
@@ -108,7 +122,7 @@ export async function POST(req: Request) {
 	}
 	const request = parsed.data
 
-	const chosen = await chooseProvider(req)
+	const chosen = await chooseProvider(req, request)
 	if (chosen instanceof Response) return chosen
 	const { provider, quota, cookie } = chosen
 	if (!provider.isConfigured()) {

@@ -27,7 +27,8 @@ function Tip({ label, kbd, children }: { label: string; kbd?: string; children: 
 	)
 }
 
-export function Toolbar({ onUpload }: { onUpload: () => void }) {
+/** `onUpload` is left out on the hosted demo, which only teaches from its own notes. */
+export function Toolbar({ onUpload }: { onUpload?: () => void }) {
 	const editor = useEditor()
 	const current = useValue('tool', () => editor.getCurrentToolId(), [editor])
 	return (
@@ -61,10 +62,12 @@ export function Toolbar({ onUpload }: { onUpload: () => void }) {
 					Drag a box around part of a page, then ask about it. Or hold {talkKeysLabel()} and drag while you talk.
 				</Tip>
 			</button>
-			<button className="loci-tool" aria-label="Upload a pdf or image" onClick={onUpload}>
-				<UploadIcon />
-				<Tip label="Upload">Add a pdf or an image of your notes. You can also drop files onto the board.</Tip>
-			</button>
+			{onUpload && (
+				<button className="loci-tool" aria-label="Upload a pdf or image" onClick={onUpload}>
+					<UploadIcon />
+					<Tip label="Upload">Add a pdf or an image of your notes. You can also drop files onto the board.</Tip>
+				</button>
+			)}
 		</nav>
 	)
 }

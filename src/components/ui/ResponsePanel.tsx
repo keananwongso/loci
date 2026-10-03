@@ -37,6 +37,9 @@ function TurnView({ turn, live }: { turn: Turn; live: boolean }) {
 						Use your own API key
 					</button>
 					<a className="loci-chip-btn" href={REPO_URL} target="_blank" rel="noreferrer">
+						★ Star on GitHub
+					</a>
+					<a className="loci-chip-btn" href={`${REPO_URL}#local-setup`} target="_blank" rel="noreferrer">
 						Run it locally (free, open source)
 					</a>
 				</div>

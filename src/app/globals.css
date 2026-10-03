@@ -1615,6 +1615,8 @@ button {
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
+	/* room for the free-questions count above the prompt */
+	margin-bottom: 14px;
 	padding: 14px 16px;
 	border-radius: 18px;
 	background: var(--loci-surface);
@@ -1870,4 +1872,18 @@ button {
 .loci-admin button:disabled {
 	opacity: 0.45;
 	cursor: default;
+}
+
+.loci-modal__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.loci-modal__actions a {
+	text-decoration: none;
+}
+
+.loci-modal__close {
+	align-self: flex-start;
 }

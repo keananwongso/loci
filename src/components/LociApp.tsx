@@ -23,6 +23,7 @@ import { TopBar } from './ui/TopBar'
 import { StylePanel } from './ui/StylePanel'
 import { HoldToTalk } from './ui/HoldToTalk'
 import { KeyDialog } from './ui/KeyDialog'
+import { OwnNotes } from './ui/OwnNotes'
 import { TourCoach, TourEnd, TourRecord, TourStart } from './ui/Tour'
 import { useTutor } from './useTutor'
 import { tourDone, useTour } from './useTour'
@@ -83,6 +84,7 @@ function Shell() {
 	const [voiceOut, setVoiceOut] = useState(false)
 	const [loading, setLoading] = useState<string | null>(null)
 	const [keyDialog, setKeyDialog] = useState(false)
+	const [ownNotes, setOwnNotes] = useState(false)
 
 	useEffect(() => {
 		const open = () => setKeyDialog(true)
@@ -120,9 +122,15 @@ function Shell() {
 
 	const ingest = useCallback((files: File[]) => ingestFiles(editor, files, setLoading), [editor])
 
+	// The hosted demo only teaches from its own notes: no uploads, a pointer to the repo instead.
+	const hosted = Boolean(tutor.status.hosted)
+	const hostedRef = useRef(hosted)
+	hostedRef.current = hosted
+
 	// Dropped or pasted pdfs and images become material pages instead of plain images.
 	useEffect(() => {
 		editor.registerExternalContentHandler('files', async (info) => {
+			if (hostedRef.current) return setOwnNotes(true)
 			const ours = info.files.filter((f) => ACCEPTED_TYPES.includes(f.type) || f.name.toLowerCase().endsWith('.pdf'))
 			if (ours.length) await ingest(ours)
 			else {
@@ -228,12 +236,12 @@ function Shell() {
 					setTimeout(() => setLoading(null), 2800)
 				}}
 			/>
-			<Toolbar onUpload={() => fileRef.current?.click()} />
+			<Toolbar onUpload={hosted ? undefined : () => fileRef.current?.click()} />
 			<HoldToTalk busy={tutor.busy} onAsk={ask} onStop={tutor.stop} disabled={Boolean(disabledReason)} voice={voiceOut} />
 			{tour.phase === 'start' ? (
 				<TourStart tour={tour} overBoard={editor.getCurrentPageShapeIds().size > 0} />
 			) : tour.phase === 'running' ? null : (
-				<EmptyState onUpload={() => fileRef.current?.click()} onSample={tour.pack?.steps.length ? startTour : loadSample} loading={loading} />
+				<EmptyState onUpload={() => (hosted ? setOwnNotes(true) : fileRef.current?.click())} onSample={tour.pack?.steps.length ? startTour : loadSample} loading={loading} />
 			)}
 			{loading && <div className="loci-toast">{loading}</div>}
 			<div className="loci-dock">
@@ -253,6 +261,7 @@ function Shell() {
 				/>
 			</div>
 			{keyDialog && <KeyDialog onClose={() => setKeyDialog(false)} />}
+			{ownNotes && <OwnNotes onClose={() => setOwnNotes(false)} />}
 			<input
 				ref={fileRef}
 				type="file"
