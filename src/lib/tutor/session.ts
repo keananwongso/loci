@@ -98,9 +98,16 @@ export class ActionSession {
 			if (action.type === 'say') {
 				const text = toSpoken(action.text)
 				if (!text) return { ok: true, result: 'Said nothing: the text was empty once markup was removed.' }
+				if (this.spoken.some((prev) => repeats(prev, text))) {
+					this.emit({ type: 'rejected', tool, reason: 'repeats an earlier sentence' })
+					return {
+						ok: false,
+						error: 'Not said: this repeats something you already said this turn, and the student heard it. Never repeat or rephrase yourself. Say only something new, or stop.',
+					}
+				}
 				this.spoken.push(text)
 				this.emit({ type: 'say', text, ...(action.look_at ? { look: action.look_at } : {}) })
-				return { ok: true, result: `Said.${lookNote}` }
+				return { ok: true, result: `Said aloud; the student heard it.${lookNote}` }
 			}
 			const summary = summarize(outcome.action)
 			this.summaries.push(summary)
@@ -376,4 +383,19 @@ export function summarize(action: CanvasAction): string {
 		default:
 			return `${action.type}${id}`
 	}
+}
+
+const words = (text: string) => text.toLowerCase().replace(/[^a-z0-9' ]+/g, ' ').split(/\s+/).filter(Boolean)
+
+/** `next` says again what `prev` already said: the same first sentence, or mostly the same words. */
+export function repeats(prev: string, next: string): boolean {
+	const first = (t: string) => words(t.split(/[.?!]/)[0]).join(' ')
+	const a = first(prev)
+	if (a.split(' ').length >= 3 && a === first(next)) return true
+	const pa = new Set(words(prev))
+	const pb = new Set(words(next))
+	if (pa.size < 5 || pb.size < 5) return false
+	let shared = 0
+	for (const w of pb) if (pa.has(w)) shared++
+	return shared / (pa.size + pb.size - shared) >= 0.6
 }

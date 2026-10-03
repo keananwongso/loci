@@ -182,3 +182,24 @@ describe('say look_at', () => {
 		expect(events).toEqual([{ type: 'say', text: 'Look here.' }])
 	})
 })
+
+describe('repeats', () => {
+	it('catches the same opening sentence and near copies', async () => {
+		const { repeats } = await import('./session')
+		expect(repeats("I'm doing well, thanks. I see your notes are up.", "I'm doing well, thanks. Ready when you are.")).toBe(true)
+		expect(repeats('The gradient points uphill, the steepest way up.', 'The gradient points uphill, the steepest way up from here.')).toBe(true)
+	})
+
+	it('lets different sentences that start alike through', async () => {
+		const { repeats } = await import('./session')
+		expect(repeats('Look at the red vector.', 'Look at the blue circle instead.')).toBe(false)
+		expect(repeats('So f sub x is four.', 'So f sub y is thirteen.')).toBe(false)
+	})
+
+	it('refuses to say the same thing twice in a turn', () => {
+		const { s, events } = session()
+		expect(s.handle('say', { text: "I'm doing well, thanks. Your notes are up." }).ok).toBe(true)
+		expect(s.handle('say', { text: "I'm doing well, thanks. Ready when you are." }).ok).toBe(false)
+		expect(events.filter((e) => e.type === 'say')).toHaveLength(1)
+	})
+})
