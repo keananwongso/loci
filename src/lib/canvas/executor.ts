@@ -122,6 +122,13 @@ export class CanvasExecutor {
 		try {
 			if ('objectId' in a) return this.bounds(a.objectId) ?? null
 			const { point } = this.anchor(a)
+			// A point outside its graph's range (a vector tip past the axes) is looked at from the
+			// graph's edge, so the orb never flies off into empty board.
+			const frame = 'graphId' in a ? this.bounds(a.graphId) : undefined
+			if (frame) {
+				point.x = Math.min(Math.max(point.x, frame.x), frame.x + frame.w)
+				point.y = Math.min(Math.max(point.y, frame.y), frame.y + frame.h)
+			}
 			return { x: point.x, y: point.y, w: 0, h: 0 }
 		} catch {
 			return null
