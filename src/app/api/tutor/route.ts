@@ -55,10 +55,6 @@ const LIMIT_MESSAGES = {
 	global: "The free demo has hit today's limit.",
 }
 
-/**
- * Which model answers: the visitor's own key (sent in headers for this
- * request only, never stored or logged), or the server's key under the demo limits.
- */
 const DEMO_FILES = new Set(demoPack.materials.map((m) => m.file))
 
 /**
@@ -69,6 +65,10 @@ function onlyDemoMaterial(request: TutorRequest) {
 	return request.board.objects.every((o) => !o.material || DEMO_FILES.has(o.material.name))
 }
 
+/**
+ * Which model answers: the visitor's own key (sent in headers for this
+ * request only, never stored or logged), or the server's key under the demo limits.
+ */
 async function chooseProvider(req: Request, request: TutorRequest): Promise<{ provider: TutorModelProvider; quota?: Quota; cookie?: string } | Response> {
 	const userKey = req.headers.get('x-loci-key')
 	if (userKey) {
