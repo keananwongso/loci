@@ -6,12 +6,13 @@ The whiteboard is the interface. The chat is a narrow strip at the bottom.
 
 ## Demo
 
-The workflow Loci is built around:
+Click **Try a short lesson** (or open `http://localhost:3000/?lesson`). Loci lays out synthetic calculus notes on directional derivatives, greets you, and walks you through its main gesture:
 
-1. Click **Try sample calculus notes** (synthetic notes on directional derivatives, included in this repo).
-2. The page is selected. Ask: *I understand the equation, but what is u geometrically?*
-3. The tutor highlights `∇f · u` in the theorem box, draws a coordinate plane to the right of the page with the unit circle, the gradient and a unit vector `u`, marks the angle θ between them, writes `D_u f = ∇f · u = ‖∇f‖ cos θ` below the diagram, draws an arrow from the highlight to the diagram, and asks what happens if `u` points along the gradient. (The exact drawing varies with the model; `LOCI_PROVIDER=mock` replays this lesson exactly.)
-4. Follow up: *Why does the answer become largest when they point in the same direction?* The tutor is instructed to extend the existing diagram (here, adding the projection of `∇f` onto `u`) rather than draw a new one.
+1. It points at `∇f · u` in the theorem box and suggests a question: *I understand the equation, but what is u geometrically?* Ask it out loud while dragging over the formula, type it, or tap the suggestion.
+2. The tutor highlights `∇f · u`, draws a coordinate plane beside the page with the unit circle, the gradient and a unit vector `u`, marks the angle θ between them, writes `D_u f = ∇f · u = ‖∇f‖ cos θ` below it, connects the highlight to the diagram, and asks what happens to the slope if `u` points along the gradient.
+3. You answer, and it builds on the same diagram: the projection of `∇f` onto `u`, and the direction that makes the slope largest.
+
+The lesson's answers are recorded takes, so they play the same for everyone and cost nothing. After it, every question goes to the model. The lesson itself is data you can replace: see [The demo lesson](#the-demo-lesson).
 
 The fastest way to ask: hold **Ctrl + Alt** (**⌃ + ⌥** on a Mac) and talk. While the keys are down, drag over the part you mean to highlight it, or click an object; let go to ask. You can also press **Q** (or the dashed box tool) to drag a box, then type.
 
@@ -19,6 +20,7 @@ The fastest way to ask: hold **Ctrl + Alt** (**⌃ + ⌥** on a Mac) and talk. W
 
 * Infinite canvas (tldraw): pan, zoom, select, move, resize, draw, text, shapes, arrows, undo
 * PDF pages and images as canvas objects, rendered and text extracted in the browser with pdf.js
+* Material roles: each upload is notes, a syllabus, questions (a problem set, quiz or past paper) or a mark scheme, guessed from the file name and switchable on the page. The tutor teaches to the syllabus's scope, coaches through questions without handing out answers, and marks your working against the mark scheme, whose text it gets even when it is off screen
 * Ask about a selected page, any selected object, or a dragged region of a page
 * The tutor sees structured board state (stable ids, positions, extracted text with positions) and images (the page or region, plus a view screenshot when it helps)
 * The tutor draws through a typed, validated action protocol: text, KaTeX equations, highlights (marker, circle, box, underline) located by exact text match, arrows bound to objects or to points inside a graph, rectangles, ellipses, and coordinate planes with vectors, points, segments, function plots, circles, angle arcs and projections
@@ -91,11 +93,33 @@ For natural voices add `FISH_API_KEY` to `.env.local` ([Fish Audio](https://fish
 
 Other commands: `npm test` (unit tests), `npm run lint` (type check), `npm run build`, `npm run sample` (regenerate the sample PDF; needs a Chromium, see the script).
 
+## The demo lesson
+
+Everything the guided lesson uses lives in `public/demo/`, so changing it never touches code:
+
+| File | What it is |
+| --- | --- |
+| `pack.json` | The materials and their roles, the greeting and outro, and the steps |
+| your pdfs and images | Placed on the board in the pack's order |
+| `takes/*.json` | Recorded answers: exactly what the tutor said and drew, with timing |
+| `voice.json`, `voice/*.mp3` | Every line the lesson can say, pre-rendered with Fish Audio |
+
+A step is something the visitor does. An **ask** step speaks an instruction, pulses the phrase to point at, and suggests a question; whatever the visitor asks replays its take. An **answer** step waits for the answer to the tutor's check question and picks a branch by matching words in it (for example *largest*, *steepest* for the right answer, and a catch-all that lets them try again), each with its own take. A branch without a take asks the live model instead.
+
+To change it, run `npm run dev` and open **http://localhost:3000/admin**:
+
+1. Drop in your materials (notes, syllabus, mark scheme, past paper) and set each one's role and order.
+2. Write the greeting, the outro and the steps: instructions, suggested questions, the phrase to point at, and the answer branches.
+3. Click **Record takes**. The lesson runs against your configured model; for each branch, ask, and keep the answer you like or redo it. Takes are recorded in order, each on the board the earlier ones left, so re-record later steps after changing an earlier one.
+4. With `FISH_API_KEY` set, click **Render voice** to pre-render every line, including the tutor's short "let me look" phrases.
+5. Click **Preview lesson**, then commit `public/demo/` and push. The admin exists only on a development server opened at localhost; a deployed site has none.
+
 ## Hosting a public demo
 
 Loci can also run as a public website, for example to share it. Boards and files still live only in each visitor's browser; the only cost is model calls, and three things keep that bounded:
 
-* **Free scripted demo.** On the sample notes, the suggested questions replay the directional-derivatives lesson without calling a model, for everyone, at no cost.
+* **Free recorded lesson.** The first run replays recorded takes in the browser, with pre-rendered voice: no model or Fish Audio call at all.
+* **Only the demo's notes.** Visitors can't upload on a hosted demo; dropping a file points them to this repo instead. The server also refuses free questions about any material that isn't in the demo pack.
 * **A few free questions on your key**, limited per device (a signed cookie), more loosely per network (so a campus Wi-Fi isn't locked out), and by a global daily cap that bounds your total spend whatever people do. IPs are stored only as salted hashes, and only counts are kept.
 * **Voice under the same limits.** Fish Audio speech is counted in characters and transcription in requests, per device, per network and globally per day. Past a limit the tutor falls back to the browser's own voice instead of failing.
 * **Bring your own key.** Visitors can paste their own API key for unlimited use. It is kept in their browser and passed through the server per request, never stored or logged. Only the built-in providers are accepted, so the server can't be pointed at arbitrary URLs.
@@ -146,6 +170,8 @@ native canvas objects (meta.author = assistant)
 | `src/lib/canvas/serialize.ts` | Builds the structured board context and captures images |
 | `src/lib/documents/` | pdf.js rendering, text extraction, phrase matching |
 | `src/components/shapes/` | Custom shapes: material page, equation, graph, highlight, region |
+| `src/lib/demo/` | The demo pack format (`pack.ts`) and loading it in the browser: placing its materials, finding what a step points at, loading takes |
+| `src/app/admin/`, `src/app/api/admin/` | The local demo editor and its API (development server only) |
 | `src/lib/voice/` | Voice mode: Fish Audio route helper, speech playback queue, spoken-text cleanup, voice and mic levels |
 
 The model never runs code in the browser. It can only call the declared tools; every call is validated before anything is drawn, and function plots are parsed by a small math expression parser rather than evaluated as JavaScript.
