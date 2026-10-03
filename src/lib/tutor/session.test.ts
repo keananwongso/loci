@@ -237,3 +237,17 @@ describe('sayPlainText', () => {
 		expect(events).toEqual([])
 	})
 })
+
+describe('graph range', () => {
+	it('refuses a vector that runs past the axes, and says how to fix it', () => {
+		const { s } = session()
+		const r = s.handle('add_to_graph', { graphId: 'graph-1', items: [{ kind: 'vector', id: 'grad', from: [1, 2], to: [5, 15] }] })
+		expect(r.ok).toBe(false)
+		expect(r.ok ? '' : r.error).toMatch(/reaches \(5, 15\).*draw new axes/)
+	})
+
+	it('accepts items inside the range, with a little slack at the edges', () => {
+		const { s } = session()
+		expect(s.handle('add_to_graph', { graphId: 'graph-1', items: [{ kind: 'vector', id: 'u', to: [3.1, 1] }] }).ok).toBe(true)
+	})
+})

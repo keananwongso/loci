@@ -339,6 +339,11 @@ function checkGraphItems(state: GraphState, items: GraphItem[]): string | null {
 	const all = new Map(state.items)
 	for (const it of items) all.set(it.id, it)
 	for (const it of items) {
+		const outside = outsideRange(state, it)
+		if (outside) {
+			const fmt = (r: [number, number]) => `[${r[0]}, ${r[1]}]`
+			return `Item "${it.id}" reaches (${outside[0]}, ${outside[1]}), outside this graph's range x ${fmt(state.xRange)}, y ${fmt(state.yRange)}, so it would run off the axes. Everything must fit inside: draw new axes whose range includes it, or scale it down (and say so).`
+		}
 		if ('label' in it && it.label) {
 			const err = latexError(it.label)
 			if (err) return `Label of item "${it.id}" is not valid LaTeX: ${err}`
@@ -363,6 +368,24 @@ function checkGraphItems(state: GraphState, items: GraphItem[]): string | null {
 		}
 	}
 	return null
+}
+
+/** The first point of an item that lies outside the graph's range (with a little slack), or null. */
+function outsideRange(state: GraphState, it: GraphItem): [number, number] | null {
+	const [x0, x1] = state.xRange
+	const [y0, y1] = state.yRange
+	const sx = (x1 - x0) * 0.04
+	const sy = (y1 - y0) * 0.04
+	const inside = ([x, y]: readonly [number, number]) => x >= x0 - sx && x <= x1 + sx && y >= y0 - sy && y <= y1 + sy
+	const pts: Array<readonly [number, number]> = []
+	if (it.kind === 'vector') {
+		const from = it.from ?? [0, 0]
+		pts.push(from, it.to)
+	} else if (it.kind === 'segment') pts.push(it.from, it.to)
+	else if (it.kind === 'point' || it.kind === 'label') pts.push(it.at)
+	else if (it.kind === 'circle') pts.push(it.center)
+	const bad = pts.find((p) => !inside(p))
+	return bad ? [bad[0], bad[1]] : null
 }
 
 /** Returns a readable error if KaTeX cannot render the input, else null. */
