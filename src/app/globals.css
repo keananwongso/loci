@@ -562,6 +562,69 @@ button {
 	cursor: pointer;
 }
 
+/* collapsed answer: one line, the sentence being said now */
+
+.loci-caption {
+	align-self: center;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	min-width: 0;
+	height: 36px;
+	padding: 0 8px 0 16px;
+	border-radius: var(--radius-pill);
+	border: 1px solid var(--loci-btn-line);
+	background: var(--loci-surface);
+	color: var(--loci-ink);
+	font-size: 14px;
+	cursor: pointer;
+	text-align: left;
+}
+
+.loci-caption:hover {
+	background: var(--loci-taupe);
+}
+
+.loci-caption__text {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	animation: loci-caption-in 0.25s ease-out;
+}
+
+.loci-caption__text[data-muted='true'] {
+	color: var(--loci-ink-3);
+}
+
+.loci-caption__more {
+	flex: none;
+	padding: 3px 10px;
+	border-radius: var(--radius-pill);
+	color: var(--loci-ink-3);
+	font-size: 12px;
+	font-weight: 500;
+}
+
+.loci-caption:hover .loci-caption__more {
+	color: var(--loci-ink);
+}
+
+@keyframes loci-caption-in {
+	from {
+		opacity: 0;
+		transform: translateY(3px);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.loci-caption__text {
+		animation: none;
+	}
+}
+
 .loci-panel-pill:hover {
 	background: var(--loci-taupe);
 }
