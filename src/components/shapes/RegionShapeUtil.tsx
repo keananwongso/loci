@@ -25,9 +25,9 @@ export class RegionShapeUtil extends ShapeUtil<RegionShape> {
 
 	component(shape: RegionShape) {
 		return (
-			<HTMLContainer className="loci-region" style={{ width: shape.props.w, height: shape.props.h }}>
-				<span className="loci-region__tag">Asking about this area</span>
-			</HTMLContainer>
+			// No label on the board: the prompt bar's chip already says "Area on …", and a tag here
+			// covered the material right above the area.
+			<HTMLContainer className="loci-region" style={{ width: shape.props.w, height: shape.props.h }} />
 		)
 	}
 

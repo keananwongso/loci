@@ -1252,24 +1252,12 @@ button {
 }
 
 .loci-region {
-	border: 1.5px dashed var(--loci-ink);
+	border: 1.5px dashed var(--loci-ink-3);
 	border-radius: 12px;
 	background: rgba(0, 0, 0, 0.03);
 	overflow: visible !important;
 }
 
-.loci-region__tag {
-	position: absolute;
-	bottom: calc(100% + 8px);
-	left: -2px;
-	padding: 3px 10px;
-	border-radius: var(--radius-pill);
-	background: var(--loci-ink);
-	color: var(--color-eggshell);
-	font-size: 12px;
-	font-weight: 500;
-	white-space: nowrap;
-}
 
 /* ------------------------------------------------------------------ animations */
 
