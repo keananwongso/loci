@@ -63,8 +63,22 @@ function sharedAudio() {
 	return element
 }
 
-/** Play one prepared sentence; resolves when it has finished (or was stopped). */
-export async function playSpeech(p: PreparedSpeech): Promise<void> {
+export interface Playback {
+	/** Resolves when the voice is actually audible (or speech gave up). */
+	started: Promise<void>
+	/** Resolves when the sentence has been said, or was stopped. */
+	done: Promise<void>
+}
+
+/** Play one prepared sentence. Synthesis can take seconds, so `started` and `done` are separate. */
+export function playSpeech(p: PreparedSpeech): Playback {
+	let markStarted = () => {}
+	const started = new Promise<void>((r) => (markStarted = r))
+	const done = play(p, markStarted).finally(markStarted)
+	return { started, done }
+}
+
+async function play(p: PreparedSpeech, onStart: () => void): Promise<void> {
 	const blob = await timeout(p.audio, 12000, null)
 
 	if (blob) {
@@ -87,6 +101,7 @@ export async function playSpeech(p: PreparedSpeech): Promise<void> {
 					done()
 				}
 			})
+			audio.addEventListener('playing', onStart, { once: true })
 			await audio.play().catch(() => stopCurrent?.())
 			const seconds = Number.isFinite(audio.duration) ? audio.duration : 30
 			await timeout(finished, seconds * 1000 + 3000, undefined)
@@ -106,7 +121,7 @@ export async function playSpeech(p: PreparedSpeech): Promise<void> {
 					stopCurrent = null
 					resolve()
 				}
-				speak(p.spoken, done)
+				speak(p.spoken, done, onStart)
 				stopCurrent = () => {
 					stopSpeaking()
 					done()

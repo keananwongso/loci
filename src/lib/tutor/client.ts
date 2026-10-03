@@ -11,10 +11,21 @@ import type { CanvasAction } from '@/lib/actions/schema'
 import type { HistoryTurn, TutorEvent, TutorRequest } from './types'
 import { userKeyHeaders } from '@/lib/storage/userKey'
 
+export interface SayPlayback {
+	started: Promise<void>
+	done: Promise<void>
+}
+
+/** The longest the drawing waits for a slow voice before carrying on without it. */
+const MAX_VOICE_WAIT = 7000
+
 export interface TurnCallbacks {
 	onPhase(phase: 'looking' | 'thinking' | 'teaching'): void
-	/** Called in order; may return a promise (voice mode) that resolves once the sentence has been spoken. */
-	onSay(text: string, prepared?: unknown): void | Promise<void>
+	/**
+	 * Called in order. In voice mode it returns the sentence's playback: the marks after it wait
+	 * until the voice is audible, and the next sentence waits until it has finished.
+	 */
+	onSay(text: string, prepared?: unknown): void | SayPlayback
 	/** Called the moment a sentence arrives, so speech can be synthesized ahead of its turn. */
 	prepareSay?(text: string): unknown
 	onAction(action: CanvasAction, summary: string): void
@@ -98,7 +109,11 @@ export async function runTutorTurn(
 				enqueue(async () => {
 					await speaking
 					if (signal.aborted) return
-					speaking = Promise.resolve(cb.onSay(event.text, prepared)).catch(() => {})
+					const playback = cb.onSay(event.text, prepared)
+					if (!playback) return
+					speaking = playback.done.catch(() => {})
+					// Draw what this sentence talks about while it is being said, not before.
+					await Promise.race([playback.started, new Promise((r) => setTimeout(r, MAX_VOICE_WAIT))])
 				})
 				break
 			}

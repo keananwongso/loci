@@ -28,6 +28,7 @@ import { ACCEPTED_TYPES, ingestFiles } from '@/lib/canvas/ingest'
 import { REGION } from '@/lib/canvas/shape-types'
 import { checkSpeechProvider } from '@/lib/voice/player'
 import { loadHandFont } from '@/lib/canvas/hand'
+import { installDragToPan } from '@/lib/canvas/pan'
 
 const shapeUtils = [MaterialShapeUtil, EquationShapeUtil, GraphShapeUtil, HighlightShapeUtil, RegionShapeUtil]
 const tools = [RegionTool]
@@ -208,6 +209,7 @@ export default function LociApp() {
 	const onMount = useCallback((editor: Editor) => {
 		editor.user.updateUserPreferences({ colorScheme: 'light' })
 		loadHandFont(assetUrls.fonts?.tldraw_draw)
+		installDragToPan(editor)
 	}, [])
 
 	return (

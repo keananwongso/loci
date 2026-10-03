@@ -28,6 +28,8 @@ export interface GraphLabel {
 	color: string
 	itemId?: string
 	size?: number
+	/** The point this label names. Labels can move around it to stay off the lines. */
+	anchor?: [number, number]
 }
 
 export interface GraphLayout {
@@ -106,6 +108,14 @@ export function layoutGraph(p: GraphProps): GraphLayout {
 
 	const strokes: Stroke[] = []
 	const labels: GraphLabel[] = []
+	// Points along everything drawn, so labels can be placed where they cover nothing.
+	const ink: V[] = []
+	const line = (a: V, b: V) => {
+		const n = Math.max(1, Math.ceil(len(sub(b, a)) / 5))
+		for (let i = 0; i <= n; i++) ink.push([a[0] + ((b[0] - a[0]) * i) / n, a[1] + ((b[1] - a[1]) * i) / n])
+	}
+	line([0, axisY], [p.w, axisY])
+	line([axisX, 0], [axisX, p.h])
 	if (p.xLabel) labels.push({ key: 'xl', x: p.w + 16, y: axisY + 2, latex: p.xLabel, color: axisColor, size: 15 })
 	if (p.yLabel) labels.push({ key: 'yl', x: axisX, y: -18, latex: p.yLabel, color: axisColor, size: 15 })
 
@@ -129,25 +139,29 @@ export function layoutGraph(p: GraphProps): GraphLayout {
 				const end: V = [b[0] - u[0] * 8, b[1] - u[1] * 8]
 				strokes.push({ key: `${k}`, d: `M${f1(a[0])},${f1(a[1])} L${f1(end[0])},${f1(end[1])}`, color, width: 2.6, itemId: k })
 				strokes.push({ key: `${k}-h`, d: arrowHead(b, dir, 13), color, width: 0, fill: color, late: true, itemId: k })
+				line(a, b)
 				if (it.label) {
 					const n: V = [-u[1], u[0]]
-					labels.push({ key: k, x: b[0] + u[0] * 12 + n[0] * 12, y: b[1] + u[1] * 12 + n[1] * 12, latex: it.label, color, itemId: k })
+					labels.push({ key: k, x: b[0] + u[0] * 12 + n[0] * 12, y: b[1] + u[1] * 12 + n[1] * 12, latex: it.label, color, itemId: k, anchor: b })
 				}
 				break
 			}
 			case 'point': {
 				const [x, y] = px(it.at as V)
 				strokes.push({ key: k, d: `M${f1(x - 4.5)},${f1(y)} a4.5,4.5 0 1,0 9,0 a4.5,4.5 0 1,0 -9,0`, color, width: 0, fill: color, late: true, itemId: k })
-				if (it.label) labels.push({ key: k, x: x + 12, y: y - 12, latex: it.label, color, itemId: k })
+				line([x - 5, y], [x + 5, y])
+				if (it.label) labels.push({ key: k, x: x + 12, y: y - 12, latex: it.label, color, itemId: k, anchor: [x, y] })
 				break
 			}
 			case 'segment': {
 				const a = px(it.from as V)
 				const b = px(it.to as V)
 				strokes.push({ key: k, d: `M${f1(a[0])},${f1(a[1])} L${f1(b[0])},${f1(b[1])}`, color, width: 2, dashed: it.dashed, itemId: k })
+				line(a, b)
 				if (it.label) {
 					const u = norm(sub(b, a))
-					labels.push({ key: k, x: (a[0] + b[0]) / 2 - u[1] * 14, y: (a[1] + b[1]) / 2 + u[0] * 14, latex: it.label, color, itemId: k })
+					const mid: V = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
+					labels.push({ key: k, x: mid[0] - u[1] * 14, y: mid[1] + u[0] * 14, latex: it.label, color, itemId: k, anchor: mid })
 				}
 				break
 			}
@@ -162,12 +176,13 @@ export function layoutGraph(p: GraphProps): GraphLayout {
 				const runs = sampleFunction(f, Math.max(d0, p.xMin), Math.min(d1, p.xMax), [p.yMin, p.yMax])
 				const d = runs.map((run) => run.map((pt, i) => `${i ? 'L' : 'M'}${px(pt).map(f1).join(',')}`).join(' ')).join(' ')
 				if (d) strokes.push({ key: k, d, color, width: 2.4, dashed: it.dashed, itemId: k })
+				for (const run of runs) for (let i = 1; i < run.length; i++) line(px(run[i - 1] as V), px(run[i] as V))
 				// Label the last point of the curve that is actually inside the frame.
 				const visible = runs.flat().filter(([, y]) => y >= p.yMin && y <= p.yMax)
 				const last = visible.at(-1)
 				if (it.label && last) {
 					const [x, y] = px(last)
-					labels.push({ key: k, x: Math.min(x + 6, p.w - 24), y: Math.max(14, Math.min(p.h - 14, y - 14)), latex: it.label, color, itemId: k })
+					labels.push({ key: k, x: Math.min(x + 6, p.w - 24), y: Math.max(14, Math.min(p.h - 14, y - 14)), latex: it.label, color, itemId: k, anchor: [x, y] })
 				}
 				break
 			}
@@ -182,9 +197,15 @@ export function layoutGraph(p: GraphProps): GraphLayout {
 					dashed: it.dashed,
 					itemId: k,
 				})
+				for (let i = 0; i < 48; i++) {
+					const t0 = (i / 48) * Math.PI * 2
+					const t1 = ((i + 1) / 48) * Math.PI * 2
+					line([cx + Math.cos(t0) * r, cy + Math.sin(t0) * r], [cx + Math.cos(t1) * r, cy + Math.sin(t1) * r])
+				}
 				if (it.label) {
 					const a = -Math.PI * 0.75
-					labels.push({ key: k, x: cx + Math.cos(a) * (r + 18), y: cy + Math.sin(a) * (r + 14), latex: it.label, color, itemId: k })
+					const on: V = [cx + Math.cos(a) * r, cy + Math.sin(a) * r]
+					labels.push({ key: k, x: cx + Math.cos(a) * (r + 18), y: cy + Math.sin(a) * (r + 14), latex: it.label, color, itemId: k, anchor: on })
 				}
 				break
 			}
@@ -213,7 +234,15 @@ export function layoutGraph(p: GraphProps): GraphLayout {
 				})
 				if (it.label) {
 					const mid = a0 + delta / 2
-					labels.push({ key: k, x: o[0] + Math.cos(mid) * (r + 13), y: o[1] + Math.sin(mid) * (r + 13), latex: it.label, color: inkHex(it.color, 'violet'), itemId: k })
+					labels.push({
+						key: k,
+						x: o[0] + Math.cos(mid) * (r + 13),
+						y: o[1] + Math.sin(mid) * (r + 13),
+						latex: it.label,
+						color: inkHex(it.color, 'violet'),
+						itemId: k,
+						anchor: [o[0] + Math.cos(mid) * r, o[1] + Math.sin(mid) * r],
+					})
 				}
 				break
 			}
@@ -230,6 +259,8 @@ export function layoutGraph(p: GraphProps): GraphLayout {
 				const [ox, oy] = px(o)
 				strokes.push({ key: `${k}-drop`, d: `M${f1(tx)},${f1(ty)} L${f1(fx)},${f1(fy)}`, color: '#7b8494', width: 1.5, dashed: true, itemId: k })
 				strokes.push({ key: `${k}`, d: `M${f1(ox)},${f1(oy)} L${f1(fx)},${f1(fy)}`, color, width: 6, opacity: 0.45, itemId: k })
+				line([tx, ty], [fx, fy])
+				line([ox, oy], [fx, fy])
 				// right-angle marker at the foot
 				const u = norm(sub([fx, fy], [ox, oy]))
 				const w = norm(sub([tx, ty], [fx, fy]))
@@ -243,20 +274,63 @@ export function layoutGraph(p: GraphProps): GraphLayout {
 				if (it.label) {
 					const n: V = [u[1], -u[0]]
 					const side = (tx - fx) * n[0] + (ty - fy) * n[1] > 0 ? -1 : 1
-					labels.push({ key: k, x: (ox + fx) / 2 + n[0] * 18 * side, y: (oy + fy) / 2 + n[1] * 18 * side, latex: it.label, color, itemId: k })
+					const mid: V = [(ox + fx) / 2, (oy + fy) / 2]
+					labels.push({ key: k, x: mid[0] + n[0] * 18 * side, y: mid[1] + n[1] * 18 * side, latex: it.label, color, itemId: k, anchor: mid })
 				}
 				break
 			}
 			case 'label': {
 				const [x, y] = px(it.at as V)
-				labels.push({ key: k, x, y, latex: it.text, color: inkHex(it.color, 'ink'), itemId: k })
+				labels.push({ key: k, x, y, latex: it.text, color: inkHex(it.color, 'ink'), itemId: k, anchor: [x, y] })
 				break
 			}
 		}
 	}
 
+	placeLabels(labels, ink, p.w, p.h)
 	separateLabels(labels)
 	return { grid, axes, tickLabels, strokes, labels }
+}
+
+/**
+ * Move each label to the spot around its anchor that covers the least ink and no earlier label,
+ * preferring where it was put. Free text labels may only shift a little.
+ */
+export function placeLabels(labels: GraphLabel[], ink: Array<[number, number]>, w: number, h: number) {
+	const placed: Array<{ x: number; y: number; w: number; h: number }> = []
+	const covers = (x: number, y: number, s: { w: number; h: number }) => {
+		let n = 0
+		for (const [px, py] of ink) if (Math.abs(px - x) < s.w / 2 + 2 && Math.abs(py - y) < s.h / 2 + 2) n++
+		return n
+	}
+	const clash = (x: number, y: number, s: { w: number; h: number }) =>
+		placed.some((o) => Math.abs(o.x - x) < (o.w + s.w) / 2 + 2 && Math.abs(o.y - y) < (o.h + s.h) / 2 + 2)
+	for (const l of labels) {
+		const s = labelSize(l.latex, l.size)
+		if (l.anchor) {
+			const [ax, ay] = l.anchor
+			const free = l.x === ax && l.y === ay
+			const r = free ? Math.max(10, s.h * 0.6) : Math.max(Math.hypot(l.x - ax, l.y - ay), Math.hypot(s.w / 2, s.h / 2) + 4)
+			const candidates: Array<[number, number, number]> = [[l.x, l.y, 0]]
+			for (let i = 0; i < 16; i++) {
+				const a = (i / 16) * Math.PI * 2
+				candidates.push([ax + Math.cos(a) * (r + s.w * 0.25 * Math.abs(Math.cos(a))), ay + Math.sin(a) * r, 1 + Math.abs(i - 8) * 0.01])
+			}
+			let best = candidates[0]
+			let bestScore = Infinity
+			for (const c of candidates) {
+				const out = c[0] - s.w / 2 < -6 || c[0] + s.w / 2 > w + 6 || c[1] - s.h / 2 < -6 || c[1] + s.h / 2 > h + 6
+				const score = covers(c[0], c[1], s) + (clash(c[0], c[1], s) ? 40 : 0) + (out ? 25 : 0) + c[2]
+				if (score < bestScore) {
+					best = c
+					bestScore = score
+				}
+			}
+			l.x = best[0]
+			l.y = best[1]
+		}
+		placed.push({ x: l.x, y: l.y, ...s })
+	}
 }
 
 /** Rough on-screen size of a KaTeX label, from its LaTeX source. */
@@ -264,8 +338,9 @@ function labelSize(latex: string, size = 17) {
 	const visible = latex
 		.replace(/\\(text|mathrm|mathbf)\{([^}]*)\}/g, '$2')
 		.replace(/\\[a-zA-Z]+/g, 'x')
-		.replace(/[{}_^\\ ]/g, '')
-	return { w: Math.max(1, visible.length) * size * 0.6 + 8, h: size * 1.3 }
+		.replace(/[{}_^\\]/g, '')
+	// The handwriting font runs a little wider than KaTeX's.
+	return { w: Math.max(1, visible.length) * size * 0.62 + 10, h: size * 1.35 }
 }
 
 /** Nudge overlapping labels apart (later labels move), so names stay readable. */

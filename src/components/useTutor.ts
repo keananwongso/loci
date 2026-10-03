@@ -89,9 +89,9 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 					{
 						onPhase: (phase) => patch((t) => ({ ...t, status: phase })),
 						prepareSay: (text) => (voiceRef.current ? prepareSpeech(text) : undefined),
-						onSay: async (text, prepared) => {
+						onSay: (text, prepared) => {
 							patch((t) => ({ ...t, said: [...t.said, text] }))
-							if (prepared) await playSpeech(prepared as PreparedSpeech)
+							return prepared ? playSpeech(prepared as PreparedSpeech) : undefined
 						},
 						onAction: (action, summary) => patch((t) => ({ ...t, actions: [...t.actions, summary], lastAction: action.type })),
 						onNotice: (message) => patch((t) => ({ ...t, notices: [...(t.notices ?? []), message] })),
