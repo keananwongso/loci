@@ -1703,3 +1703,171 @@ button {
 		display: none;
 	}
 }
+
+/* local admin: the demo pack editor (/admin, dev server only) */
+
+.loci-admin {
+	position: fixed;
+	inset: 0;
+	overflow-y: auto;
+	padding: 32px max(16px, calc(50vw - 440px)) 80px;
+	background: var(--loci-bg);
+	color: var(--loci-ink);
+	font-family: var(--loci-sans);
+	font-size: 14px;
+}
+
+.loci-admin h1 {
+	margin: 0;
+	font-family: var(--loci-display);
+	font-weight: 300;
+	font-size: 32px;
+}
+
+.loci-admin h2 {
+	margin: 0 0 12px;
+	font-size: 15px;
+	font-weight: 600;
+}
+
+.loci-admin__head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 16px;
+	margin-bottom: 20px;
+}
+
+.loci-admin__actions {
+	display: flex;
+	gap: 8px;
+}
+
+.loci-admin__card {
+	margin-bottom: 16px;
+	padding: 18px 20px;
+	border-radius: 16px;
+	background: #fff;
+	box-shadow: var(--loci-shadow);
+}
+
+.loci-admin label {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin-bottom: 10px;
+	font-weight: 500;
+}
+
+.loci-admin label > span {
+	font-weight: 400;
+	color: var(--loci-ink-4);
+}
+
+.loci-admin input:not([type='file']),
+.loci-admin textarea,
+.loci-admin select {
+	min-width: 0;
+	padding: 7px 10px;
+	border: 1px solid var(--loci-btn-line);
+	border-radius: 8px;
+	background: #fff;
+	font: inherit;
+	color: inherit;
+}
+
+.loci-admin__row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 8px;
+}
+
+.loci-admin__row label {
+	margin-bottom: 0;
+}
+
+.loci-admin__grow {
+	flex: 1 1 200px;
+}
+
+.loci-admin__id {
+	width: 140px;
+	font-family: var(--loci-mono);
+	font-size: 13px;
+}
+
+.loci-admin__page {
+	width: 64px;
+}
+
+.loci-admin__step {
+	padding: 14px 0;
+	border-top: 1px solid var(--loci-line);
+}
+
+.loci-admin__branches {
+	padding: 10px 12px;
+	border-radius: 12px;
+	background: var(--loci-bg);
+}
+
+.loci-admin__fine {
+	margin: 4px 0 12px;
+	color: var(--loci-ink-3);
+	line-height: 1.5;
+}
+
+.loci-admin__msg {
+	margin: 0 0 16px;
+	padding: 10px 14px;
+	border-radius: 10px;
+	background: #e5f4ea;
+	color: #146c3c;
+}
+
+.loci-admin__msg[data-bad] {
+	background: #fde8e7;
+	color: #a1271f;
+}
+
+.loci-admin__checks {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.loci-admin__checks li {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 4px 0;
+}
+
+.loci-admin__checks li::before {
+	content: '○';
+	color: #b4520b;
+}
+
+.loci-admin__checks li[data-ok='true']::before {
+	content: '●';
+	color: #178a4c;
+}
+
+.loci-admin__unused {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin-right: 12px;
+}
+
+.loci-admin .loci-chip-btn[data-ok] {
+	color: #146c3c;
+}
+
+.loci-admin button:disabled {
+	opacity: 0.45;
+	cursor: default;
+}
