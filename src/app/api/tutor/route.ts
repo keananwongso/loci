@@ -154,6 +154,7 @@ export async function POST(req: Request) {
 		headers: { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-store' },
 	})
 	if (quota) res.headers.set('X-Loci-Quota-Remaining', String(quota.remaining))
+	res.headers.set('X-Loci-Model', `${provider.name}/${provider.model}`)
 	return withCookie(res, cookie)
 }
 

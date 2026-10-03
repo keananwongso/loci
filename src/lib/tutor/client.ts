@@ -10,6 +10,7 @@ import { captureImages, serializeBoard } from '@/lib/canvas/serialize'
 import type { CanvasAction } from '@/lib/actions/schema'
 import { TutorRequestSchema, type HistoryTurn, type TutorEvent, type TutorRequest } from './types'
 import { userKeyHeaders } from '@/lib/storage/userKey'
+import type { Take, TakeEvent } from '@/lib/demo/pack'
 import { mark } from './timeline'
 
 export interface SayPlayback {
@@ -47,6 +48,10 @@ export interface TurnResult {
 	limitReached?: string
 	/** Free questions left today (hosted demo), when the server reports it. */
 	quotaRemaining?: number
+	/** What the tutor said and drew, with timing: what the admin view keeps as a take. */
+	events: TakeEvent[]
+	/** The model that answered (from the server), or the take's. */
+	model?: string
 }
 
 export interface TurnOptions {
@@ -54,6 +59,47 @@ export interface TurnOptions {
 	scripted?: boolean
 	/** Speech already playing (the instant acknowledgement); the first sentence waits for it. */
 	leadIn?: Promise<void>
+	/** Replay this recorded answer instead of asking anyone. */
+	take?: Take
+}
+
+/** Longest pause kept between a take's events while the tutor is still "thinking". */
+const MAX_REPLAY_GAP = 900
+
+/** A recorded take as a stream, keeping its pace until the answer starts (after that, speech sets the pace). */
+async function* replayTake(take: Take, signal: AbortSignal): AsyncGenerator<TakeEvent> {
+	let last = 0
+	let answering = false
+	for (const event of take.events) {
+		if (signal.aborted) return
+		if (!answering) await new Promise((r) => setTimeout(r, Math.min(MAX_REPLAY_GAP, Math.max(0, event.t - last))))
+		last = event.t
+		if (event.type === 'say' || event.type === 'action') answering = true
+		yield event
+	}
+}
+
+/** The server's NDJSON stream as events. */
+async function* readStream(body: ReadableStream<Uint8Array>): AsyncGenerator<TutorEvent> {
+	const reader = body.getReader()
+	const decoder = new TextDecoder()
+	let buffer = ''
+	for (;;) {
+		const { value, done } = await reader.read()
+		if (done) break
+		buffer += decoder.decode(value, { stream: true })
+		let nl: number
+		while ((nl = buffer.indexOf('\n')) >= 0) {
+			const line = buffer.slice(0, nl).trim()
+			buffer = buffer.slice(nl + 1)
+			if (!line) continue
+			try {
+				yield JSON.parse(line) as TutorEvent
+			} catch {
+				console.warn('[loci] bad stream line')
+			}
+		}
+	}
 }
 
 export async function runTutorTurn(
@@ -73,18 +119,26 @@ export async function runTutorTurn(
 	if (regionText) cb.onThought?.({ text: `reading “${regionText.length > 34 ? `${regionText.slice(0, 33).trimEnd()}…` : regionText}”` })
 
 	cb.onPhase('thinking')
-	const res = await fetch('/api/tutor', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json', ...(opts.scripted ? { 'x-loci-demo': 'scripted' } : userKeyHeaders()) },
-		body: JSON.stringify(request),
-		signal,
-	})
-	if (!res.ok || !res.body) {
-		const body = await res.json().catch(() => ({}))
-		return { error: body.error ?? `Request failed (${res.status})`, limitReached: body.limitReached, quotaRemaining: body.quota?.remaining }
+	let stream: AsyncGenerator<TutorEvent>
+	let quotaRemaining: number | undefined
+	let model = opts.take?.model
+	if (opts.take) stream = replayTake(opts.take, signal)
+	else {
+		const res = await fetch('/api/tutor', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', ...(opts.scripted ? { 'x-loci-demo': 'scripted' } : userKeyHeaders()) },
+			body: JSON.stringify(request),
+			signal,
+		})
+		if (!res.ok || !res.body) {
+			const body = await res.json().catch(() => ({}))
+			return { error: body.error ?? `Request failed (${res.status})`, limitReached: body.limitReached, quotaRemaining: body.quota?.remaining, events: [] }
+		}
+		const quotaHeader = res.headers.get('X-Loci-Quota-Remaining')
+		quotaRemaining = quotaHeader === null ? undefined : Number(quotaHeader)
+		model = res.headers.get('X-Loci-Model') ?? undefined
+		stream = readStream(res.body)
 	}
-	const quotaHeader = res.headers.get('X-Loci-Quota-Remaining')
-	const quotaRemaining = quotaHeader === null ? undefined : Number(quotaHeader)
 
 	lastMark.set(turn, editor.markHistoryStoppingPoint(`tutor-turn-${turn}`))
 	const executor = new CanvasExecutor(editor, turn, cb.beforeDraw)
@@ -97,6 +151,8 @@ export async function runTutorTurn(
 	let speaking: Promise<void> = opts.leadIn?.catch(() => {}) ?? Promise.resolve()
 	let error: string | undefined
 	let started = false
+	const startedAt = performance.now()
+	const events: TakeEvent[] = []
 	const enqueue = (fn: () => Promise<void> | void) => {
 		queue = queue.then(async () => {
 			if (signal.aborted) return
@@ -108,6 +164,9 @@ export async function runTutorTurn(
 		})
 	}
 	const handle = (event: TutorEvent) => {
+		if (event.type === 'say' || event.type === 'thought' || event.type === 'action' || event.type === 'status') {
+			events.push({ ...event, t: Math.round(performance.now() - startedAt) })
+		}
 		if (!started && (event.type === 'say' || event.type === 'action')) {
 			started = true
 			cb.onPhase('teaching')
@@ -153,28 +212,10 @@ export async function runTutorTurn(
 		}
 	}
 
-	const reader = res.body.getReader()
-	const decoder = new TextDecoder()
-	let buffer = ''
-	for (;;) {
-		const { value, done } = await reader.read()
-		if (done) break
-		buffer += decoder.decode(value, { stream: true })
-		let nl: number
-		while ((nl = buffer.indexOf('\n')) >= 0) {
-			const line = buffer.slice(0, nl).trim()
-			buffer = buffer.slice(nl + 1)
-			if (!line) continue
-			try {
-				handle(JSON.parse(line) as TutorEvent)
-			} catch {
-				console.warn('[loci] bad stream line')
-			}
-		}
-	}
+	for await (const event of stream) handle(event)
 	await queue
 	await speaking
-	return { error, quotaRemaining }
+	return { error, quotaRemaining, events, model }
 }
 
 /**

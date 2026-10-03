@@ -10,6 +10,15 @@ import { playSpeech, prepareSpeech, stopAllSpeech, type PreparedSpeech } from '@
 import { ackKindFor, describeSelection, firstThought } from './selection'
 import { loadUserKey, type UserKey } from '@/lib/storage/userKey'
 import { REGION } from '@/lib/canvas/shape-types'
+import type { TurnResult } from '@/lib/tutor/client'
+import type { Take } from '@/lib/demo/pack'
+
+export interface AskOptions {
+	scripted?: boolean
+	spoken?: boolean
+	/** Replay this recorded answer instead of asking the model. */
+	take?: Take
+}
 
 export interface TutorStatus {
 	configured: boolean
@@ -60,11 +69,11 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 	const busy = turns.some((t) => ['looking', 'thinking', 'teaching'].includes(t.status))
 
 	const ask = useCallback(
-		async (question: string, opts: { scripted?: boolean; spoken?: boolean } = {}) => {
+		async (question: string, opts: AskOptions = {}): Promise<TurnResult | null> => {
 			if (!editor || busy || !question.trim()) {
 				setBuddyStatus('')
 				endTutorTurn()
-				return false
+				return null
 			}
 			stopAllSpeech()
 			if (!opts.spoken) startTimeline('asked')
@@ -109,6 +118,7 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 
 			const controller = new AbortController()
 			abortRef.current = controller
+			let outcome: TurnResult | null = null
 			try {
 				const result = await runTutorTurn(
 					editor,
@@ -146,6 +156,7 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 					controller.signal,
 					{ ...opts, leadIn }
 				)
+				outcome = result
 				patch((t) => ({ ...t, status: result.error ? 'error' : 'done', error: result.error, limitReached: result.limitReached }))
 				if (result.quotaRemaining !== undefined) {
 					setStatus((st) => ({ ...st, quota: { limit: st.quota?.limit ?? result.quotaRemaining!, remaining: result.quotaRemaining! } }))
@@ -161,6 +172,7 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 				const stale = regions.filter((id) => editor.getShape(id))
 				if (stale.length) editor.run(() => editor.deleteShapes(stale), { history: 'ignore' })
 			}
+			return outcome
 		},
 		[editor, busy, turns]
 	)
