@@ -117,6 +117,17 @@ export class CanvasExecutor {
 		if (!isFramed(this.editor, this.turnArea)) frameArea(this.editor, this.turnArea)
 	}
 
+	/** Where an anchor is on the page, to look at it while talking about it (null if it is gone). */
+	lookArea(a: Anchor): Rect | null {
+		try {
+			if ('objectId' in a) return this.bounds(a.objectId) ?? null
+			const { point } = this.anchor(a)
+			return { x: point.x, y: point.y, w: 0, h: 0 }
+		} catch {
+			return null
+		}
+	}
+
 	/** Start the frame from what the student pointed at (a region or highlight, not a whole page). */
 	focusContext(ids: string[]) {
 		const rects = ids.map((id) => this.bounds(id)).filter((r): r is Rect => Boolean(r))

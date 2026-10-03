@@ -101,13 +101,16 @@ export class MockProvider implements TutorModelProvider {
 			})
 			await call('say', {
 				text: 'Quick check. If u pointed the same way as the red arrow, what would happen to the slope?',
+				look_at: { graphId: 'dd-plane', point: [2.4, 1.2] },
 			})
 			return
 		}
 
 		await call('say', {
 			text: 'Look at the angle theta in your diagram. The dot product measures how much of the gradient lies along u.',
+			look_at: { objectId: 'dd-plane' },
 		})
+		await call('say', { text: 'And this is the equation we wrote for it.', look_at: { objectId: 'eq-cos' } })
 		await call('add_to_graph', {
 			graphId: 'dd-plane',
 			items: [{ kind: 'projection', id: 'proj', of: 'grad', onto: 'u', label: '\\nabla f \\cdot u', color: 'blue' }],

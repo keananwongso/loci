@@ -10,9 +10,11 @@ interface Props {
 	onToggleVoice: () => void
 	onClear: () => void
 	onSample: () => void
+	/** Remove everything Loci drew, keeping the student's own notes and marks. */
+	onEraseDrawings: () => void
 }
 
-export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear, onSample }: Props) {
+export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear, onSample, onEraseDrawings }: Props) {
 	const [menu, setMenu] = useState(false)
 	const ref = useRef<HTMLDivElement>(null)
 	useEffect(() => {
@@ -69,6 +71,16 @@ export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear
 							}}
 						>
 							Use your own API key…
+						</button>
+						<button
+							role="menuitem"
+							title="Removes everything Loci drew. Your notes, uploads and your own marks stay. Undo with Ctrl/⌘ + Z."
+							onClick={() => {
+								setMenu(false)
+								onEraseDrawings()
+							}}
+						>
+							Erase Loci&rsquo;s drawings
 						</button>
 						<a role="menuitem" href="https://github.com/keananwongso/loci" target="_blank" rel="noreferrer">
 							Source code on GitHub

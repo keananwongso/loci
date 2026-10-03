@@ -14,6 +14,7 @@ import { GraphShapeUtil } from './shapes/GraphShapeUtil'
 import { HighlightShapeUtil } from './shapes/HighlightShapeUtil'
 import { RegionShapeUtil, RegionTool } from './shapes/RegionShapeUtil'
 import { Buddy } from './ui/Buddy'
+import { Emphasis } from './ui/Emphasis'
 import { Toolbar } from './ui/Toolbar'
 import { PromptBar } from './ui/PromptBar'
 import { ResponsePanel } from './ui/ResponsePanel'
@@ -51,7 +52,12 @@ const components: TLComponents = {
 	DebugMenu: null,
 	HelperButtons: null,
 	Minimap: null,
-	InFrontOfTheCanvas: Buddy,
+	InFrontOfTheCanvas: () => (
+		<>
+			<Emphasis />
+			<Buddy />
+		</>
+	),
 	StylePanel,
 }
 
@@ -177,6 +183,12 @@ function Shell() {
 				onToggleVoice={toggleVoice}
 				onClear={clearBoard}
 				onSample={loadSample}
+				onEraseDrawings={() => {
+					if (tutor.busy) tutor.stop()
+					const n = tutor.eraseDrawings()
+					setLoading(n ? `Erased ${n} drawing${n === 1 ? '' : 's'}. Press ${/Mac/.test(navigator.platform) ? '⌘' : 'Ctrl'} + Z to bring them back.` : 'Nothing drawn by Loci to erase.')
+					setTimeout(() => setLoading(null), 2800)
+				}}
 			/>
 			<Toolbar onUpload={() => fileRef.current?.click()} />
 			<HoldToTalk busy={tutor.busy} onAsk={tutor.ask} onStop={tutor.stop} disabled={Boolean(disabledReason)} voice={voiceOut} />

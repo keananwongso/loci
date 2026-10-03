@@ -3,7 +3,7 @@
  * these Zod schemas on the server before anything is sent to a model provider.
  */
 import { z } from 'zod'
-import { GraphItem, type CanvasAction } from '@/lib/actions/schema'
+import { GraphItem, type Anchor, type CanvasAction } from '@/lib/actions/schema'
 
 const num = z.number().finite()
 export const BoxSchema = z.object({ x: num, y: num, w: num, h: num })
@@ -119,7 +119,8 @@ export type TutorRequest = z.infer<typeof TutorRequestSchema>
 
 /** Streamed from the server route to the browser as newline-delimited JSON. */
 export type TutorEvent =
-	| { type: 'say'; text: string }
+	/** `look`: what the sentence is about, so the tutor looks there while it speaks. */
+	| { type: 'say'; text: string; look?: Anchor }
 	/** What the tutor is doing right now, read from the call it is still writing. Shown while it thinks. */
 	| { type: 'thought'; text: string; latex?: string }
 	| { type: 'action'; action: CanvasAction; summary: string }

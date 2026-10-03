@@ -82,7 +82,14 @@ export class ActionSession {
 		if (!parsed.success) return { ok: false, error: `Invalid input for ${tool}: ${z.prettifyError(parsed.error)}` }
 
 		try {
-			const action = { type: tool, ...parsed.data } as CanvasAction
+			let action = { type: tool, ...parsed.data } as CanvasAction
+			// A sentence is never lost over where it points: speak it, just without looking.
+			let lookNote = ''
+			if (action.type === 'say' && action.look_at && this.missingRefs(action).length) {
+				lookNote = ` (look_at ignored: unknown id ${this.missingRefs(action).join(', ')})`
+				const { look_at: _, ...rest } = action
+				action = rest
+			}
 			const outcome = this.check(action)
 			if (!outcome.ok) {
 				this.emit({ type: 'rejected', tool, reason: outcome.error })
@@ -92,8 +99,8 @@ export class ActionSession {
 				const text = toSpoken(action.text)
 				if (!text) return { ok: true, result: 'Said nothing: the text was empty once markup was removed.' }
 				this.spoken.push(text)
-				this.emit({ type: 'say', text })
-				return { ok: true, result: 'Said.' }
+				this.emit({ type: 'say', text, ...(action.look_at ? { look: action.look_at } : {}) })
+				return { ok: true, result: `Said.${lookNote}` }
 			}
 			const summary = summarize(outcome.action)
 			this.summaries.push(summary)
@@ -263,6 +270,9 @@ export class ActionSession {
 			if ('graphId' in a) refs.push(a.graphId)
 		}
 		switch (action.type) {
+			case 'say':
+				if (action.look_at) anchor(action.look_at)
+				break
 			case 'write_text':
 			case 'write_equation':
 			case 'draw_axes':

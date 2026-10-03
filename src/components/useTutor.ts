@@ -3,12 +3,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Editor } from 'tldraw'
 import { lastMark, runTutorTurn } from '@/lib/tutor/client'
 import { clearConversation, loadConversation, saveConversation, type Turn } from '@/lib/storage/conversation'
-import { clearThinking, endTutorTurn, lookAt, moveTutorTo, setBuddyStatus, setThought, showAsked } from '@/lib/canvas/presence'
+import { clearThinking, endTutorTurn, lookAt, lookAtWhileTalking, moveTutorTo, setBuddyStatus, setThought, showAsked } from '@/lib/canvas/presence'
 import { playAck, takeAck } from '@/lib/voice/ack'
 import { endTimeline, mark, startTimeline } from '@/lib/tutor/timeline'
 import { playSpeech, prepareSpeech, stopAllSpeech, type PreparedSpeech } from '@/lib/voice/player'
 import { ackKindFor, describeSelection, firstThought } from './selection'
 import { loadUserKey, type UserKey } from '@/lib/storage/userKey'
+import { REGION } from '@/lib/canvas/shape-types'
 
 export interface TutorStatus {
 	configured: boolean
@@ -71,6 +72,11 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 			if (!opts.spoken) startTimeline('asked')
 			// Instant feedback, before any model has answered: fly to what they pointed at, show what
 			// was heard and what it is looking at, and in voice mode acknowledge out loud.
+			// The area the student dragged out is a pointing gesture for this one question.
+			const regions = editor
+				.getSelectedShapes()
+				.filter((s) => s.type === REGION)
+				.map((s) => s.id)
 			const focus = editor.getSelectionPageBounds()
 			lookAt(focus ? { x: focus.x, y: focus.y, w: focus.w, h: focus.h } : null)
 			setBuddyStatus('')
@@ -133,6 +139,7 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 							answerStarted()
 							mark('first mark drawn')
 						},
+						onLook: lookAtWhileTalking,
 						onNotice: (message) => patch((t) => ({ ...t, notices: [...(t.notices ?? []), message] })),
 						beforeDraw: moveTutorTo,
 					},
@@ -151,6 +158,8 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 				setBuddyStatus('')
 				endTutorTurn()
 				endTimeline()
+				const stale = regions.filter((id) => editor.getShape(id))
+				if (stale.length) editor.run(() => editor.deleteShapes(stale), { history: 'ignore' })
 			}
 		},
 		[editor, busy, turns]
@@ -184,6 +193,20 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 		setTurns((ts) => ts.map((t) => (t.id === last.id ? { ...t, undone: true } : t)))
 	}, [editor, turns])
 
+	/** Remove everything Loci drew, in every answer, keeping the student's own material and marks. Undoable. */
+	const eraseDrawings = useCallback(() => {
+		if (!editor) return 0
+		const ids = editor
+			.getCurrentPageShapes()
+			.filter((s) => (s.meta as { author?: string }).author === 'assistant')
+			.map((s) => s.id)
+		if (ids.length) {
+			editor.markHistoryStoppingPoint('erase-loci-drawings')
+			editor.deleteShapes(ids)
+		}
+		return ids.length
+	}, [editor])
+
 	const reset = useCallback(async () => {
 		resets.current++
 		stop()
@@ -194,5 +217,5 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 	// A visitor's own key counts as configured even when the server has none.
 	const effective: TutorStatus = userKey ? { ...status, configured: true, provider: userKey.provider, model: userKey.model || `${userKey.provider} (your key)` } : status
 
-	return { turns, busy, status: effective, userKey, ask, stop, undoLastTurn, reset }
+	return { turns, busy, status: effective, userKey, ask, stop, undoLastTurn, eraseDrawings, reset }
 }

@@ -105,3 +105,22 @@ export function clearThinking() {
 	buddyThought.set(null)
 	buddyAsked.set('')
 }
+
+/**
+ * A soft pulse around what the tutor is talking about (not a shape: it never touches the board or
+ * its undo history). `key` restarts the animation when the same spot is pointed at again.
+ */
+export const emphasis = atom<{ area: { x: number; y: number; w: number; h: number }; key: number } | null>('emphasis', null)
+
+let emphasisTimer: ReturnType<typeof setTimeout> | undefined
+export function emphasize(area: { x: number; y: number; w: number; h: number }, ms = 2600) {
+	clearTimeout(emphasisTimer)
+	emphasis.set({ area, key: performance.now() })
+	emphasisTimer = setTimeout(() => emphasis.set(null), ms)
+}
+
+/** Look at something already on the board while talking about it. */
+export function lookAtWhileTalking(area: { x: number; y: number; w: number; h: number }) {
+	moveTutorTo(area)
+	emphasize(area)
+}

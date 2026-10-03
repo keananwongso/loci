@@ -852,6 +852,54 @@ button {
 	}
 }
 
+/* what the tutor is talking about: a soft pulse that fades, never a shape on the board */
+
+.loci-emphasis {
+	position: absolute;
+	left: 0;
+	top: 0;
+	pointer-events: none;
+	z-index: 9;
+	border-radius: 14px;
+	border: 2px solid rgba(116, 69, 224, 0.55);
+	box-shadow: 0 0 0 6px rgba(116, 69, 224, 0.1), 0 0 26px rgba(116, 69, 224, 0.22);
+	animation: loci-emphasis 2.6s ease-out both;
+}
+
+.loci-emphasis[data-point='true'] {
+	border-radius: 50%;
+}
+
+@keyframes loci-emphasis {
+	0% {
+		opacity: 0;
+		scale: 1.06;
+	}
+	12% {
+		opacity: 1;
+		scale: 1;
+	}
+	30% {
+		scale: 1.025;
+	}
+	48% {
+		scale: 1;
+	}
+	75% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.loci-emphasis {
+		animation: none;
+		opacity: 0.8;
+	}
+}
+
 /* hold to talk: while the keys are down, the board is a highlighter */
 
 .loci-ui > .loci-talk {

@@ -210,6 +210,9 @@ export const toolInputSchemas = {
 				.min(1)
 				.max(1500)
 				.describe('Exactly the words to speak, written for the ear: plain sentences, math said in words ("the gradient of f", "three fifths"), no LaTeX, symbols, markdown or dashes.'),
+			look_at: Anchor.optional().describe(
+				'What this sentence is about, when it is already on the board: an object id (an equation, a highlight, a graph, the student\'s region) or a point in a graph. You look there and it pulses while you speak. Use it whenever you talk about something you are not drawing right now.'
+			),
 		})
 		.strict(),
 

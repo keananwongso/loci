@@ -30,6 +30,8 @@ export interface TurnCallbacks {
 	/** Called the moment a sentence arrives, so speech can be synthesized ahead of its turn. */
 	prepareSay?(text: string): unknown
 	onAction(action: CanvasAction, summary: string): void
+	/** A sentence is about to be said about something already on the board: look at it. */
+	onLook?(area: { x: number; y: number; w: number; h: number }): void
 	onNotice(message: string): void
 	/** What the tutor is doing while it works, before the answer starts. */
 	onThought?(thought: { text: string; latex?: string }): void
@@ -116,6 +118,8 @@ export async function runTutorTurn(
 				enqueue(async () => {
 					await speaking
 					if (signal.aborted) return
+					const area = event.look ? executor.lookArea(event.look) : null
+					if (area) cb.onLook?.(area)
 					const playback = cb.onSay(event.text, prepared)
 					if (!playback) return
 					speaking = playback.done.catch(() => {})

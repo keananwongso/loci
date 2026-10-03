@@ -167,3 +167,18 @@ describe('tool definitions', () => {
 		}
 	})
 })
+
+describe('say look_at', () => {
+	it('passes what the sentence is about through to the browser', () => {
+		const { s, events } = session()
+		expect(s.handle('say', { text: 'Look at the red vector.', look_at: { graphId: 'graph-1', point: [2, 1] } }).ok).toBe(true)
+		expect(events).toEqual([{ type: 'say', text: 'Look at the red vector.', look: { graphId: 'graph-1', point: [2, 1] } }])
+	})
+
+	it('still speaks when it points at something that does not exist', () => {
+		const { s, events } = session()
+		const r = s.handle('say', { text: 'Look here.', look_at: { objectId: 'nope' } })
+		expect(r).toMatchObject({ ok: true, result: expect.stringContaining('look_at ignored') })
+		expect(events).toEqual([{ type: 'say', text: 'Look here.' }])
+	})
+})
