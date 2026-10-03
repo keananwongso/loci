@@ -28,7 +28,7 @@ Open an issue with what you did, what you expected and what happened. The termin
 
 ## Security
 
-If you find a way to spend a hosted demo's credits past its limits, or anything else that shouldn't be public, please email keananwongso7@gmail.com instead of opening an issue.
+If you find a way to spend a hosted demo's credits past its limits, or anything else that shouldn't be public, please report it privately through the repository's Security tab (Report a vulnerability) instead of opening an issue.
 
 ## License
 
