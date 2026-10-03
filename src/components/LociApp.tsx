@@ -31,6 +31,7 @@ import { checkSpeechProvider } from '@/lib/voice/player'
 import { warmAcks } from '@/lib/voice/ack'
 import { loadHandFont } from '@/lib/canvas/hand'
 import { installDragToPan } from '@/lib/canvas/pan'
+import { loadPack, placePack } from '@/lib/demo/client'
 
 const shapeUtils = [MaterialShapeUtil, EquationShapeUtil, GraphShapeUtil, HighlightShapeUtil, RegionShapeUtil]
 const tools = [RegionTool]
@@ -148,10 +149,10 @@ function Shell() {
 
 	const loadSample = useCallback(async () => {
 		setLoading('Loading sample notes…')
-		const res = await fetch('/samples/directional-derivatives.pdf')
-		const blob = await res.blob()
-		await ingest([new File([blob], 'directional-derivatives.pdf', { type: 'application/pdf' })])
-	}, [ingest])
+		const pack = await loadPack()
+		if (pack) await placePack(editor, pack, setLoading)
+		setLoading(null)
+	}, [editor])
 
 	const clearBoard = useCallback(async () => {
 		editor.deleteShapes([...editor.getCurrentPageShapeIds()])

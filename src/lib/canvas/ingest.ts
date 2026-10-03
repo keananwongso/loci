@@ -57,14 +57,22 @@ export interface IngestProgress {
 	(message: string | null): void
 }
 
-export async function ingestFiles(editor: Editor, files: File[], progress?: IngestProgress) {
+export interface IngestOptions {
+	/** The role to give the material instead of guessing it from the file name. */
+	role?: MaterialRole
+	/** Select the first new page when done (default true). */
+	select?: boolean
+}
+
+export async function ingestFiles(editor: Editor, files: File[], progress?: IngestProgress, opts: IngestOptions = {}) {
 	const created: TLShapeId[] = []
 	for (const file of files) {
+		const role = opts.role ?? guessRole(file.name)
 		try {
 			if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-				created.push(...(await ingestPdf(editor, file, progress)))
+				created.push(...(await ingestPdf(editor, file, role, progress)))
 			} else if (file.type.startsWith('image/')) {
-				created.push(await ingestImage(editor, file))
+				created.push(await ingestImage(editor, file, role))
 			} else {
 				progress?.(`Unsupported file: ${file.name}. Use a pdf, png or jpg.`)
 				await new Promise((r) => setTimeout(r, 2500))
@@ -76,14 +84,14 @@ export async function ingestFiles(editor: Editor, files: File[], progress?: Inge
 		}
 	}
 	progress?.(null)
-	if (created.length) editor.select(created[0])
+	if (created.length && opts.select !== false) editor.select(created[0])
 	return created
 }
 
-async function ingestPdf(editor: Editor, file: File, progress?: IngestProgress) {
+async function ingestPdf(editor: Editor, file: File, role: MaterialRole, progress?: IngestProgress) {
 	const origin = nextColumnOrigin(editor)
 	const base = slug(file.name)
-	const meta: MaterialMeta = { role: guessRole(file.name), doc: randomKey('doc') }
+	const meta: MaterialMeta = { role, doc: randomKey('doc') }
 	const ids: TLShapeId[] = []
 	let y = origin.y
 	progress?.(`Opening ${file.name}…`)
@@ -123,7 +131,7 @@ async function ingestPdf(editor: Editor, file: File, progress?: IngestProgress) 
 	return ids
 }
 
-async function ingestImage(editor: Editor, file: File) {
+async function ingestImage(editor: Editor, file: File, role: MaterialRole) {
 	const bitmap = await createImageBitmap(file)
 	let blob: Blob = file
 	let pixelW = bitmap.width
@@ -151,7 +159,7 @@ async function ingestImage(editor: Editor, file: File) {
 		type: MATERIAL,
 		x: origin.x,
 		y: origin.y,
-		meta: { role: guessRole(file.name), doc: blobKey },
+		meta: { role, doc: blobKey },
 		props: { w, h, blobKey, kind: 'image', name: file.name || 'pasted image', page: 1, pageCount: 1, pixelW, pixelH, textItems: [] },
 	})
 	frame(editor, { x: origin.x, y: origin.y, w, h })

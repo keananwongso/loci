@@ -1,4 +1,4 @@
-// Generates public/samples/directional-derivatives.pdf: short, synthetic calculus notes used
+// Generates public/demo/directional-derivatives.pdf: short, synthetic calculus notes used
 // by "Try sample notes". Written for this repo; not taken from any course.
 //
 //   npm run sample            (needs a Chromium: `npx playwright install chromium`,
@@ -74,7 +74,7 @@ const html = `<!doctype html><html><head><meta charset="utf-8">
 </section>
 </body></html>`
 
-const outDir = join(root, 'public/samples')
+const outDir = join(root, 'public/demo')
 mkdirSync(outDir, { recursive: true })
 const htmlPath = join(outDir, '.sample.html')
 writeFileSync(htmlPath, html)
@@ -87,4 +87,4 @@ await page.pdf({ path: join(outDir, 'directional-derivatives.pdf'), format: 'Let
 await browser.close()
 const { unlinkSync } = await import('node:fs')
 unlinkSync(htmlPath)
-console.log('Wrote public/samples/directional-derivatives.pdf')
+console.log('Wrote public/demo/directional-derivatives.pdf')
