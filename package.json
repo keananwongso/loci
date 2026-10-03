@@ -2,6 +2,12 @@
   "name": "loci",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
+  "author": "Keanan Wongso",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/keananwongso/loci.git"
+  },
   "description": "A local-first spatial AI tutor: the AI teaches by drawing on the same canvas as your course material.",
   "scripts": {
     "dev": "node scripts/next.mjs dev",

@@ -161,3 +161,9 @@ tldraw is free to use in development and on localhost. Deploying Loci publicly i
 * OCR for photos and screenshots, so text-only models can read them
 * Realtime voice conversation
 * iPad and Apple Pencil: a shared canvas where the tutor can see handwritten work and circle the term that went wrong
+
+## License
+
+Loci is open source under the [MIT License](LICENSE).
+
+Its dependencies keep their own licenses. Note that tldraw, the canvas library, is not MIT: it is free in development and on localhost, and needs a license key (a free hobby license for non-commercial use) when deployed on a public domain.
