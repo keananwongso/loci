@@ -111,7 +111,7 @@ export class ActionSession {
 				}
 				this.spoken.push(text)
 				this.emit({ type: 'say', text, ...(action.look_at ? { look: action.look_at } : {}) })
-				return { ok: true, result: `Said aloud; the student heard it.${lookNote}` }
+				return { ok: true, result: `Said aloud.${lookNote} Carry on with the rest of the answer (the drawing and what comes next); stop only when the whole answer is done, and never repeat this sentence.` }
 			}
 			this.repeating = false
 			const summary = summarize(outcome.action)
