@@ -8,7 +8,7 @@ import type { Editor } from 'tldraw'
 import { CanvasExecutor, type BeforeDraw } from '@/lib/canvas/executor'
 import { captureImages, serializeBoard } from '@/lib/canvas/serialize'
 import type { CanvasAction } from '@/lib/actions/schema'
-import type { HistoryTurn, TutorEvent, TutorRequest } from './types'
+import { TutorRequestSchema, type HistoryTurn, type TutorEvent, type TutorRequest } from './types'
 import { userKeyHeaders } from '@/lib/storage/userKey'
 import { mark } from './timeline'
 
@@ -66,7 +66,7 @@ export async function runTutorTurn(
 	cb.onPhase('looking')
 	const focus = serializeBoard(editor)
 	const images = await captureImages(editor, focus)
-	const request: TutorRequest = { question, board: focus.board, images, history: history.slice(-12), turn }
+	const request = fitRequest({ question, board: focus.board, images, history: history.slice(-12), turn })
 	const regionText = focus.board.region?.text?.replace(/\s+/g, ' ').trim()
 	if (regionText) cb.onThought?.({ text: `reading “${regionText.length > 34 ? `${regionText.slice(0, 33).trimEnd()}…` : regionText}”` })
 
@@ -170,4 +170,37 @@ export async function runTutorTurn(
 	await queue
 	await speaking
 	return { error, quotaRemaining }
+}
+
+/**
+ * Check the request against the schema the server enforces, and drop any board object, image or
+ * earlier turn that would fail it, so one odd drawing never blocks every later question. What was
+ * dropped, and why, is logged.
+ */
+export function fitRequest(request: TutorRequest): TutorRequest {
+	for (let attempt = 0; attempt < 5; attempt++) {
+		const parsed = TutorRequestSchema.safeParse(request)
+		if (parsed.success) return request
+		const drop = { objects: new Set<number>(), images: new Set<number>(), history: new Set<number>() }
+		for (const issue of parsed.error.issues) {
+			const [a, b, c] = issue.path
+			const where = issue.path.join('.')
+			if (a === 'board' && b === 'objects' && typeof c === 'number') drop.objects.add(c)
+			else if (a === 'images' && typeof b === 'number') drop.images.add(b)
+			else if (a === 'history' && typeof b === 'number') drop.history.add(b)
+			else {
+				console.warn(`[loci] request does not fit the schema at ${where}: ${issue.message}`)
+				continue
+			}
+			console.warn(`[loci] left out ${where} from the request: ${issue.message}`)
+		}
+		if (!drop.objects.size && !drop.images.size && !drop.history.size) return request
+		request = {
+			...request,
+			board: { ...request.board, objects: request.board.objects.filter((_, i) => !drop.objects.has(i)) },
+			images: request.images.filter((_, i) => !drop.images.has(i)),
+			history: request.history.filter((_, i) => !drop.history.has(i)),
+		}
+	}
+	return request
 }

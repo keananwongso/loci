@@ -66,7 +66,9 @@ export async function transcribe(clip: Blob, timeoutMs = 8000): Promise<string |
 	const controller = new AbortController()
 	const timer = setTimeout(() => controller.abort(), timeoutMs)
 	try {
-		const res = await fetch('/api/transcribe', { method: 'POST', body: clip, headers: { 'Content-Type': clip.type }, signal: controller.signal })
+		// Browsers record webm, mp4 or ogg; Fish reliably decodes plain WAV, so send that when possible.
+		const audio = (await within(toWav(clip), 2000, null)) ?? clip
+		const res = await fetch('/api/transcribe', { method: 'POST', body: audio, headers: { 'Content-Type': audio.type }, signal: controller.signal })
 		if (!res.ok) {
 			console.warn('[loci] Fish transcription failed:', (await res.json().catch(() => ({}))).error ?? res.status)
 			return null
@@ -77,5 +79,44 @@ export async function transcribe(clip: Blob, timeoutMs = 8000): Promise<string |
 		return null
 	} finally {
 		clearTimeout(timer)
+	}
+}
+
+const WAV_RATE = 16000
+
+/** The clip as 16 kHz mono 16-bit WAV, or null if this browser can't decode it. */
+export async function toWav(clip: Blob): Promise<Blob | null> {
+	try {
+		const decoded = await new OfflineAudioContext(1, 1, WAV_RATE).decodeAudioData(await clip.arrayBuffer())
+		// Render through a mono context at the target rate: this downmixes and resamples in one pass.
+		const ctx = new OfflineAudioContext(1, Math.max(1, Math.ceil(decoded.duration * WAV_RATE)), WAV_RATE)
+		const source = ctx.createBufferSource()
+		source.buffer = decoded
+		source.connect(ctx.destination)
+		source.start()
+		const samples = (await ctx.startRendering()).getChannelData(0)
+		const out = new DataView(new ArrayBuffer(44 + samples.length * 2))
+		const text = (at: number, s: string) => [...s].forEach((c, i) => out.setUint8(at + i, c.charCodeAt(0)))
+		text(0, 'RIFF')
+		out.setUint32(4, 36 + samples.length * 2, true)
+		text(8, 'WAVE')
+		text(12, 'fmt ')
+		out.setUint32(16, 16, true)
+		out.setUint16(20, 1, true) // PCM
+		out.setUint16(22, 1, true) // mono
+		out.setUint32(24, WAV_RATE, true)
+		out.setUint32(28, WAV_RATE * 2, true)
+		out.setUint16(32, 2, true)
+		out.setUint16(34, 16, true)
+		text(36, 'data')
+		out.setUint32(40, samples.length * 2, true)
+		for (let i = 0; i < samples.length; i++) {
+			const v = Math.max(-1, Math.min(1, samples[i]))
+			out.setInt16(44 + i * 2, v < 0 ? v * 0x8000 : v * 0x7fff, true)
+		}
+		return new Blob([out.buffer], { type: 'audio/wav' })
+	} catch (err) {
+		console.warn('[loci] could not convert the recording to WAV; sending it as recorded', err)
+		return null
 	}
 }

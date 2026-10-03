@@ -102,6 +102,8 @@ export async function POST(req: Request) {
 
 	const parsed = TutorRequestSchema.safeParse(await req.json().catch(() => null))
 	if (!parsed.success) {
+		const where = parsed.error.issues.slice(0, 5).map((i) => `${i.path.join('.')}: ${i.message}`)
+		console.warn(`[loci] rejected a tutor request: ${where.join('; ')}`)
 		return Response.json({ error: 'Invalid request.', details: parsed.error.issues.slice(0, 5) }, { status: 400 })
 	}
 	const request = parsed.data

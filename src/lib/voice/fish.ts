@@ -62,7 +62,7 @@ export const MAX_RECORDING_BYTES = 2_000_000
 export async function fishTranscribe(audio: Blob, config: FishConfig, signal?: AbortSignal): Promise<string> {
 	if (!config.apiKey) throw new FishError(503, 'FISH_API_KEY is not set.')
 	const form = new FormData()
-	form.append('audio', audio, 'question.webm')
+	form.append('audio', audio, `question.${extensionFor(audio.type)}`)
 	form.append('ignore_timestamps', 'true')
 	const res = await (config.fetch ?? fetch)(FISH_ASR_URL, {
 		method: 'POST',
@@ -76,4 +76,13 @@ export async function fishTranscribe(audio: Blob, config: FishConfig, signal?: A
 	}
 	const data = (await res.json()) as { text?: string }
 	return (data.text ?? '').trim()
+}
+
+/** A file name extension Fish can recognise the format by. */
+function extensionFor(type: string) {
+	if (type.includes('wav')) return 'wav'
+	if (type.includes('mp4') || type.includes('m4a') || type.includes('aac')) return 'm4a'
+	if (type.includes('ogg')) return 'ogg'
+	if (type.includes('mpeg') || type.includes('mp3')) return 'mp3'
+	return 'webm'
 }
