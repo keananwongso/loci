@@ -53,6 +53,16 @@ export class ActionSession {
 	readonly summaries: string[] = []
 	readonly spoken: string[] = []
 
+	/**
+	 * Plain text the model wrote outside \`say\`. It is spoken like a sentence (in case the model
+	 * skipped \`say\`), minus anything in square brackets, which is never meant for the student
+	 * (notes, or tool calls written out as words), and it goes through the same repeat check.
+	 */
+	sayPlainText(text: string) {
+		const clean = text.replace(/\[[^\]]*\]?/g, ' ').replace(/\s+/g, ' ').trim()
+		if (clean) this.handle('say', { text: clean })
+	}
+
 	/** The answer has reached its end: the last thing said was a question (the check, or an invitation). */
 	endsOnQuestion(): boolean {
 		return Boolean(this.spoken.at(-1)?.trim().endsWith('?'))

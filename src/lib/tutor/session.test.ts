@@ -223,3 +223,17 @@ describe('endsOnQuestion', () => {
 		expect(s.endsOnQuestion()).toBe(true)
 	})
 })
+
+describe('sayPlainText', () => {
+	it('never speaks bracketed notes or tool calls written out as words', () => {
+		const { s, events } = session()
+		s.sayPlainText('So b is how far up u reaches. [Board actions I took: say look_at graph-u bvec ("So b..."), highlight hl-u2 on p1]')
+		expect(events).toEqual([{ type: 'say', text: 'So b is how far up u reaches.' }])
+	})
+
+	it('says nothing when the text was only a bracketed note', () => {
+		const { s, events } = session()
+		s.sayPlainText('[Board actions I took: highlight hl-1]')
+		expect(events).toEqual([])
+	})
+})
