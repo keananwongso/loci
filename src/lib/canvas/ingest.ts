@@ -8,6 +8,7 @@ import { renderPdf } from '@/lib/documents/pdf'
 import { putBlob, randomKey } from '@/lib/storage/blobs'
 import { MATERIAL, type MaterialShape } from './shape-types'
 import { union, type Rect } from './placement'
+import { guessRole, type MaterialMeta } from '@/lib/documents/roles'
 
 export const PAGE_WIDTH = 680
 const PAGE_GAP = 56
@@ -79,6 +80,7 @@ export async function ingestFiles(editor: Editor, files: File[], progress?: Inge
 async function ingestPdf(editor: Editor, file: File, progress?: IngestProgress) {
 	const origin = nextColumnOrigin(editor)
 	const base = slug(file.name)
+	const meta: MaterialMeta = { role: guessRole(file.name), doc: randomKey('doc') }
 	const ids: TLShapeId[] = []
 	let y = origin.y
 	progress?.(`Opening ${file.name}…`)
@@ -93,6 +95,7 @@ async function ingestPdf(editor: Editor, file: File, progress?: IngestProgress) 
 			type: MATERIAL,
 			x: origin.x,
 			y,
+			meta: { ...meta },
 			props: {
 				w: PAGE_WIDTH,
 				h,
@@ -145,6 +148,7 @@ async function ingestImage(editor: Editor, file: File) {
 		type: MATERIAL,
 		x: origin.x,
 		y: origin.y,
+		meta: { role: guessRole(file.name), doc: blobKey },
 		props: { w, h, blobKey, kind: 'image', name: file.name || 'pasted image', page: 1, pageCount: 1, pixelW, pixelH, textItems: [] },
 	})
 	frame(editor, { x: origin.x, y: origin.y, w, h })

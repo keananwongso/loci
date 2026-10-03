@@ -4,6 +4,7 @@
  */
 import { z } from 'zod'
 import { GraphItem, type Anchor, type CanvasAction } from '@/lib/actions/schema'
+import { ROLES } from '@/lib/documents/roles'
 
 const num = z.number().finite()
 export const BoxSchema = z.object({ x: num, y: num, w: num, h: num })
@@ -46,6 +47,7 @@ export const BoardObjectSchema = z.object({
 		.object({
 			kind: z.enum(['pdf', 'image']),
 			name: z.string().max(300),
+			role: z.enum(ROLES).optional(),
 			page: z.number().int().optional(),
 			pageCount: z.number().int().optional(),
 			pixelSize: z.tuple([num, num]).optional(),
@@ -53,6 +55,8 @@ export const BoardObjectSchema = z.object({
 			textItems: z.array(TextItemSchema).max(6000).optional(),
 			/** Short preview for materials out of focus. */
 			textPreview: z.string().max(1200).optional(),
+			/** Full text of a syllabus or mark scheme page out of focus, for the tutor to consult. */
+			referenceText: z.string().max(6000).optional(),
 		})
 		.optional(),
 	graph: z

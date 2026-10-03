@@ -11,8 +11,12 @@ import { getBlob } from '@/lib/storage/blobs'
 import { EQUATION, GRAPH, HIGHLIGHT, MATERIAL, REGION, type GraphShape, type MaterialShape } from './shape-types'
 import { toModelId } from './executor'
 import { overlaps, type Rect } from './placement'
+import { isReference, roleOf } from '@/lib/documents/roles'
 
 const MAX_OBJECTS = 250
+/** Syllabus and mark scheme text sent per question when out of focus, in characters: per page and in all. */
+const REFERENCE_PER_PAGE = 5000
+const REFERENCE_TOTAL = 16000
 
 function rectOf(editor: Editor, shape: TLShape): Rect | null {
 	const b = editor.getShapePageBounds(shape)
@@ -114,6 +118,7 @@ export function serializeBoard(editor: Editor): FocusInfo {
 		.slice(0, MAX_OBJECTS)
 
 	let hasAssistantInView = false
+	let referenceLeft = REFERENCE_TOTAL
 	const objects: BoardObject[] = []
 	for (const { s, r } of ranked) {
 		const meta = s.meta as { author?: string; turn?: number }
@@ -128,6 +133,16 @@ export function serializeBoard(editor: Editor): FocusInfo {
 			...(typeof meta.turn === 'number' ? { turn: meta.turn } : {}),
 		} as const
 		const obj = describeShape(editor, s, focusIds.has(s.id))
+		if (obj?.material && !focusIds.has(s.id) && isReference(roleOf(s.meta)) && referenceLeft > 0) {
+			const full = groupLines((s as MaterialShape).props.textItems)
+				.map((l) => l.text)
+				.join('\n')
+				.slice(0, Math.min(REFERENCE_PER_PAGE, referenceLeft))
+			if (full) {
+				referenceLeft -= full.length
+				obj.material = { ...obj.material, textPreview: undefined, referenceText: full }
+			}
+		}
 		if (obj) objects.push({ ...base, ...obj } as BoardObject)
 	}
 
@@ -149,6 +164,7 @@ function describeShape(editor: Editor, s: TLShape, inFocus: boolean): Partial<Bo
 				material: {
 					kind: p.kind,
 					name: p.name,
+					role: roleOf(s.meta),
 					page: p.page,
 					pageCount: p.pageCount,
 					pixelSize: [p.pixelW, p.pixelH],
