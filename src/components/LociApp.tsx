@@ -31,7 +31,7 @@ import { checkSpeechProvider } from '@/lib/voice/player'
 import { warmAcks } from '@/lib/voice/ack'
 import { loadHandFont } from '@/lib/canvas/hand'
 import { installDragToPan } from '@/lib/canvas/pan'
-import { loadPack, placePack } from '@/lib/demo/client'
+import { loadPack, loadPackVoice, placePack } from '@/lib/demo/client'
 
 const shapeUtils = [MaterialShapeUtil, EquationShapeUtil, GraphShapeUtil, HighlightShapeUtil, RegionShapeUtil]
 const tools = [RegionTool]
@@ -100,8 +100,9 @@ function Shell() {
 	// Which voice answers (Fish Audio or the browser's), checked whenever voice is turned on.
 	const [voiceProvider, setVoiceProvider] = useState<'fish' | 'browser' | null>(null)
 	useEffect(() => {
+		// The demo's pre-rendered clips (acknowledgements included) load first, so they aren't synthesized.
 		if (voiceOut)
-			checkSpeechProvider().then((p) => {
+			Promise.all([checkSpeechProvider(), loadPackVoice()]).then(([p]) => {
 				setVoiceProvider(p)
 				warmAcks()
 			})

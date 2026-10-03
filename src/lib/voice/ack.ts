@@ -7,16 +7,10 @@
  * immediately.
  */
 import { playSpeech, prepareSpeech, type Playback, type PreparedSpeech } from './player'
+import { ACK_PHRASES as PHRASES, type AckKind } from './ack-phrases'
 
-/** What the student pointed at when they asked. */
-export type AckKind = 'part' | 'graph' | 'object' | 'none'
+export type { AckKind }
 
-const PHRASES: Record<AckKind, string[]> = {
-	part: ['Okay, looking at this.', 'Let me look at that part.', 'Got it, this bit here.'],
-	graph: ['Let me look at your graph.', 'Okay, looking at the graph.', 'Got it, the graph.'],
-	object: ['Okay, let me look.', 'Got it. Let me see.', 'Alright, looking at this.'],
-	none: ['Hmm, one sec.', 'Okay, let me think.', 'Sure, let me see.'],
-}
 
 const KINDS = Object.keys(PHRASES) as AckKind[]
 let prepared: Partial<Record<AckKind, PreparedSpeech[]>> = {}
