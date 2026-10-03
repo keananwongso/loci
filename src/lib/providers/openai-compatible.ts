@@ -21,6 +21,8 @@ export interface OpenAICompatibleConfig {
 	keyEnv?: string
 	extraHeaders?: Record<string, string>
 	fetch?: typeof fetch
+	/** How this provider was picked, for setup hints (e.g. "found OPENROUTER_API_KEY"). */
+	chosenBecause?: string
 }
 
 type ChatMessage =
@@ -70,8 +72,9 @@ export class OpenAICompatibleProvider implements TutorModelProvider {
 		const missing = []
 		if (!config.model) missing.push('LOCI_MODEL')
 		if (!config.apiKey && config.keyEnv) missing.push(config.keyEnv)
+		const why = config.chosenBecause ? ` (${config.chosenBecause})` : ''
 		this.setupHint = missing.length
-			? `Set ${missing.join(' and ')} in .env.local and restart \`npm run dev\`.`
+			? `Loci is using ${config.name}${why}, which needs ${missing.join(' and ')}. Set it in .env.local, or set LOCI_PROVIDER to the provider you meant (e.g. deepseek), then restart \`npm run dev\`.`
 			: ''
 	}
 

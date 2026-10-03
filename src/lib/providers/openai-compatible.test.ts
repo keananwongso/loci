@@ -128,5 +128,9 @@ describe('getProvider', () => {
 		expect(getProvider({ ANTHROPIC_API_KEY: 'k', OPENROUTER_API_KEY: 'k' } as unknown as NodeJS.ProcessEnv).name).toBe('anthropic')
 		expect(getProvider({ LOCI_PROVIDER: 'ollama', LOCI_MODEL: 'qwen' } as unknown as NodeJS.ProcessEnv).isConfigured()).toBe(true)
 		expect(() => getProvider({ LOCI_PROVIDER: 'nope' } as unknown as NodeJS.ProcessEnv)).toThrow(/Unknown/)
+		// The hint says which provider was picked and why, so a stray key is easy to spot.
+		const stray = getProvider({ OPENROUTER_API_KEY: 'k', DEEPSEEK_API_KEY: 'k' } as unknown as NodeJS.ProcessEnv)
+		expect(stray.setupHint).toContain('openrouter (found OPENROUTER_API_KEY)')
+		expect(stray.setupHint).toContain('LOCI_PROVIDER')
 	})
 })

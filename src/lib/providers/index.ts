@@ -33,6 +33,14 @@ function parseVision(value: string | undefined): OpenAICompatibleConfig['vision'
 
 export function getProvider(env: NodeJS.ProcessEnv = process.env): TutorModelProvider {
 	const name = (env.LOCI_PROVIDER || detectProvider(env)).toLowerCase()
+	const preset0 = PRESETS[name]
+	const chosenBecause = env.LOCI_PROVIDER
+		? `LOCI_PROVIDER=${env.LOCI_PROVIDER}`
+		: preset0?.keyEnv && env[preset0.keyEnv]
+			? `found ${preset0.keyEnv}`
+			: name === 'custom'
+				? 'found LOCI_BASE_URL'
+				: undefined
 	if (name === 'mock') return new MockProvider()
 	if (name === 'anthropic') return new AnthropicProvider()
 
@@ -50,6 +58,7 @@ export function getProvider(env: NodeJS.ProcessEnv = process.env): TutorModelPro
 		model: env.LOCI_MODEL || preset.defaultModel,
 		vision: parseVision(env.LOCI_VISION),
 		extraHeaders: preset.extraHeaders,
+		chosenBecause,
 	})
 }
 
