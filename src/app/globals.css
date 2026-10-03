@@ -1130,6 +1130,9 @@ button {
 	position: absolute;
 	bottom: calc(100% + 10px);
 	left: 2px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
 	font-family: var(--loci-mono);
 	font-size: 13px;
 	letter-spacing: 0;
@@ -1137,6 +1140,39 @@ button {
 	white-space: nowrap;
 	pointer-events: none;
 }
+
+/* What a page is for: notes, syllabus, questions or mark scheme. */
+.loci-role {
+	display: inline-flex;
+	align-items: center;
+	height: 22px;
+	padding: 0 8px;
+	border-radius: 999px;
+	border: 0;
+	font: 500 12px/1 var(--loci-sans);
+	color: var(--loci-ink-2);
+	background: var(--loci-hover);
+}
+.loci-role[data-role='syllabus'] { background: #e6eefc; color: #1f4fc4; }
+.loci-role[data-role='questions'] { background: #fdf0e3; color: #b4520b; }
+.loci-role[data-role='mark-scheme'] { background: #e5f4ea; color: #146c3c; }
+
+.loci-role-switch {
+	display: inline-flex;
+	gap: 4px;
+	padding: 3px;
+	border-radius: 999px;
+	background: #fff;
+	box-shadow: var(--loci-shadow);
+	pointer-events: all;
+}
+.loci-role-switch .loci-role {
+	cursor: pointer;
+	background: transparent;
+	color: var(--loci-ink-3);
+}
+.loci-role-switch .loci-role:hover { background: var(--loci-hover); }
+.loci-role-switch .loci-role[data-active] { background: var(--loci-ink); color: #fff; }
 
 .loci-material__missing {
 	display: grid;

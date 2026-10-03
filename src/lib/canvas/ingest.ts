@@ -8,7 +8,7 @@ import { renderPdf } from '@/lib/documents/pdf'
 import { putBlob, randomKey } from '@/lib/storage/blobs'
 import { MATERIAL, type MaterialShape } from './shape-types'
 import { union, type Rect } from './placement'
-import { guessRole, type MaterialMeta } from '@/lib/documents/roles'
+import { guessRole, type MaterialMeta, type MaterialRole } from '@/lib/documents/roles'
 
 export const PAGE_WIDTH = 680
 const PAGE_GAP = 56
@@ -44,9 +44,12 @@ function nextColumnOrigin(editor: Editor): { x: number; y: number } {
 	return { x: all.x + all.w + 200, y: all.y }
 }
 
-/** Frame new material on the left of the view, leaving room on the right for the tutor. */
+/**
+ * Frame new material on the left of the view, leaving room on the right for the tutor and room
+ * above for the page's caption (its name and role), which would otherwise sit under the top bar.
+ */
 function frame(editor: Editor, rect: Rect) {
-	const target = { x: rect.x - 40, y: rect.y - 40, w: rect.w * 2.1, h: Math.min(rect.h, rect.w * 1.1) + 80 }
+	const target = { x: rect.x - 40, y: rect.y - 110, w: rect.w * 2.1, h: Math.min(rect.h, rect.w * 1.1) + 150 }
 	editor.zoomToBounds(target, { animation: { duration: 450 }, inset: 40 })
 }
 
@@ -153,4 +156,17 @@ async function ingestImage(editor: Editor, file: File) {
 	})
 	frame(editor, { x: origin.x, y: origin.y, w, h })
 	return id
+}
+
+/** Set the role of a material and every other page of the same file. Undoable. */
+export function setMaterialRole(editor: Editor, shape: MaterialShape, role: MaterialRole) {
+	const doc = (shape.meta as MaterialMeta).doc
+	const pages = editor
+		.getCurrentPageShapes()
+		.filter((s): s is MaterialShape => s.type === MATERIAL)
+		.filter((s) =>
+			doc ? (s.meta as MaterialMeta).doc === doc : s.props.name === shape.props.name && s.props.pageCount === shape.props.pageCount
+		)
+	editor.markHistoryStoppingPoint('material-role')
+	editor.updateShapes(pages.map((s) => ({ id: s.id, type: MATERIAL, meta: { ...s.meta, role } })))
 }
