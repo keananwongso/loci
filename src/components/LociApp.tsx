@@ -23,7 +23,7 @@ import { TopBar } from './ui/TopBar'
 import { StylePanel } from './ui/StylePanel'
 import { HoldToTalk } from './ui/HoldToTalk'
 import { KeyDialog } from './ui/KeyDialog'
-import { TourCoach, TourEnd, TourStart } from './ui/Tour'
+import { TourCoach, TourEnd, TourRecord, TourStart } from './ui/Tour'
 import { useTutor } from './useTutor'
 import { tourDone, useTour } from './useTour'
 import { ACCEPTED_TYPES, ingestFiles } from '@/lib/canvas/ingest'
@@ -199,7 +199,8 @@ function Shell() {
 	useEffect(() => {
 		if (opened.current || !tour.pack || !tutor.status.checked) return
 		opened.current = true
-		if (record || (tutor.status.hosted && !tourDone())) tour.open()
+		const lesson = new URL(window.location.href).searchParams.has('lesson')
+		if (record || lesson || (tutor.status.hosted && !tourDone())) tour.open()
 		else if (tutor.status.hosted && editor.getCurrentPageShapeIds().size === 0) loadSample()
 	}, [tour, tutor.status, record, editor, loadSample])
 
@@ -237,7 +238,11 @@ function Shell() {
 			{loading && <div className="loci-toast">{loading}</div>}
 			<div className="loci-dock">
 				<ResponsePanel turns={tutor.turns} busy={tutor.busy} status={tutor.status} onUndo={tutor.undoLastTurn} voice={voiceOut} />
-				<TourCoach tour={tour} busy={tutor.busy} />
+				{record ? (
+					<TourRecord tour={tour} busy={tutor.busy} model={tutor.status.model} onRedo={tutor.undoLastTurn} />
+				) : (
+					<TourCoach tour={tour} busy={tutor.busy} />
+				)}
 				<TourEnd tour={tour} busy={tutor.busy} freeLeft={tutor.status.hosted && !tutor.userKey ? tutor.status.quota?.remaining : undefined} />
 				<PromptBar
 					busy={tutor.busy}

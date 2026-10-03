@@ -115,3 +115,87 @@ export function TourEnd({ tour, busy, freeLeft }: { tour: Tour; busy: boolean; f
 		</div>
 	)
 }
+
+const adminFetch = (path: string, init: RequestInit = {}) =>
+	fetch(path, { ...init, headers: { ...(init.headers ?? {}), 'x-loci-admin': '1', 'Content-Type': 'application/json' } })
+
+/**
+ * Record mode (local admin, /?record): ask each step's branches against the live model and keep the
+ * answers you like as takes. Keeping a "continue" branch moves on to the next step.
+ */
+export function TourRecord({ tour, busy, model, onRedo }: { tour: Tour; busy: boolean; model?: string; onRedo: () => void }) {
+	const { pack, step, index, recorded } = tour
+	if (tour.phase !== 'running' || !pack || !step || busy) return null
+
+	const keep = async () => {
+		if (!recorded) return
+		const take = {
+			version: 1,
+			question: recorded.question,
+			model: recorded.result.model ?? model ?? 'unknown',
+			recordedAt: new Date().toISOString(),
+			events: recorded.result.events,
+		}
+		const res = await adminFetch('/api/admin/take', { method: 'POST', body: JSON.stringify({ step: recorded.step.id, branch: recorded.branch.id, take }) })
+		const body = await res.json().catch(() => ({}))
+		if (!res.ok) return alert(body.error ?? 'Could not keep the take.')
+		tour.setPack(body.pack)
+		if (recorded.branch.next === 'continue') tour.nextStep()
+		else tour.setRecorded(null)
+	}
+
+	return (
+		<div className="loci-coach loci-coach--record" onPointerDown={(e) => e.stopPropagation()}>
+			<div className="loci-coach__head">
+				<span className="loci-coach__count">
+					REC {index + 1}/{pack.steps.length}
+				</span>
+				<p className="loci-coach__line">
+					<strong>{step.id}</strong> · {step.kind === 'ask' ? 'ask' : 'answer'} · {model ?? 'model'}
+				</p>
+				<a className="loci-coach__skip" href="/admin">
+					Admin
+				</a>
+			</div>
+			{recorded ? (
+				<div className="loci-coach__ask">
+					<span className="loci-coach__or">
+						Answer for branch <strong>{recorded.branch.id}</strong> ({recorded.result.events.length} events)
+					</span>
+					<button className="loci-primary loci-primary--sm" onClick={keep}>
+						Keep as take
+					</button>
+					<button
+						className="loci-secondary loci-secondary--sm"
+						onClick={() => {
+							onRedo()
+							tour.setRecorded(null)
+						}}
+					>
+						Redo
+					</button>
+				</div>
+			) : (
+				<div className="loci-coach__ask">
+					{step.branches.map((b) => (
+						<button
+							key={b.id}
+							className="loci-suggest__chip"
+							title={b.match.length ? `Matches: ${b.match.join(', ')}` : 'Anything else'}
+							onClick={() => tour.ask(step.kind === 'ask' ? step.prompt : (b.sample ?? b.id), {}, b)}
+						>
+							<span className="loci-suggest__tag">{b.id}</span>
+							{step.kind === 'ask' ? step.prompt : (b.sample ?? 'Type an answer below')}
+							{b.take && <span className="loci-suggest__tag">recorded</span>}
+						</button>
+					))}
+				</div>
+			)}
+			<div className="loci-coach__ask">
+				<button className="loci-coach__skip" onClick={tour.nextStep}>
+					Next step →
+				</button>
+			</div>
+		</div>
+	)
+}
