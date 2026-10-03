@@ -9,6 +9,7 @@ import { ackKindFor } from '../selection'
 import { canRecognize, startListening } from '@/lib/voice/speech'
 import { startRecording, transcribe, within, type Recording } from '@/lib/voice/recorder'
 import { stopAllSpeech } from '@/lib/voice/player'
+import { listenEndSound, listenStartSound } from '@/lib/voice/earcon'
 
 interface Props {
 	busy: boolean
@@ -52,6 +53,7 @@ export function HoldToTalk({ busy, onAsk, onStop, disabled, voice }: Props) {
 		setBuddyStatus('')
 		setHolding(true)
 		setTutorMode('listening')
+		listenStartSound()
 		recording.current = startRecording()
 		// Live words under the buddy, and a fallback transcript when Fish Audio is not set up.
 		stopRec.current = canRecognize() ? startListening((t) => heard.set(t), () => {}) : null
@@ -63,6 +65,7 @@ export function HoldToTalk({ busy, onAsk, onStop, disabled, voice }: Props) {
 		setStroke([])
 		// Feedback the instant the keys come up, before the words are even transcribed.
 		startTimeline('released the talk keys')
+		listenEndSound()
 		setTutorMode('thinking')
 		setBuddyStatus('')
 		setThought({ text: 'got it…' })

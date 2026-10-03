@@ -10,7 +10,7 @@ let mic: { analyser: AnalyserNode; buf: Float32Array<ArrayBuffer>; stop: () => v
 /** Browser speech gives no audio to measure, so its loudness is faked while it talks. */
 let synthSince = 0
 
-function audioContext() {
+export function audioContext() {
 	ctx ??= new AudioContext()
 	if (ctx.state === 'suspended') ctx.resume().catch(() => {})
 	return ctx
