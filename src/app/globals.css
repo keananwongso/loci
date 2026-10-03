@@ -1596,3 +1596,110 @@ button {
 	cursor: default;
 	transform: none;
 }
+
+/* guided lesson: start card, coach card above the prompt, end card */
+
+.loci-tour-start[data-over-board] {
+	background: rgba(253, 252, 252, 0.92);
+	pointer-events: auto;
+}
+
+.loci-tour-start__roles {
+	display: flex;
+	justify-content: center;
+	gap: 6px;
+	margin-top: 20px;
+}
+
+.loci-coach {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 14px 16px;
+	border-radius: 18px;
+	background: var(--loci-surface);
+	box-shadow: var(--loci-shadow-lg);
+	animation: loci-in 0.35s ease-out;
+}
+
+.loci-coach__head {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+}
+
+.loci-coach__count {
+	flex: none;
+	padding-top: 2px;
+	font-family: var(--loci-mono);
+	font-size: 12px;
+	letter-spacing: 0;
+	color: var(--loci-ink-4);
+}
+
+.loci-coach__line {
+	flex: 1;
+	margin: 0;
+	font-size: 15px;
+	line-height: 1.5;
+	color: var(--loci-ink);
+}
+
+.loci-coach__skip {
+	flex: none;
+	margin-left: auto;
+	display: inline-grid;
+	place-items: center;
+	min-width: 28px;
+	height: 24px;
+	padding: 0 6px;
+	border: 0;
+	border-radius: var(--radius-pill);
+	background: transparent;
+	font-size: 13px;
+	color: var(--loci-ink-3);
+	cursor: pointer;
+}
+
+.loci-coach__skip:hover {
+	background: var(--loci-hover);
+	color: var(--loci-ink);
+}
+
+.loci-coach__ask {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px;
+}
+
+.loci-coach__or,
+.loci-coach__hint {
+	margin: 0;
+	font-size: 13px;
+	color: var(--loci-ink-3);
+}
+
+.loci-coach kbd {
+	padding: 1px 6px;
+	border-radius: 6px;
+	border: 1px solid var(--loci-btn-line);
+	background: #fff;
+	font-family: var(--loci-mono);
+	font-size: 12px;
+	color: var(--loci-ink);
+}
+
+.loci-primary--sm,
+.loci-secondary--sm {
+	height: 36px;
+	padding: 0 16px;
+	font-size: 13px;
+	text-decoration: none;
+}
+
+@media (max-width: 640px) {
+	.loci-coach__or {
+		display: none;
+	}
+}

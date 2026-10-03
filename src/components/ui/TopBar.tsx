@@ -10,11 +10,13 @@ interface Props {
 	onToggleVoice: () => void
 	onClear: () => void
 	onSample: () => void
+	/** Replay the guided lesson, when the demo pack has one. */
+	onTour?: () => void
 	/** Remove everything Loci drew, keeping the student's own notes and marks. */
 	onEraseDrawings: () => void
 }
 
-export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear, onSample, onEraseDrawings }: Props) {
+export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear, onSample, onTour, onEraseDrawings }: Props) {
 	const [menu, setMenu] = useState(false)
 	const ref = useRef<HTMLDivElement>(null)
 	useEffect(() => {
@@ -54,6 +56,17 @@ export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear
 				</button>
 				{menu && (
 					<div className="loci-menu__list" role="menu">
+						{onTour && (
+							<button
+								role="menuitem"
+								onClick={() => {
+									setMenu(false)
+									onTour()
+								}}
+							>
+								Replay the lesson
+							</button>
+						)}
 						<button
 							role="menuitem"
 							onClick={() => {

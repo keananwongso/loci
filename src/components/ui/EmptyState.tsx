@@ -28,7 +28,7 @@ export function EmptyState({ onUpload, onSample, loading }: { onUpload: () => vo
 							<UploadIcon /> Upload notes
 						</button>
 						<button className="loci-secondary" onClick={onSample}>
-							Try sample calculus notes
+							Try a short lesson
 						</button>
 					</div>
 				)}

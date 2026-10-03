@@ -23,8 +23,9 @@ import { TopBar } from './ui/TopBar'
 import { StylePanel } from './ui/StylePanel'
 import { HoldToTalk } from './ui/HoldToTalk'
 import { KeyDialog } from './ui/KeyDialog'
-import { Suggestions } from './ui/Suggestions'
+import { TourCoach, TourEnd, TourStart } from './ui/Tour'
 import { useTutor } from './useTutor'
+import { tourDone, useTour } from './useTour'
 import { ACCEPTED_TYPES, ingestFiles } from '@/lib/canvas/ingest'
 import { REGION } from '@/lib/canvas/shape-types'
 import { checkSpeechProvider } from '@/lib/voice/player'
@@ -174,6 +175,39 @@ function Shell() {
 		clearBoard()
 	}, [clearBoard])
 
+	// The local admin's record mode: the tour, asking the live model, with a keep button per answer.
+	const [record] = useState(() => process.env.NODE_ENV === 'development' && typeof window !== 'undefined' && new URL(window.location.href).searchParams.has('record'))
+	const tour = useTour({
+		editor,
+		ask: tutor.ask,
+		busy: tutor.busy,
+		clear: clearBoard,
+		setVoiceOut: (on) => {
+			setVoiceOut(on)
+			try {
+				localStorage.setItem(VOICE_KEY, on ? '1' : '0')
+			} catch {}
+		},
+		setLoading,
+		record,
+	})
+	const ask = tour.ask
+
+	// First visit to the hosted demo, or record mode: start with the lesson. A returning visitor
+	// gets the demo board back if theirs is empty.
+	const opened = useRef(false)
+	useEffect(() => {
+		if (opened.current || !tour.pack || !tutor.status.checked) return
+		opened.current = true
+		if (record || (tutor.status.hosted && !tourDone())) tour.open()
+		else if (tutor.status.hosted && editor.getCurrentPageShapeIds().size === 0) loadSample()
+	}, [tour, tutor.status, record, editor, loadSample])
+
+	const startTour = useCallback(() => {
+		if (editor.getCurrentPageShapeIds().size > 0 && !confirm('The lesson starts on a fresh board. Clear this one?')) return
+		tour.open()
+	}, [editor, tour])
+
 	const disabledReason = tutor.status.checked && !tutor.status.configured ? 'Connect a model to ask questions' : undefined
 
 	return (
@@ -185,6 +219,7 @@ function Shell() {
 				onToggleVoice={toggleVoice}
 				onClear={clearBoard}
 				onSample={loadSample}
+				onTour={tour.pack?.steps.length ? startTour : undefined}
 				onEraseDrawings={() => {
 					if (tutor.busy) tutor.stop()
 					const n = tutor.eraseDrawings()
@@ -193,15 +228,20 @@ function Shell() {
 				}}
 			/>
 			<Toolbar onUpload={() => fileRef.current?.click()} />
-			<HoldToTalk busy={tutor.busy} onAsk={tutor.ask} onStop={tutor.stop} disabled={Boolean(disabledReason)} voice={voiceOut} />
-			<EmptyState onUpload={() => fileRef.current?.click()} onSample={loadSample} loading={loading} />
+			<HoldToTalk busy={tutor.busy} onAsk={ask} onStop={tutor.stop} disabled={Boolean(disabledReason)} voice={voiceOut} />
+			{tour.phase === 'start' ? (
+				<TourStart tour={tour} overBoard={editor.getCurrentPageShapeIds().size > 0} />
+			) : tour.phase === 'running' ? null : (
+				<EmptyState onUpload={() => fileRef.current?.click()} onSample={tour.pack?.steps.length ? startTour : loadSample} loading={loading} />
+			)}
 			{loading && <div className="loci-toast">{loading}</div>}
 			<div className="loci-dock">
 				<ResponsePanel turns={tutor.turns} busy={tutor.busy} status={tutor.status} onUndo={tutor.undoLastTurn} voice={voiceOut} />
-				<Suggestions turns={tutor.turns} busy={tutor.busy} hosted={Boolean(tutor.status.hosted)} onAsk={tutor.ask} />
+				<TourCoach tour={tour} busy={tutor.busy} />
+				<TourEnd tour={tour} busy={tutor.busy} freeLeft={tutor.status.hosted && !tutor.userKey ? tutor.status.quota?.remaining : undefined} />
 				<PromptBar
 					busy={tutor.busy}
-					onAsk={(q) => tutor.ask(q)}
+					onAsk={(q) => ask(q)}
 					onStop={tutor.stop}
 					disabledReason={disabledReason}
 					freeLeft={tutor.status.hosted && !tutor.userKey ? tutor.status.quota?.remaining : undefined}
