@@ -28,6 +28,15 @@ export interface PreparedSpeech {
 }
 
 let provider: 'fish' | 'browser' | 'unknown' = 'unknown'
+/** Lines with a pre-rendered clip (the demo pack's): played from a static file, never synthesized. */
+const staticVoice = new Map<string, string>()
+
+export function registerStaticVoice(clips: Record<string, string>) {
+	for (const [text, url] of Object.entries(clips)) staticVoice.set(text.trim(), url)
+}
+
+/** Whether a line will play from a pre-rendered clip. */
+export const hasStaticVoice = (text: string) => staticVoice.has(text.trim())
 let element: HTMLAudioElement | null = null
 let stopCurrent: (() => void) | null = null
 
@@ -78,6 +87,13 @@ function streamAudio(res: Response): Promise<AudioStream | null> {
 export function prepareSpeech(text: string): PreparedSpeech {
 	const spoken = toSpoken(text)
 	const controller = new AbortController()
+	const clip = staticVoice.get(text.trim())
+	if (clip) {
+		const audio = fetch(clip, { signal: controller.signal })
+			.then((r) => (r.ok && r.body ? streamAudio(r) : null))
+			.catch(() => null)
+		return { spoken, audio, controller }
+	}
 	const audio =
 		provider === 'fish' && spoken
 			? fetch('/api/speech', {
