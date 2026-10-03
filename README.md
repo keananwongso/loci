@@ -73,6 +73,7 @@ Optional settings:
 | `LOCI_MODEL` | provider default | Model id |
 | `LOCI_VISION` | `auto` | `on`, `off`, or `auto` |
 | `LOCI_EFFORT` | `medium` | Anthropic only: `low` answers faster, `high` thinks longer |
+| `LOCI_THINKING` | `off` | DeepSeek only: `on` turns the model's thinking mode back on (better reasoning, several times slower) |
 | `LOCI_PROVIDER=mock` | | Replays a scripted lesson about the sample notes, for working on the UI without a key (type `/selftest` to draw one of everything) |
 
 With Anthropic, requests opt into the API's server side refusal fallback (`fallbacks: "default"`), so a request declined by a safety classifier is retried on a fallback model instead of failing.

@@ -5,10 +5,25 @@ import { OpenAICompatibleProvider, type OpenAICompatibleConfig } from './openai-
 import type { TutorModelProvider } from './types'
 
 /** OpenAI-compatible services Loci knows the address of. Any other one works via LOCI_BASE_URL. */
-export const PRESETS: Record<string, { baseUrl: string; keyEnv?: string; defaultModel?: string; extraHeaders?: Record<string, string> }> = {
+interface Preset {
+	baseUrl: string
+	keyEnv?: string
+	defaultModel?: string
+	extraHeaders?: Record<string, string>
+	/** Request fields that switch the model's reasoning off (default) or on (LOCI_THINKING=on). */
+	thinking?: { off: Record<string, unknown>; on: Record<string, unknown> }
+}
+
+export const PRESETS: Record<string, Preset> = {
 	openrouter: { baseUrl: 'https://openrouter.ai/api/v1', keyEnv: 'OPENROUTER_API_KEY', extraHeaders: { 'X-Title': 'Loci' } },
 	openai: { baseUrl: 'https://api.openai.com/v1', keyEnv: 'OPENAI_API_KEY' },
-	deepseek: { baseUrl: 'https://api.deepseek.com', keyEnv: 'DEEPSEEK_API_KEY', defaultModel: 'deepseek-flash' },
+	// deepseek-flash thinks by default, which makes every turn several times slower.
+	deepseek: {
+		baseUrl: 'https://api.deepseek.com',
+		keyEnv: 'DEEPSEEK_API_KEY',
+		defaultModel: 'deepseek-flash',
+		thinking: { off: { thinking: { type: 'disabled' } }, on: { thinking: { type: 'enabled' } } },
+	},
 	gemini: { baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', keyEnv: 'GEMINI_API_KEY' },
 	groq: { baseUrl: 'https://api.groq.com/openai/v1', keyEnv: 'GROQ_API_KEY' },
 	ollama: { baseUrl: 'http://localhost:11434/v1' },
@@ -23,6 +38,11 @@ function detectProvider(env: NodeJS.ProcessEnv): string {
 	}
 	if (env.LOCI_BASE_URL) return 'custom'
 	return 'anthropic'
+}
+
+function thinkingBody(preset: Preset, value: string | undefined) {
+	if (!preset.thinking) return undefined
+	return value === 'on' || value === 'true' ? preset.thinking.on : preset.thinking.off
 }
 
 function parseVision(value: string | undefined): OpenAICompatibleConfig['vision'] {
@@ -58,6 +78,7 @@ export function getProvider(env: NodeJS.ProcessEnv = process.env): TutorModelPro
 		model: env.LOCI_MODEL || preset.defaultModel,
 		vision: parseVision(env.LOCI_VISION),
 		extraHeaders: preset.extraHeaders,
+		extraBody: thinkingBody(preset, env.LOCI_THINKING),
 		chosenBecause,
 	})
 }
@@ -82,5 +103,6 @@ export function providerForUserKey(provider: string, apiKey: string, model?: str
 		model: model || preset.defaultModel,
 		vision: 'auto',
 		extraHeaders: preset.extraHeaders,
+		extraBody: thinkingBody(preset, undefined),
 	})
 }

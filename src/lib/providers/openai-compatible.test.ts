@@ -110,6 +110,27 @@ describe('OpenAICompatibleProvider', () => {
 		expect(events.some((e) => e.type === 'say' && e.text === 'Text only answer.')).toBe(true)
 	})
 
+	it('turns DeepSeek thinking off, and sends any reasoning back with the tool calls', async () => {
+		const calls: Array<{ url: string; body: any; headers: Headers }> = []
+		const round1 = sse([
+			delta({ reasoning_content: 'They want u.' }),
+			delta({ tool_calls: [{ index: 0, id: 'c1', type: 'function', function: { name: 'say', arguments: '{"text":"Look here."}' } }] }),
+			delta({}, 'tool_calls'),
+		])
+		const round2 = sse([delta({ content: '' }), delta({}, 'stop')])
+		const fetch = fakeFetch([{ status: 200, body: round1 }, { status: 200, body: round2 }], calls)
+		const preset = getProvider({ DEEPSEEK_API_KEY: 'k' } as unknown as NodeJS.ProcessEnv) as OpenAICompatibleProvider
+		const provider = new OpenAICompatibleProvider({ ...(preset as any).config, fetch })
+		await run(provider)
+		expect(calls[0].body.thinking).toEqual({ type: 'disabled' })
+		expect(calls[1].body.messages.at(-2)).toMatchObject({ role: 'assistant', reasoning_content: 'They want u.' })
+
+		const on = getProvider({ DEEPSEEK_API_KEY: 'k', LOCI_THINKING: 'on' } as unknown as NodeJS.ProcessEnv) as any
+		expect(on.config.extraBody).toEqual({ thinking: { type: 'enabled' } })
+		const other = getProvider({ OPENROUTER_API_KEY: 'k', LOCI_MODEL: 'x/y' } as unknown as NodeJS.ProcessEnv) as any
+		expect(other.config.extraBody).toBeUndefined()
+	})
+
 	it('explains common failures', () => {
 		const p = new OpenAICompatibleProvider({ name: 'openrouter', baseUrl: 'x', model: 'm', vision: 'auto' })
 		expect(p.isConfigured()).toBe(true)

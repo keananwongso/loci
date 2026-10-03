@@ -20,6 +20,8 @@ export interface OpenAICompatibleConfig {
 	/** Name of the env var holding the key, for setup hints. */
 	keyEnv?: string
 	extraHeaders?: Record<string, string>
+	/** Extra fields merged into every request body, e.g. DeepSeek's `thinking` switch. */
+	extraBody?: Record<string, unknown>
 	fetch?: typeof fetch
 	/** How this provider was picked, for setup hints (e.g. "found OPENROUTER_API_KEY"). */
 	chosenBecause?: string
@@ -27,7 +29,7 @@ export interface OpenAICompatibleConfig {
 
 type ChatMessage =
 	| { role: 'system' | 'user'; content: string | ContentPart[] }
-	| { role: 'assistant'; content: string | null; tool_calls?: ToolCall[] }
+	| { role: 'assistant'; content: string | null; tool_calls?: ToolCall[]; reasoning_content?: string }
 	| { role: 'tool'; tool_call_id: string; content: string }
 type ContentPart = { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }
 type ToolCall = { id: string; type: 'function'; function: { name: string; arguments: string } }
@@ -134,14 +136,20 @@ export class OpenAICompatibleProvider implements TutorModelProvider {
 		}
 
 		for (let round = 0; round < MAX_ROUNDS; round++) {
-			const { content, toolCalls, finish } = await this.complete(messages, tools, session, signal)
+			const { content, reasoning, toolCalls, finish } = await this.complete(messages, tools, session, signal)
 			if (content.trim()) emit({ type: 'say', text: content.trim() })
 			if (!toolCalls.length) return
 			if (finish === 'length') {
 				emit({ type: 'status', message: 'Response hit the length limit.' })
 				return
 			}
-			messages.push({ role: 'assistant', content: content || null, tool_calls: toolCalls.map((t) => t.call) })
+			// Thinking models (DeepSeek) refuse the next request unless their reasoning is sent back.
+			messages.push({
+				role: 'assistant',
+				content: content || null,
+				tool_calls: toolCalls.map((t) => t.call),
+				...(reasoning ? { reasoning_content: reasoning } : {}),
+			})
 			for (const t of toolCalls) messages.push({ role: 'tool', tool_call_id: t.call.id, content: t.result })
 			if (round > 0 && toolCalls.every((t) => t.call.function.name === 'say')) return
 		}
@@ -153,7 +161,7 @@ export class OpenAICompatibleProvider implements TutorModelProvider {
 		tools: unknown[],
 		session: ActionSession,
 		signal: AbortSignal
-	): Promise<{ content: string; toolCalls: Array<{ call: ToolCall; result: string }>; finish: string | null }> {
+	): Promise<{ content: string; reasoning: string; toolCalls: Array<{ call: ToolCall; result: string }>; finish: string | null }> {
 		const doFetch = this.config.fetch ?? fetch
 		const res = await doFetch(`${this.config.baseUrl.replace(/\/$/, '')}/chat/completions`, {
 			method: 'POST',
@@ -163,11 +171,12 @@ export class OpenAICompatibleProvider implements TutorModelProvider {
 				...(this.config.apiKey ? { Authorization: `Bearer ${this.config.apiKey}` } : {}),
 				...this.config.extraHeaders,
 			},
-			body: JSON.stringify({ model: this.model, messages, tools, tool_choice: 'auto', stream: true }),
+			body: JSON.stringify({ model: this.model, messages, tools, tool_choice: 'auto', stream: true, ...this.config.extraBody }),
 		})
 		if (!res.ok || !res.body) throw new HttpError(res.status, await res.text().catch(() => ''))
 
 		let content = ''
+		let reasoning = ''
 		let finish: string | null = null
 		const pending = new Map<number, { id: string; name: string; args: string }>()
 		const done: Array<{ call: ToolCall; result: string }> = []
@@ -203,7 +212,7 @@ export class OpenAICompatibleProvider implements TutorModelProvider {
 				if (data === '[DONE]') continue
 				let chunk: {
 					error?: { message?: string }
-					choices?: Array<{ delta?: { content?: string | null; tool_calls?: Array<{ index?: number; id?: string; function?: { name?: string; arguments?: string } }> }; finish_reason?: string | null }>
+					choices?: Array<{ delta?: { content?: string | null; reasoning_content?: string | null; tool_calls?: Array<{ index?: number; id?: string; function?: { name?: string; arguments?: string } }> }; finish_reason?: string | null }>
 				}
 				try {
 					chunk = JSON.parse(data)
@@ -214,6 +223,7 @@ export class OpenAICompatibleProvider implements TutorModelProvider {
 				const choice = chunk.choices?.[0]
 				if (!choice) continue
 				if (choice.delta?.content) content += choice.delta.content
+				if (choice.delta?.reasoning_content) reasoning += choice.delta.reasoning_content
 				for (const tc of choice.delta?.tool_calls ?? []) {
 					const index = tc.index ?? 0
 					// A new index means earlier calls are complete: run them now so drawing starts early.
@@ -228,6 +238,6 @@ export class OpenAICompatibleProvider implements TutorModelProvider {
 			}
 		}
 		for (const i of [...pending.keys()].sort((a, b) => a - b)) flush(i)
-		return { content, toolCalls: done, finish }
+		return { content, reasoning, toolCalls: done, finish }
 	}
 }
