@@ -1,6 +1,7 @@
 import 'server-only'
 import Anthropic from '@anthropic-ai/sdk'
 import { historyAsText } from '@/lib/tutor/prompt'
+import { toSpoken } from '@/lib/voice/spoken'
 import type { ActionSession } from '@/lib/tutor/session'
 import type { TutorEvent } from '@/lib/tutor/types'
 import type { TutorInput, TutorModelProvider } from './types'
@@ -93,9 +94,9 @@ export class AnthropicProvider implements TutorModelProvider {
 						content: outcome.ok ? outcome.result : outcome.error,
 						is_error: !outcome.ok,
 					})
-				} else if (block.type === 'text' && block.text.trim()) {
+				} else if (block.type === 'text' && toSpoken(block.text)) {
 					// Plain text is also shown to the student, in case the model skips `say`.
-					emit({ type: 'say', text: block.text.trim() })
+					emit({ type: 'say', text: toSpoken(block.text) })
 				}
 			})
 

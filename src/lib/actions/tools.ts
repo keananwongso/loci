@@ -12,7 +12,7 @@ export interface ToolDefinition {
 }
 
 const DESCRIPTIONS: Record<ToolName, string> = {
-	say: 'Speak to the student. This is the ONLY way your words reach them. Use short segments (1-3 sentences) interleaved with the drawing tools, in the order you would say them at a whiteboard.',
+	say: 'Speak to the student, out loud. This is the ONLY way your words reach them. One or two short spoken sentences in plain English (no LaTeX, symbols, markdown or dashes), interleaved with the drawing tools in the order you would say them at a whiteboard.',
 	write_text: 'Write a short handwritten-style note on the canvas (a label, a one-line takeaway, a step name).',
 	write_equation: 'Write a properly typeset LaTeX equation on the canvas as a movable object.',
 	highlight:

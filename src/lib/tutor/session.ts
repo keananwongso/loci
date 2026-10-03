@@ -18,6 +18,7 @@ import {
 	type ToolName,
 } from '@/lib/actions/schema'
 import { compileExpression } from '@/lib/math/expr'
+import { toSpoken } from '@/lib/voice/spoken'
 import { equalAspectHeight } from '@/lib/math/graph'
 import { findTextBox, groupLines } from '@/lib/documents/text'
 import type { BoardContext, BoardObject, TextItem, TutorEvent } from './types'
@@ -88,8 +89,10 @@ export class ActionSession {
 				return outcome
 			}
 			if (action.type === 'say') {
-				this.spoken.push(action.text)
-				this.emit({ type: 'say', text: action.text })
+				const text = toSpoken(action.text)
+				if (!text) return { ok: true, result: 'Said nothing: the text was empty once markup was removed.' }
+				this.spoken.push(text)
+				this.emit({ type: 'say', text })
 				return { ok: true, result: 'Said.' }
 			}
 			const summary = summarize(outcome.action)

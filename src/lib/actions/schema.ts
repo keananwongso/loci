@@ -209,7 +209,7 @@ export const toolInputSchemas = {
 				.string()
 				.min(1)
 				.max(1500)
-				.describe('What you say to the student. Markdown allowed; inline math as $...$.'),
+				.describe('Exactly the words to speak, written for the ear: plain sentences, math said in words ("the gradient of f", "three fifths"), no LaTeX, symbols, markdown or dashes.'),
 		})
 		.strict(),
 

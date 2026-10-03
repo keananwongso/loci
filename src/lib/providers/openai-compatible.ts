@@ -5,6 +5,7 @@ import 'server-only'
  * Plain fetch, no SDK: only `/chat/completions` with streaming is used.
  */
 import { historyAsText, buildTurnText } from '@/lib/tutor/prompt'
+import { toSpoken } from '@/lib/voice/spoken'
 import type { ActionSession } from '@/lib/tutor/session'
 import type { TutorEvent } from '@/lib/tutor/types'
 import type { TutorInput, TutorModelProvider } from './types'
@@ -137,7 +138,7 @@ export class OpenAICompatibleProvider implements TutorModelProvider {
 
 		for (let round = 0; round < MAX_ROUNDS; round++) {
 			const { content, reasoning, toolCalls, finish } = await this.complete(messages, tools, session, signal)
-			if (content.trim()) emit({ type: 'say', text: content.trim() })
+			if (toSpoken(content)) emit({ type: 'say', text: toSpoken(content) })
 			if (!toolCalls.length) return
 			if (finish === 'length') {
 				emit({ type: 'status', message: 'Response hit the length limit.' })
