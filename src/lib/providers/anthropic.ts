@@ -9,7 +9,7 @@ import { ThoughtStream } from '@/lib/tutor/thoughts'
 
 type Effort = 'low' | 'medium' | 'high'
 
-const MAX_ROUNDS = 6
+const MAX_ROUNDS = 10
 
 export class AnthropicProvider implements TutorModelProvider {
 	readonly name = 'anthropic'
@@ -138,9 +138,9 @@ export class AnthropicProvider implements TutorModelProvider {
 			})
 
 			// Stop early once the model has only spoken; a final round would add nothing.
-			// A later round that only spoke has nothing left to draw: done. A first round that only spoke
-			// may just be the opening line, so it always gets another round (repeats are refused).
-			if (round > 0 && toolUses.every((t) => t.name === 'say')) return
+			// The answer is done once a round closes on a question (the check, or an invitation). A round
+			// ending on a lead-in ("let me draw it") or a drawing continues.
+			if (toolUses.at(-1)?.name === 'say' && session.endsOnQuestion()) return
 		}
 	}
 }

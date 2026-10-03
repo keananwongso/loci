@@ -213,3 +213,13 @@ describe('repeats', () => {
 		expect(events.filter((e) => e.type === 'say')).toHaveLength(1)
 	})
 })
+
+describe('endsOnQuestion', () => {
+	it('is true only once the last sentence asks something', () => {
+		const { s } = session()
+		s.handle('say', { text: "It's really a picture about two arrows. Let me draw it beside your notes." })
+		expect(s.endsOnQuestion()).toBe(false)
+		s.handle('say', { text: 'What happens if u points along the gradient?' })
+		expect(s.endsOnQuestion()).toBe(true)
+	})
+})

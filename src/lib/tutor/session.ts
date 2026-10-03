@@ -53,6 +53,11 @@ export class ActionSession {
 	readonly summaries: string[] = []
 	readonly spoken: string[] = []
 
+	/** The answer has reached its end: the last thing said was a question (the check, or an invitation). */
+	endsOnQuestion(): boolean {
+		return Boolean(this.spoken.at(-1)?.trim().endsWith('?'))
+	}
+
 	constructor(
 		board: BoardContext,
 		private emit: (event: TutorEvent) => void

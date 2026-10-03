@@ -36,7 +36,7 @@ type ChatMessage =
 type ContentPart = { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }
 type ToolCall = { id: string; type: 'function'; function: { name: string; arguments: string } }
 
-const MAX_ROUNDS = 6
+const MAX_ROUNDS = 10
 
 /** Models the API refused images for, remembered for the life of the server. */
 const textOnlyModels = new Set<string>()
@@ -154,9 +154,9 @@ export class OpenAICompatibleProvider implements TutorModelProvider {
 				...(reasoning ? { reasoning_content: reasoning } : {}),
 			})
 			for (const t of toolCalls) messages.push({ role: 'tool', tool_call_id: t.call.id, content: t.result })
-			// A later round that only spoke has nothing left to draw: done. A first round that only spoke
-			// may just be the opening line, so it always gets another round (repeats are refused).
-			if (round > 0 && toolCalls.every((t) => t.call.function.name === 'say')) return
+			// The answer is done once a round closes on a question (the check, or an invitation). A round
+			// ending on a lead-in ("let me draw it") or a drawing continues.
+			if (toolCalls.at(-1)?.call.function.name === 'say' && session.endsOnQuestion()) return
 		}
 	}
 

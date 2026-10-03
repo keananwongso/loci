@@ -51,6 +51,31 @@ async function run(provider: OpenAICompatibleProvider) {
 }
 
 describe('OpenAICompatibleProvider', () => {
+	it('keeps going after a spoken lead-in, and stops once the answer ends on a question', async () => {
+		const calls: Array<{ url: string; body: any; headers: Headers }> = []
+		const say = (id: string, index: number, text: string) =>
+			delta({ tool_calls: [{ index, id, type: 'function', function: { name: 'say', arguments: JSON.stringify({ text }) } }] })
+		const round1 = sse([say('a', 0, "It's a picture about two arrows. Let me draw it beside your notes."), delta({}, 'tool_calls')])
+		const round2 = sse([
+			delta({ tool_calls: [{ index: 0, id: 'b', type: 'function', function: { name: 'highlight', arguments: '{"target":"notes-p1","text":"∇f · u"}' } }] }),
+			say('c', 1, 'Which way does u point here?'),
+			delta({}, 'tool_calls'),
+		])
+		const round3 = sse([say('d', 0, 'This should never be asked for.'), delta({}, 'tool_calls')])
+		const provider = new OpenAICompatibleProvider({
+			name: 'deepseek',
+			baseUrl: 'https://api.example.com/v1',
+			apiKey: 'sk-test',
+			model: 'deepseek-flash',
+			vision: 'auto',
+			fetch: fakeFetch([{ status: 200, body: round1 }, { status: 200, body: round2 }, { status: 200, body: round3 }], calls),
+		})
+		const events = await run(provider)
+		const kinds = events.filter((e) => e.type !== 'thought').map((e) => (e.type === 'action' ? `action:${e.action.type}` : e.type))
+		expect(kinds).toEqual(['say', 'action:highlight', 'say'])
+		expect(calls).toHaveLength(2)
+	})
+
 	it('assembles streamed tool calls, runs them, and returns results as tool messages', async () => {
 		const calls: Array<{ url: string; body: any; headers: Headers }> = []
 		const round1 = sse([

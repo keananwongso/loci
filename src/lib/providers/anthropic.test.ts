@@ -124,6 +124,7 @@ describe('AnthropicProvider', () => {
 		// Each drawing call shows a thought while its input streams, before it is drawn.
 		expect(kinds.indexOf('thought')).toBeLessThan(kinds.indexOf('action:highlight'))
 		expect(events.some((e) => e.type === 'thought' && e.latex)).toBe(true)
-		expect(requests).toHaveLength(3)
+		// The second round closes on its check question, so no third round is asked for.
+		expect(requests).toHaveLength(2)
 	})
 })
