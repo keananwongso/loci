@@ -14,7 +14,6 @@ import type { TurnResult } from '@/lib/tutor/client'
 import type { Take } from '@/lib/demo/pack'
 
 export interface AskOptions {
-	scripted?: boolean
 	spoken?: boolean
 	/** Replay this recorded answer instead of asking the model. */
 	take?: Take

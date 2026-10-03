@@ -55,8 +55,6 @@ export interface TurnResult {
 }
 
 export interface TurnOptions {
-	/** Replay the free scripted lesson instead of calling a model. */
-	scripted?: boolean
 	/** Speech already playing (the instant acknowledgement); the first sentence waits for it. */
 	leadIn?: Promise<void>
 	/** Replay this recorded answer instead of asking anyone. */
@@ -126,7 +124,7 @@ export async function runTutorTurn(
 	else {
 		const res = await fetch('/api/tutor', {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json', ...(opts.scripted ? { 'x-loci-demo': 'scripted' } : userKeyHeaders()) },
+			headers: { 'Content-Type': 'application/json', ...userKeyHeaders() },
 			body: JSON.stringify(request),
 			signal,
 		})

@@ -6,7 +6,6 @@
  */
 import { getToolDefinitions } from '@/lib/actions/tools'
 import { getProvider, providerForUserKey } from '@/lib/providers'
-import { MockProvider } from '@/lib/providers/mock'
 import type { TutorModelProvider } from '@/lib/providers/types'
 import { deviceFor, ipHashFor } from '@/lib/server/device'
 import { limitConfigFromEnv, readQuota, takeQuestion, type Quota } from '@/lib/server/limits'
@@ -57,7 +56,7 @@ const LIMIT_MESSAGES = {
 }
 
 /**
- * Which model answers: the free scripted lesson, the visitor's own key (sent in headers for this
+ * Which model answers: the visitor's own key (sent in headers for this
  * request only, never stored or logged), or the server's key under the demo limits.
  */
 const DEMO_FILES = new Set(demoPack.materials.map((m) => m.file))
@@ -71,8 +70,6 @@ function onlyDemoMaterial(request: TutorRequest) {
 }
 
 async function chooseProvider(req: Request, request: TutorRequest): Promise<{ provider: TutorModelProvider; quota?: Quota; cookie?: string } | Response> {
-	if (req.headers.get('x-loci-demo') === 'scripted') return { provider: new MockProvider() }
-
 	const userKey = req.headers.get('x-loci-key')
 	if (userKey) {
 		try {
