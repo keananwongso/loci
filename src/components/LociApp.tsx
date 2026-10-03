@@ -213,6 +213,18 @@ function Shell() {
 export default function LociApp() {
 	const onMount = useCallback((editor: Editor) => {
 		editor.user.updateUserPreferences({ colorScheme: 'light' })
+		// The canvas sits on eggshell paper and selects in ink rather than tldraw's blue.
+		const theme = editor.getTheme('default')
+		if (theme) {
+			const light = theme.colors.light
+			editor.updateTheme({
+				...theme,
+				colors: {
+					...theme.colors,
+					light: { ...light, background: '#fdfcfc', negativeSpace: '#fdfcfc', selectionStroke: '#000000', selectionFill: 'rgba(0, 0, 0, 0.04)' },
+				},
+			})
+		}
 		loadHandFont(assetUrls.fonts?.tldraw_draw)
 		installDragToPan(editor)
 	}, [])

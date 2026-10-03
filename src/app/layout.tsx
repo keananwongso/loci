@@ -1,7 +1,5 @@
 import type { Metadata, Viewport } from 'next'
 import '@fontsource-variable/inter'
-import '@fontsource/instrument-serif/400.css'
-import '@fontsource/instrument-serif/400-italic.css'
 import 'katex/dist/katex.min.css'
 import 'tldraw/tldraw.css'
 import './globals.css'

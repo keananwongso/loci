@@ -16,7 +16,7 @@ import { consumeFresh } from '@/lib/canvas/fresh'
 function Strokes({ layout, freshIds, clipId }: { layout: GraphLayout; freshIds: Set<string>; clipId?: string }) {
 	return (
 		<>
-			{layout.grid && <path d={layout.grid} stroke="#e6e9ef" strokeWidth={1} fill="none" />}
+			{layout.grid && <path d={layout.grid} stroke="#ebe8e4" strokeWidth={1} fill="none" />}
 			{layout.axes.map((s) => (
 				<path key={s.key} d={s.d} stroke={s.fill ? 'none' : s.color} strokeWidth={s.width} fill={s.fill ?? 'none'} />
 			))}
@@ -129,7 +129,7 @@ export class GraphShapeUtil extends ShapeUtil<GraphShape> {
 		const layout = layoutGraph(shape.props)
 		return (
 			<g>
-				<style>{'.loci-graph__tick{font:10px sans-serif;fill:#8a93a3}'}</style>
+				<style>{'.loci-graph__tick{font:10px sans-serif;fill:#a59f97}'}</style>
 				<Strokes layout={layout} freshIds={new Set()} />
 				{layout.labels.map((l) => (
 					<text key={l.key} x={l.x} y={l.y} fill={l.color} fontSize={15} fontStyle="italic" fontFamily="serif" textAnchor="middle" dominantBaseline="middle">
