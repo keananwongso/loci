@@ -2,7 +2,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createShapeId, useEditor } from 'tldraw'
 import { REGION, type RegionShape } from '@/lib/canvas/shape-types'
-import { heard, setBuddyStatus, setTutorMode } from '@/lib/canvas/presence'
+import { clearThinking, heard, setBuddyStatus, setThought, setTutorMode } from '@/lib/canvas/presence'
+import { ackRelease } from '@/lib/voice/ack'
+import { endTimeline, mark as markTime, startTimeline } from '@/lib/tutor/timeline'
+import { ackKindFor } from '../selection'
 import { canRecognize, startListening } from '@/lib/voice/speech'
 import { startRecording, transcribe, within, type Recording } from '@/lib/voice/recorder'
 import { stopAllSpeech } from '@/lib/voice/player'
@@ -10,9 +13,11 @@ import { stopAllSpeech } from '@/lib/voice/player'
 interface Props {
 	busy: boolean
 	/** Returns false when the question could not be asked (for example, a turn is still running). */
-	onAsk: (question: string) => unknown
+	onAsk: (question: string, opts: { spoken: true }) => unknown
 	onStop: () => void
 	disabled?: boolean
+	/** Voice answers are on: acknowledge out loud the moment the keys come up. */
+	voice?: boolean
 }
 
 type Pt = { x: number; y: number }
@@ -24,7 +29,7 @@ const isTalkCombo = (e: KeyboardEvent) => e.ctrlKey && e.altKey && !e.metaKey &&
  * highlighter: drag over whatever you mean, or click an object, and Loci looks there. Release to
  * ask. Holding while Loci is talking interrupts it.
  */
-export function HoldToTalk({ busy, onAsk, onStop, disabled }: Props) {
+export function HoldToTalk({ busy, onAsk, onStop, disabled, voice }: Props) {
 	const editor = useEditor()
 	const [holding, setHolding] = useState(false)
 	const [stroke, setStroke] = useState<Pt[]>([])
@@ -34,8 +39,8 @@ export function HoldToTalk({ busy, onAsk, onStop, disabled }: Props) {
 	const marked = useRef(false)
 	const stopRec = useRef<(() => Promise<string>) | null>(null)
 	const recording = useRef<Recording | null>(null)
-	const live = useRef({ busy, onAsk, onStop, disabled })
-	live.current = { busy, onAsk, onStop, disabled }
+	const live = useRef({ busy, onAsk, onStop, disabled, voice })
+	live.current = { busy, onAsk, onStop, disabled, voice }
 
 	const begin = useCallback(() => {
 		if (live.current.disabled) return
@@ -43,6 +48,7 @@ export function HoldToTalk({ busy, onAsk, onStop, disabled }: Props) {
 		stopAllSpeech()
 		marked.current = false
 		heard.set('')
+		clearThinking()
 		setBuddyStatus('')
 		setHolding(true)
 		setTutorMode('listening')
@@ -56,29 +62,38 @@ export function HoldToTalk({ busy, onAsk, onStop, disabled }: Props) {
 		drawing.current = false
 		setStroke([])
 		// Feedback the instant the keys come up, before the words are even transcribed.
+		startTimeline('released the talk keys')
 		setTutorMode('thinking')
-		setBuddyStatus('Got it…')
+		setBuddyStatus('')
+		setThought({ text: 'got it…' })
 		const rec = recording.current
 		const words = stopRec.current
 		recording.current = null
 		stopRec.current = null
-		const [clip, browserText] = await Promise.all([
-			rec ? rec.stop().catch(() => null) : Promise.resolve(null),
-			words ? within(words().catch(() => ''), 2000, heard.get()) : Promise.resolve(heard.get()),
-		])
-		heard.set('')
+		const browserWords = words ? within(words().catch(() => ''), 2000, heard.get()) : Promise.resolve(heard.get())
+		const clip = rec ? await rec.stop().catch(() => null) : null
 		// Clips under about half a second are a tap, not a question.
 		const spoke = Boolean(clip && clip.size > 3000)
+		// Say "I heard you" now, while the words are still being transcribed.
+		if (spoke && live.current.voice) {
+			ackRelease(ackKindFor(editor))
+			markTime('acknowledgement started')
+		}
+		const browserText = await browserWords
+		heard.set('')
 		// Fish is more accurate; if the browser already heard words, don't wait long for it.
 		const fish = spoke ? await transcribe(clip!, browserText.trim() ? 3500 : 7000) : null
 		const transcript = (fish ?? browserText).trim()
+		markTime('transcript ready')
 		console.info('[loci] hold to talk:', { recordedBytes: clip?.size ?? 0, fish, browser: browserText, asking: transcript })
 		if (transcript) {
-			Promise.resolve(live.current.onAsk(transcript)).then((asked) => {
+			Promise.resolve(live.current.onAsk(transcript, { spoken: true })).then((asked) => {
 				if (asked === false) setBuddyStatus('Still busy. Hold again to interrupt.', 3000)
 			})
 			return
 		}
+		clearThinking()
+		endTimeline('nothing to ask')
 		setTutorMode('idle')
 		if (marked.current) {
 			// Pointed at something but said nothing: type the question instead.
@@ -87,7 +102,7 @@ export function HoldToTalk({ busy, onAsk, onStop, disabled }: Props) {
 		} else if (spoke) setBuddyStatus("Didn't catch that. Hold and try again?", 3000)
 		else if (!clip) setBuddyStatus("Couldn't use your mic. Check the browser's mic permission.", 4000)
 		else setBuddyStatus('')
-	}, [])
+	}, [editor])
 
 	useEffect(() => {
 		let down = false

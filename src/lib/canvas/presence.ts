@@ -47,6 +47,7 @@ export async function penAlong(area: { x: number; y: number; w: number; h: numbe
 
 /** A turn ended (or was stopped): come back to the cursor, unless the student is already talking again. */
 export function endTutorTurn() {
+	clearThinking()
 	if (tutorPresence.get().mode !== 'listening') setTutorMode('idle')
 }
 
@@ -77,4 +78,30 @@ export function setBuddyStatus(text: string, clearAfterMs?: number) {
 export function lookAt(area: { x: number; y: number; w: number; h: number } | null) {
 	if (!area) return setTutorMode('thinking')
 	tutorPresence.set({ x: area.x + area.w / 2, y: area.y + Math.min(area.h, 160) / 2, away: true, mode: 'thinking' })
+}
+
+/**
+ * While the tutor works on a question: what it heard (`asked`, spoken questions only) and one
+ * line saying what it is doing (`thought`), both beside the buddy. They fold away the moment the
+ * answer starts (first words heard, or first mark drawn).
+ */
+export interface BuddyThought {
+	text: string
+	latex?: string
+}
+export const buddyThought = atom<BuddyThought | null>('buddyThought', null)
+export const buddyAsked = atom<string>('buddyAsked', '')
+
+export function setThought(thought: BuddyThought | null) {
+	buddyThought.set(thought)
+}
+
+export function showAsked(text: string) {
+	buddyAsked.set(text)
+}
+
+/** The answer has started (or the turn ended): put the thinking away. */
+export function clearThinking() {
+	buddyThought.set(null)
+	buddyAsked.set('')
 }

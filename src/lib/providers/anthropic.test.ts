@@ -120,7 +120,10 @@ describe('AnthropicProvider', () => {
 
 		// Events reaching the browser
 		const kinds = events.map((e) => (e.type === 'action' ? `action:${e.action.type}` : e.type))
-		expect(kinds).toEqual(['say', 'action:highlight', 'rejected', 'action:write_equation', 'say'])
+		expect(kinds.filter((k) => k !== 'thought')).toEqual(['say', 'action:highlight', 'rejected', 'action:write_equation', 'say'])
+		// Each drawing call shows a thought while its input streams, before it is drawn.
+		expect(kinds.indexOf('thought')).toBeLessThan(kinds.indexOf('action:highlight'))
+		expect(events.some((e) => e.type === 'thought' && e.latex)).toBe(true)
 		expect(requests).toHaveLength(3)
 	})
 })

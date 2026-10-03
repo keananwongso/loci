@@ -1,19 +1,29 @@
 'use client'
 /**
  * Voice mode playback. Each sentence the tutor says is synthesized as soon as it arrives
- * (Fish Audio through the local /api/speech route), then played in order. Playback resolves when
- * the sentence has been said, so the next sentence never talks over it, while the marks that
- * follow a sentence are drawn as it is spoken.
+ * (Fish Audio through the local /api/speech route) and plays from its first chunk of audio, so
+ * the voice starts long before the whole clip is ready. Sentences play in order: playback
+ * resolves when the sentence has been said, so the next one never talks over it, while the marks
+ * that follow a sentence are drawn as it is spoken.
  * Without a Fish key, or if a request fails, the browser's built-in voice is used instead.
  */
 import { toSpoken } from './spoken'
 import { measureVoice, setSynthSpeaking } from './level'
 import { canSpeak, speak, stopSpeaking } from './speech'
 
+/** Audio as it streams in from the server. */
+export interface AudioStream {
+	chunks: Uint8Array[]
+	finished: boolean
+	/** Resolves when more audio arrives or the stream ends. */
+	more(): Promise<void>
+}
+
 export interface PreparedSpeech {
 	/** What is read aloud. */
 	spoken: string
-	audio: Promise<Blob | null>
+	/** Resolves once the first audio has arrived, or null if there is none (use the browser voice). */
+	audio: Promise<AudioStream | null>
 	controller: AbortController
 }
 
@@ -34,6 +44,37 @@ export async function checkSpeechProvider(): Promise<'fish' | 'browser'> {
 	return provider
 }
 
+/** Read a response body into an AudioStream; resolves at the first chunk (null if it never comes). */
+function streamAudio(res: Response): Promise<AudioStream | null> {
+	const reader = res.body!.getReader()
+	let wake = () => {}
+	const stream: AudioStream = {
+		chunks: [],
+		finished: false,
+		more: () => new Promise<void>((r) => (wake = r)),
+	}
+	return new Promise((resolve) => {
+		const pump = async () => {
+			try {
+				for (;;) {
+					const { value, done } = await reader.read()
+					if (done) break
+					if (!value?.byteLength) continue
+					stream.chunks.push(value)
+					resolve(stream)
+					wake()
+				}
+			} catch {
+				// Aborted or cut off: play what arrived.
+			}
+			stream.finished = true
+			resolve(stream.chunks.length ? stream : null)
+			wake()
+		}
+		pump()
+	})
+}
+
 export function prepareSpeech(text: string): PreparedSpeech {
 	const spoken = toSpoken(text)
 	const controller = new AbortController()
@@ -46,7 +87,7 @@ export function prepareSpeech(text: string): PreparedSpeech {
 					signal: controller.signal,
 				})
 					.then(async (r) => {
-						if (r.ok) return r.blob()
+						if (r.ok && r.body) return streamAudio(r)
 						console.warn('[loci] speech fell back to the browser voice:', (await r.json().catch(() => ({}))).error)
 						return null
 					})
@@ -82,14 +123,14 @@ export function playSpeech(p: PreparedSpeech): Playback {
 }
 
 async function play(p: PreparedSpeech, onStart: () => void): Promise<void> {
-	const blob = await timeout(p.audio, 12000, null)
+	const stream = await timeout(p.audio, 12000, null)
 
-	if (blob) {
+	if (stream) {
 		const audio = sharedAudio()
 		measureVoice(audio)
-		const url = URL.createObjectURL(blob)
+		const source = streamingSource()
+		const url = source ? URL.createObjectURL(source) : null
 		try {
-			audio.src = url
 			const finished = new Promise<void>((resolve) => {
 				const done = () => {
 					audio.removeEventListener('ended', done)
@@ -101,15 +142,27 @@ async function play(p: PreparedSpeech, onStart: () => void): Promise<void> {
 				audio.addEventListener('error', done)
 				stopCurrent = () => {
 					audio.pause()
+					p.controller.abort()
 					done()
 				}
 			})
 			audio.addEventListener('playing', onStart, { once: true })
+			let complete: Promise<void>
+			if (source && url) {
+				// Play from the first chunk while the rest is still arriving.
+				audio.src = url
+				complete = feed(source, stream)
+			} else {
+				// No streaming playback in this browser: wait for the whole clip.
+				while (!stream.finished) await timeout(stream.more(), 12000, undefined)
+				audio.src = URL.createObjectURL(new Blob(stream.chunks as BlobPart[], { type: 'audio/mpeg' }))
+				complete = Promise.resolve()
+			}
 			await audio.play().catch(() => stopCurrent?.())
-			const seconds = Number.isFinite(audio.duration) ? audio.duration : 30
-			await timeout(finished, seconds * 1000 + 3000, undefined)
+			await Promise.race([finished, complete.then(() => endsWithin(audio, finished))])
 		} finally {
-			URL.revokeObjectURL(url)
+			if (url) URL.revokeObjectURL(url)
+			else if (audio.src.startsWith('blob:')) URL.revokeObjectURL(audio.src)
 		}
 		return
 	}
@@ -136,6 +189,57 @@ async function play(p: PreparedSpeech, onStart: () => void): Promise<void> {
 	} finally {
 		setSynthSpeaking(false)
 	}
+}
+
+type MediaSourceCtor = typeof MediaSource
+/** A MediaSource that can take mp3, when this browser can stream it (Safari has ManagedMediaSource). */
+function streamingSource(): MediaSource | null {
+	const w = window as unknown as { ManagedMediaSource?: MediaSourceCtor; MediaSource?: MediaSourceCtor }
+	const Ctor = w.ManagedMediaSource ?? w.MediaSource
+	if (!Ctor?.isTypeSupported?.('audio/mpeg')) return null
+	if (Ctor === w.ManagedMediaSource) sharedAudio().disableRemotePlayback = true
+	return new Ctor()
+}
+
+/** Append audio to the source as it arrives; resolves when all of it is in. */
+async function feed(source: MediaSource, stream: AudioStream) {
+	if (source.readyState !== 'open') {
+		await timeout(new Promise((r) => source.addEventListener('sourceopen', r, { once: true })), 3000, undefined)
+	}
+	if (source.readyState !== 'open') return
+	const buffer = source.addSourceBuffer('audio/mpeg')
+	const appended = () => new Promise((r) => buffer.addEventListener('updateend', r, { once: true }))
+	let sent = 0
+	try {
+		for (;;) {
+			if (sent < stream.chunks.length) {
+				const batch = stream.chunks.slice(sent)
+				sent = stream.chunks.length
+				const bytes = new Uint8Array(batch.reduce((n, c) => n + c.byteLength, 0))
+				let at = 0
+				for (const c of batch) {
+					bytes.set(c, at)
+					at += c.byteLength
+				}
+				buffer.appendBuffer(bytes)
+				await appended()
+				continue
+			}
+			if (stream.finished) break
+			// A stream that stalls this long is not coming back; play what arrived.
+			if ((await timeout(stream.more().then(() => true), 12000, false)) === false) break
+		}
+		if (source.readyState === 'open' && !buffer.updating) source.endOfStream()
+	} catch (err) {
+		console.warn('[loci] streaming audio failed', err)
+		if (source.readyState === 'open') source.endOfStream()
+	}
+}
+
+/** Once all the audio is in, `finished` (the ended event) should follow within the remaining time. */
+function endsWithin(audio: HTMLAudioElement, finished: Promise<void>) {
+	const left = Number.isFinite(audio.duration) ? Math.max(0, audio.duration - audio.currentTime) : 30
+	return timeout(finished, left * 1000 + 3000, undefined)
 }
 
 export function stopAllSpeech() {

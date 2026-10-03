@@ -3,10 +3,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Editor } from 'tldraw'
 import { lastMark, runTutorTurn } from '@/lib/tutor/client'
 import { clearConversation, loadConversation, saveConversation, type Turn } from '@/lib/storage/conversation'
-import { endTutorTurn, lookAt, moveTutorTo, setBuddyStatus } from '@/lib/canvas/presence'
-import { playAck } from '@/lib/voice/ack'
+import { clearThinking, endTutorTurn, lookAt, moveTutorTo, setBuddyStatus, setThought, showAsked } from '@/lib/canvas/presence'
+import { playAck, takeAck } from '@/lib/voice/ack'
+import { endTimeline, mark, startTimeline } from '@/lib/tutor/timeline'
 import { playSpeech, prepareSpeech, stopAllSpeech, type PreparedSpeech } from '@/lib/voice/player'
-import { describeSelection } from './selection'
+import { ackKindFor, describeSelection, firstThought } from './selection'
 import { loadUserKey, type UserKey } from '@/lib/storage/userKey'
 
 export interface TutorStatus {
@@ -58,19 +59,31 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 	const busy = turns.some((t) => ['looking', 'thinking', 'teaching'].includes(t.status))
 
 	const ask = useCallback(
-		async (question: string, opts: { scripted?: boolean } = {}) => {
+		async (question: string, opts: { scripted?: boolean; spoken?: boolean } = {}) => {
+			// An acknowledgement played the instant the talk keys came up belongs to this question.
+			const releaseAck = takeAck()
 			if (!editor || busy || !question.trim()) {
 				setBuddyStatus('')
 				endTutorTurn()
 				return false
 			}
-			stopAllSpeech()
-			// Instant feedback, before any model has answered: fly to what they pointed at, say so,
-			// and in voice mode acknowledge out loud.
+			if (!releaseAck) stopAllSpeech()
+			if (!opts.spoken) startTimeline('asked')
+			// Instant feedback, before any model has answered: fly to what they pointed at, show what
+			// was heard and what it is looking at, and in voice mode acknowledge out loud.
 			const focus = editor.getSelectionPageBounds()
 			lookAt(focus ? { x: focus.x, y: focus.y, w: focus.w, h: focus.h } : null)
-			setBuddyStatus(focus ? 'Looking at this…' : 'Looking at your board…')
-			const leadIn = voiceRef.current ? playAck().done : undefined
+			setBuddyStatus('')
+			setThought(firstThought(editor))
+			if (opts.spoken) showAsked(question.trim())
+			const leadIn = voiceRef.current ? (releaseAck ?? playAck(ackKindFor(editor))).done : undefined
+			// The thinking line folds away the moment the answer starts: first words heard, or first mark.
+			let answering = false
+			const answerStarted = () => {
+				if (answering) return
+				answering = true
+				clearThinking()
+			}
 			const id = crypto.randomUUID()
 			const turnNumber = (turns.at(-1)?.turn ?? 0) + 1
 			const history = turns
@@ -97,16 +110,29 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 					history,
 					turnNumber,
 					{
-						onPhase: (phase) => {
-							patch((t) => ({ ...t, status: phase }))
-							setBuddyStatus(phase === 'thinking' ? 'Thinking…' : phase === 'teaching' ? '' : 'Looking at this…')
+						onPhase: (phase) => patch((t) => ({ ...t, status: phase })),
+						onThought: (thought) => {
+							if (!answering) setThought(thought)
 						},
 						prepareSay: (text) => (voiceRef.current ? prepareSpeech(text) : undefined),
 						onSay: (text, prepared) => {
 							patch((t) => ({ ...t, said: [...t.said, text] }))
-							return prepared ? playSpeech(prepared as PreparedSpeech) : undefined
+							if (!prepared) {
+								answerStarted()
+								return undefined
+							}
+							const playback = playSpeech(prepared as PreparedSpeech)
+							playback.started.then(() => {
+								answerStarted()
+								mark('first sentence audible')
+							})
+							return playback
 						},
-						onAction: (action, summary) => patch((t) => ({ ...t, actions: [...t.actions, summary], lastAction: action.type })),
+						onAction: (action, summary) => {
+							patch((t) => ({ ...t, actions: [...t.actions, summary], lastAction: action.type }))
+							answerStarted()
+							mark('first mark drawn')
+						},
 						onNotice: (message) => patch((t) => ({ ...t, notices: [...(t.notices ?? []), message] })),
 						beforeDraw: moveTutorTo,
 					},
@@ -124,6 +150,7 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 				abortRef.current = null
 				setBuddyStatus('')
 				endTutorTurn()
+				endTimeline()
 			}
 		},
 		[editor, busy, turns]

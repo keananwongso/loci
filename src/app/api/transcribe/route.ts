@@ -14,9 +14,11 @@ export async function POST(req: Request) {
 	const audio = await req.blob().catch(() => null)
 	if (!audio || audio.size === 0) return Response.json({ error: 'No audio.' }, { status: 400 })
 	if (audio.size > MAX_RECORDING_BYTES) return Response.json({ error: 'Recording too long.' }, { status: 413 })
+	const start = performance.now()
 	try {
 		const text = await fishTranscribe(audio, config, req.signal)
-		console.info(`[loci] transcribed ${Math.round(audio.size / 1024)} KB (${audio.type || 'unknown type'}): ${text ? `"${text.slice(0, 80)}"` : '(no words)'}`)
+		const took = ((performance.now() - start) / 1000).toFixed(2)
+		console.info(`[loci] transcribed ${Math.round(audio.size / 1024)} KB (${audio.type || 'unknown type'}) in ${took}s: ${text ? `"${text.slice(0, 80)}"` : '(no words)'}`)
 		return Response.json({ text })
 	} catch (err) {
 		const status = err instanceof FishError ? err.status : 502

@@ -25,9 +25,11 @@ The fastest way to ask: hold **Ctrl + Alt** (**⌃ + ⌥** on a Mac) and talk. W
 * Semantic placement ("right of this page", "below that graph") with collision avoidance, so drawings land beside your material instead of on top of it
 * Narration and drawing stream in together: the tutor writes equations and notes by hand (in tldraw's handwriting font), revealed left to right as its pen moves, while it speaks
 * The tutor is a small particle orb that rests beside your cursor, flies to wherever it draws, and pulses with its voice
+* While it works, the orb shows one handwritten line of what it is doing ("finding ∇f · u", "setting up axes"), read from the model's tool calls as they stream, so there is no silent wait and no thinking mode to pay for
 * Conversation history per board; the tutor can refer to anything it drew earlier by id
 * Equations stay editable (double click to edit the LaTeX); undo removes a whole answer's drawing
-* Voice mode: hold to talk, and the tutor speaks each sentence while it draws the marks that sentence is about. Its words are written to be heard (no symbols or formulas read aloud; the math stays on the board). Uses Fish Audio when `FISH_API_KEY` is set, otherwise the browser's built-in voice
+* Voice mode: hold to talk, and the tutor speaks each sentence while it draws the marks that sentence is about. Its words are written to be heard (no symbols or formulas read aloud; the math stays on the board). Uses Fish Audio when `FISH_API_KEY` is set, otherwise the browser's built-in voice. The tutor says a short "I heard you" the moment you let go, shows the words it heard beside the orb, and plays each sentence from its first chunk of audio rather than waiting for the whole clip
+* Timing in the terminal: each question logs when the transcript, the first thought, the first spoken sentence and the first mark arrived, plus how long the model and each Fish Audio clip took, so you can see where the wait comes from
 * Board, files and conversation are stored locally in IndexedDB, so a refresh brings everything back. To start over, click the new board button in the top bar, or open `http://localhost:3000/?reset`
 
 ## Local setup

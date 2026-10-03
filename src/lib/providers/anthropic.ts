@@ -5,6 +5,7 @@ import { toSpoken } from '@/lib/voice/spoken'
 import type { ActionSession } from '@/lib/tutor/session'
 import type { TutorEvent } from '@/lib/tutor/types'
 import type { TutorInput, TutorModelProvider } from './types'
+import { ThoughtStream } from '@/lib/tutor/thoughts'
 
 type Effort = 'low' | 'medium' | 'high'
 
@@ -85,6 +86,15 @@ export class AnthropicProvider implements TutorModelProvider {
 			// Run each tool call as soon as its block completes, so drawing starts while the
 			// model is still generating the rest of the turn.
 			const results = new Map<string, Anthropic.Beta.BetaToolResultBlockParam>()
+			// Show what each call is doing while its input is still streaming in.
+			const thoughts = new ThoughtStream(emit)
+			stream.on('streamEvent', (event) => {
+				if (event.type === 'content_block_start' && event.content_block.type === 'tool_use') {
+					thoughts.update(event.index, { tool: event.content_block.name })
+				} else if (event.type === 'content_block_delta' && event.delta.type === 'input_json_delta') {
+					thoughts.update(event.index, { args: event.delta.partial_json })
+				}
+			})
 			stream.on('contentBlock', (block) => {
 				if (block.type === 'tool_use') {
 					const outcome = session.handle(block.name, block.input)

@@ -765,6 +765,93 @@ button {
 	opacity: 1;
 }
 
+/* while it thinks: what it heard (above) and one line saying what it is doing (beside), in its own hand */
+
+.loci-buddy__asked,
+.loci-buddy__thought {
+	position: absolute;
+	white-space: nowrap;
+	font-family: 'loci-hand', var(--loci-sans);
+	opacity: 0;
+	transition:
+		opacity 0.25s,
+		transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.loci-buddy__asked {
+	left: 50%;
+	bottom: calc(100% - 4px);
+	transform: translate(-50%, 4px);
+	color: var(--loci-ink-3);
+	font-size: 15px;
+}
+
+.loci-buddy__asked::before {
+	content: 'you: ';
+	font-family: var(--loci-sans);
+	font-size: 10.5px;
+	letter-spacing: 0.02em;
+}
+
+.loci-buddy__asked[data-show='true'] {
+	opacity: 1;
+	transform: translate(-50%, 0);
+}
+
+.loci-buddy__thought {
+	left: calc(100% - 8px);
+	top: 50%;
+	padding: 3px 12px 4px;
+	border-radius: 14px;
+	background: #fff6d6;
+	color: #5b4a12;
+	box-shadow: 0 0 0 1px rgba(91, 74, 18, 0.12), 0 6px 18px -8px rgba(17, 24, 39, 0.3);
+	font-size: 16px;
+	line-height: 1.25;
+	transform-origin: left center;
+	/* folded into the orb */
+	transform: translate(-28px, -50%) scale(0.2);
+}
+
+.loci-buddy__thought[data-show='true'] {
+	opacity: 1;
+	transform: translate(0, -50%) scale(1);
+}
+
+.loci-buddy[data-side='left'] .loci-buddy__thought {
+	left: auto;
+	right: calc(100% - 8px);
+	transform-origin: right center;
+	transform: translate(28px, -50%) scale(0.2);
+}
+
+.loci-buddy[data-side='left'] .loci-buddy__thought[data-show='true'] {
+	transform: translate(0, -50%) scale(1);
+}
+
+.loci-buddy__thought-line {
+	display: inline-block;
+	animation: loci-write 0.45s ease-out both;
+}
+
+.loci-buddy__thought-math {
+	margin-left: 6px;
+}
+
+.loci-buddy__thought-math .katex {
+	font-size: 1.05em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.loci-buddy__asked,
+	.loci-buddy__thought {
+		transition: opacity 0.2s;
+	}
+	.loci-buddy__thought-line {
+		animation: none;
+	}
+}
+
 /* hold to talk: while the keys are down, the board is a highlighter */
 
 .loci-ui > .loci-talk {

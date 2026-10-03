@@ -120,6 +120,8 @@ export type TutorRequest = z.infer<typeof TutorRequestSchema>
 /** Streamed from the server route to the browser as newline-delimited JSON. */
 export type TutorEvent =
 	| { type: 'say'; text: string }
+	/** What the tutor is doing right now, read from the call it is still writing. Shown while it thinks. */
+	| { type: 'thought'; text: string; latex?: string }
 	| { type: 'action'; action: CanvasAction; summary: string }
 	| { type: 'status'; message: string }
 	| { type: 'rejected'; tool: string; reason: string }

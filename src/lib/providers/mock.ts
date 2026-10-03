@@ -2,6 +2,7 @@ import 'server-only'
 import type { ActionSession } from '@/lib/tutor/session'
 import type { TutorEvent } from '@/lib/tutor/types'
 import type { TutorInput, TutorModelProvider } from './types'
+import { ThoughtStream } from '@/lib/tutor/thoughts'
 
 const sleep = (ms: number, signal: AbortSignal) =>
 	new Promise<void>((resolve, reject) => {
@@ -26,12 +27,24 @@ export class MockProvider implements TutorModelProvider {
 		return true
 	}
 
-	async run(input: TutorInput, session: ActionSession, _emit: (e: TutorEvent) => void, signal: AbortSignal) {
+	async run(input: TutorInput, session: ActionSession, emit: (e: TutorEvent) => void, signal: AbortSignal) {
 		const { board } = input.request
+		// Stream each call's arguments in pieces, like a real model, so the thought line updates.
+		const thoughts = new ThoughtStream(emit)
+		let calls = 0
 		const call = async (name: string, args: unknown) => {
-			await sleep(450, signal)
+			const key = calls++
+			const json = JSON.stringify(args)
+			thoughts.update(key, { tool: name })
+			const pieces = 3
+			for (let i = 0; i < pieces; i++) {
+				await sleep(150, signal)
+				thoughts.update(key, { args: json.slice((json.length * i) / pieces, (json.length * (i + 1)) / pieces) })
+			}
 			return session.handle(name, args)
 		}
+		// A real model takes a moment before its first token.
+		await sleep(700, signal)
 		const material =
 			board.objects.find((o) => o.id === board.region?.materialId) ??
 			board.objects.find((o) => board.selectedIds.includes(o.id) && o.material) ??

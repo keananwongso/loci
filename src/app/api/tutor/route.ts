@@ -119,8 +119,10 @@ export async function POST(req: Request) {
 
 	const stream = new ReadableStream<Uint8Array>({
 		async start(controller) {
+			const timing = new TurnTiming()
 			const emit = (event: TutorEvent) => {
 				if (abort.signal.aborted) return
+				timing.saw(event)
 				controller.enqueue(encoder.encode(JSON.stringify(event) + '\n'))
 			}
 			const session = new ActionSession(request.board, emit)
@@ -139,6 +141,7 @@ export async function POST(req: Request) {
 			}
 			emit({ type: 'done' })
 			controller.close()
+			console.info(`[loci] tutor ${provider.name} ${provider.model}: ${timing.summary()}${abort.signal.aborted ? ' (stopped)' : ''}`)
 		},
 		cancel() {
 			abort.abort()
@@ -151,3 +154,24 @@ export async function POST(req: Request) {
 	if (quota) res.headers.set('X-Loci-Quota-Remaining', String(quota.remaining))
 	return withCookie(res, cookie)
 }
+
+const TIMED = { thought: 'first thought', say: 'first sentence', action: 'first drawing' } as const
+
+/** When the first of each kind of event left the server, for the terminal log. */
+class TurnTiming {
+	private start = performance.now()
+	private firsts = new Map<string, number>()
+
+	saw(event: TutorEvent) {
+		const label = TIMED[event.type as keyof typeof TIMED]
+		if (label && !this.firsts.has(label)) this.firsts.set(label, performance.now() - this.start)
+	}
+
+	summary() {
+		const parts = [...this.firsts].map(([label, ms]) => `${label} ${seconds(ms)}`)
+		parts.push(`done ${seconds(performance.now() - this.start)}`)
+		return parts.join(' · ')
+	}
+}
+
+const seconds = (ms: number) => `${(ms / 1000).toFixed(2)}s`

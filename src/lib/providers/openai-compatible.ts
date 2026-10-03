@@ -9,6 +9,7 @@ import { toSpoken } from '@/lib/voice/spoken'
 import type { ActionSession } from '@/lib/tutor/session'
 import type { TutorEvent } from '@/lib/tutor/types'
 import type { TutorInput, TutorModelProvider } from './types'
+import { ThoughtStream } from '@/lib/tutor/thoughts'
 
 export interface OpenAICompatibleConfig {
 	/** Shown in the UI, e.g. "openrouter". */
@@ -137,7 +138,8 @@ export class OpenAICompatibleProvider implements TutorModelProvider {
 		}
 
 		for (let round = 0; round < MAX_ROUNDS; round++) {
-			const { content, reasoning, toolCalls, finish } = await this.complete(messages, tools, session, signal)
+			const thoughts = new ThoughtStream(emit)
+			const { content, reasoning, toolCalls, finish } = await this.complete(messages, tools, session, signal, thoughts)
 			if (toSpoken(content)) emit({ type: 'say', text: toSpoken(content) })
 			if (!toolCalls.length) return
 			if (finish === 'length') {
@@ -161,7 +163,8 @@ export class OpenAICompatibleProvider implements TutorModelProvider {
 		messages: ChatMessage[],
 		tools: unknown[],
 		session: ActionSession,
-		signal: AbortSignal
+		signal: AbortSignal,
+		thoughts?: ThoughtStream
 	): Promise<{ content: string; reasoning: string; toolCalls: Array<{ call: ToolCall; result: string }>; finish: string | null }> {
 		const doFetch = this.config.fetch ?? fetch
 		const res = await doFetch(`${this.config.baseUrl.replace(/\/$/, '')}/chat/completions`, {
@@ -234,6 +237,7 @@ export class OpenAICompatibleProvider implements TutorModelProvider {
 					if (tc.function?.name) p.name += tc.function.name
 					if (tc.function?.arguments) p.args += tc.function.arguments
 					pending.set(index, p)
+					thoughts?.update(index, { tool: p.name, args: tc.function?.arguments })
 				}
 				if (choice.finish_reason) finish = choice.finish_reason
 			}

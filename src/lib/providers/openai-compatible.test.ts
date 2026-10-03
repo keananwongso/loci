@@ -84,7 +84,9 @@ describe('OpenAICompatibleProvider', () => {
 		expect(second.at(-1)).toMatchObject({ role: 'tool', tool_call_id: 'c2' })
 
 		const kinds = events.map((e) => (e.type === 'action' ? `action:${e.action.type}` : e.type))
-		expect(kinds).toEqual(['say', 'action:highlight', 'say'])
+		expect(kinds).toEqual(['say', 'thought', 'action:highlight', 'say'])
+		// The thought is read from the call while it streams, before the highlight is drawn.
+		expect(events[1]).toEqual({ type: 'thought', text: 'finding “∇f · u”' })
 	})
 
 	it('falls back to text-only when the model rejects images', async () => {

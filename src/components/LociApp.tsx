@@ -179,7 +179,7 @@ function Shell() {
 				onSample={loadSample}
 			/>
 			<Toolbar onUpload={() => fileRef.current?.click()} />
-			<HoldToTalk busy={tutor.busy} onAsk={tutor.ask} onStop={tutor.stop} disabled={Boolean(disabledReason)} />
+			<HoldToTalk busy={tutor.busy} onAsk={tutor.ask} onStop={tutor.stop} disabled={Boolean(disabledReason)} voice={voiceOut} />
 			<EmptyState onUpload={() => fileRef.current?.click()} onSample={loadSample} loading={loading} />
 			{loading && <div className="loci-toast">{loading}</div>}
 			<div className="loci-dock">

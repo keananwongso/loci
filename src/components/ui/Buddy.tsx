@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useRef } from 'react'
 import { useEditor, useValue } from 'tldraw'
-import { buddyStatus, heard, tutorPresence } from '@/lib/canvas/presence'
+import { buddyAsked, buddyStatus, buddyThought, heard, tutorPresence, type BuddyThought } from '@/lib/canvas/presence'
+import { renderLatex } from '@/lib/canvas/katex'
 import { micLevel, voiceLevel } from '@/lib/voice/level'
 
 const N = 170
@@ -34,6 +35,13 @@ export function Buddy() {
 	const status = useValue('buddy-status', () => buddyStatus.get(), [])
 	const listening = useValue('buddy-listening', () => tutorPresence.get().mode === 'listening', [])
 	const hint = listening ? (words ? lastWords(words) : 'Listening · drag to highlight') : status
+	const thought = useValue('buddy-thought', () => buddyThought.get(), [])
+	const asked = useValue('buddy-asked', () => buddyAsked.get(), [])
+	// Keep the last words on screen while they fade out.
+	const shownThought = useRef<BuddyThought | null>(null)
+	if (thought) shownThought.current = thought
+	const shownAsked = useRef('')
+	if (asked) shownAsked.current = asked
 
 	useEffect(() => {
 		const el = root.current
@@ -83,6 +91,9 @@ export function Buddy() {
 			pos.y += vel.y
 			const bob = still || p.away ? 0 : Math.sin(t * 1.8) * 2
 			el.style.transform = `translate(${pos.x.toFixed(1)}px, ${(pos.y + bob).toFixed(1)}px)`
+			// The thought line sits to the right, or to the left near the right edge of the screen.
+			const side = pos.x > editor.getViewportScreenBounds().w - 300 ? 'left' : 'right'
+			if (el.dataset.side !== side) el.dataset.side = side
 			if (mode !== p.mode) {
 				mode = p.mode
 				el.dataset.mode = mode
@@ -144,6 +155,12 @@ export function Buddy() {
 			<span className="loci-buddy__hint" data-show={Boolean(hint)}>
 				{hint}
 			</span>
+			<span className="loci-buddy__asked loci-hand" data-show={Boolean(asked)}>
+				{clip(shownAsked.current, 60)}
+			</span>
+			<span className="loci-buddy__thought loci-hand" data-show={Boolean(thought)}>
+				{shownThought.current && <ThoughtLine key={thoughtKey(shownThought.current)} thought={shownThought.current} />}
+			</span>
 		</div>
 	)
 }
@@ -152,4 +169,20 @@ export function Buddy() {
 function lastWords(text: string) {
 	const w = text.split(/\s+/)
 	return w.length > 8 ? `…${w.slice(-8).join(' ')}` : text
+}
+
+const thoughtKey = (t: BuddyThought) => `${t.text}|${t.latex ?? ''}`
+
+/** One line of what the tutor is doing; remounts on change so the new words write themselves in. */
+function ThoughtLine({ thought }: { thought: BuddyThought }) {
+	return (
+		<span className="loci-buddy__thought-line">
+			{thought.text}
+			{thought.latex && <span className="loci-buddy__thought-math" dangerouslySetInnerHTML={{ __html: renderLatex(thought.latex.slice(0, 120), false) }} />}
+		</span>
+	)
+}
+
+function clip(text: string, max: number) {
+	return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text
 }

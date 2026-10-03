@@ -10,6 +10,7 @@ import { captureImages, serializeBoard } from '@/lib/canvas/serialize'
 import type { CanvasAction } from '@/lib/actions/schema'
 import type { HistoryTurn, TutorEvent, TutorRequest } from './types'
 import { userKeyHeaders } from '@/lib/storage/userKey'
+import { mark } from './timeline'
 
 export interface SayPlayback {
 	started: Promise<void>
@@ -30,6 +31,8 @@ export interface TurnCallbacks {
 	prepareSay?(text: string): unknown
 	onAction(action: CanvasAction, summary: string): void
 	onNotice(message: string): void
+	/** What the tutor is doing while it works, before the answer starts. */
+	onThought?(thought: { text: string; latex?: string }): void
 	beforeDraw: BeforeDraw
 }
 
@@ -64,6 +67,8 @@ export async function runTutorTurn(
 	const focus = serializeBoard(editor)
 	const images = await captureImages(editor, focus)
 	const request: TutorRequest = { question, board: focus.board, images, history: history.slice(-12), turn }
+	const regionText = focus.board.region?.text?.replace(/\s+/g, ' ').trim()
+	if (regionText) cb.onThought?.({ text: `reading “${regionText.length > 34 ? `${regionText.slice(0, 33).trimEnd()}…` : regionText}”` })
 
 	cb.onPhase('thinking')
 	const res = await fetch('/api/tutor', {
@@ -128,6 +133,11 @@ export async function runTutorTurn(
 			case 'rejected':
 				// The model sees the reason and usually retries; only log it.
 				console.info(`[loci] ${event.tool} rejected: ${event.reason}`)
+				break
+			case 'thought':
+				// Not queued: it describes what is coming, and is hidden once the answer starts.
+				mark('first thought from the model')
+				cb.onThought?.({ text: event.text, latex: event.latex })
 				break
 			case 'status':
 				enqueue(() => cb.onNotice(event.message))
