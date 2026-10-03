@@ -113,3 +113,9 @@ export const LayersIcon = () => (
 		<path d="m3.5 12.5 8.5 4.5 8.5-4.5" />
 	</Icon>
 )
+export const NewBoardIcon = () => (
+	<Icon>
+		<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9" />
+		<path d="M18 2v6M15 5h6" />
+	</Icon>
+)

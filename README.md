@@ -1,6 +1,6 @@
 # Loci
 
-Loci is a spatial AI tutor for math and STEM that runs on your own machine. You put your course material (a PDF, a photo of your notes, a screenshot) on an infinite canvas, select the part you don't understand, and ask. The tutor answers by teaching directly on the canvas beside your material: it highlights the exact symbol you asked about, builds a coordinate diagram next to the page, writes typeset equations, connects them with arrows, and then checks your understanding with a short question. Everything it draws stays on the board as normal, movable objects, so the next question can build on it.
+Loci is a spatial AI tutor for math and STEM that runs on your own machine. You put your course material (a PDF, a photo of your notes, a screenshot) on an infinite canvas, select the part you don't understand, and ask. The tutor answers by teaching directly on the canvas beside your material: it highlights the exact symbol you asked about, builds a coordinate diagram next to the page, writes the equations out by hand, connects them with arrows, and then checks your understanding with a short question. Everything it draws stays on the board as normal, movable objects, so the next question can build on it.
 
 The whiteboard is the interface. The chat is a narrow strip at the bottom.
 
@@ -13,7 +13,7 @@ The workflow Loci is built around:
 3. The tutor highlights `∇f · u` in the theorem box, draws a coordinate plane to the right of the page with the unit circle, the gradient and a unit vector `u`, marks the angle θ between them, writes `D_u f = ∇f · u = ‖∇f‖ cos θ` below the diagram, draws an arrow from the highlight to the diagram, and asks what happens if `u` points along the gradient. (The exact drawing varies with the model; `LOCI_PROVIDER=mock` replays this lesson exactly.)
 4. Follow up: *Why does the answer become largest when they point in the same direction?* The tutor is instructed to extend the existing diagram (here, adding the projection of `∇f` onto `u`) rather than draw a new one.
 
-To ask about just part of a page, press **Q** (or the dashed box tool) and drag a box around it.
+The fastest way to ask: hold **Ctrl + Alt** (**⌃ + ⌥** on a Mac) and talk. While the keys are down, drag over the part you mean to highlight it, or click an object; let go to ask. You can also press **Q** (or the dashed box tool) to drag a box, then type.
 
 ## Features
 
@@ -23,11 +23,12 @@ To ask about just part of a page, press **Q** (or the dashed box tool) and drag 
 * The tutor sees structured board state (stable ids, positions, extracted text with positions) and images (the page or region, plus a view screenshot when it helps)
 * The tutor draws through a typed, validated action protocol: text, KaTeX equations, highlights (marker, circle, box, underline) located by exact text match, arrows bound to objects or to points inside a graph, rectangles, ellipses, and coordinate planes with vectors, points, segments, function plots, circles, angle arcs and projections
 * Semantic placement ("right of this page", "below that graph") with collision avoidance, so drawings land beside your material instead of on top of it
-* Narration and drawing stream in together, with a cursor showing where the tutor is drawing
+* Narration and drawing stream in together: the tutor writes equations and notes by hand (in tldraw's handwriting font), revealed left to right as its pen moves, while it speaks
+* The tutor is a small particle orb that rests beside your cursor, flies to wherever it draws, and pulses with its voice
 * Conversation history per board; the tutor can refer to anything it drew earlier by id
 * Equations stay editable (double click to edit the LaTeX); undo removes a whole answer's drawing
-* Voice mode: push to talk, and the tutor speaks each sentence through an animated speaking orb with live captions while it draws, waiting for each sentence before the next mark. Uses Fish Audio when `FISH_API_KEY` is set, otherwise the browser's built-in voice
-* Board, files and conversation are stored locally in IndexedDB
+* Voice mode: hold to talk, and the tutor speaks each sentence while it draws the marks that sentence is about. Its words are written to be heard (no symbols or formulas read aloud; the math stays on the board). Uses Fish Audio when `FISH_API_KEY` is set, otherwise the browser's built-in voice
+* Board, files and conversation are stored locally in IndexedDB, so a refresh brings everything back. To start over, click the new board button in the top bar, or open `http://localhost:3000/?reset`
 
 ## Local setup
 
@@ -80,7 +81,7 @@ With Anthropic, requests opt into the API's server side refusal fallback (`fallb
 
 ### Voice
 
-Click the speaker button in the top bar to turn on voice mode. Hold the mic button to ask out loud; the tutor answers through the speaking orb (bottom right), and the drawing waits for each sentence so you hear "look at this u" just before it gets circled.
+Click the speaker button in the top bar to turn on voice mode, then hold **Ctrl + Alt** (or the mic button) to ask out loud. The tutor speaks each sentence as it draws what that sentence is about, and the next sentence waits until the last one is finished. The written transcript is one click away (Show transcript).
 
 For natural voices add `FISH_API_KEY` to `.env.local` ([Fish Audio](https://fish.audio), about $15 per million characters, so roughly a cent per answer). `FISH_VOICE_ID` picks a voice and `LOCI_TTS_MODEL` the model (default `s2-pro`). Without a key, the browser's built-in voice is used. Only the tutor's spoken sentences are sent to Fish Audio, never your files.
 
@@ -142,7 +143,7 @@ native canvas objects (meta.author = assistant)
 | `src/lib/canvas/serialize.ts` | Builds the structured board context and captures images |
 | `src/lib/documents/` | pdf.js rendering, text extraction, phrase matching |
 | `src/components/shapes/` | Custom shapes: material page, equation, graph, highlight, region |
-| `src/lib/voice/` | Voice mode: Fish Audio route helper, speech playback queue, speaking orb handle |
+| `src/lib/voice/` | Voice mode: Fish Audio route helper, speech playback queue, spoken-text cleanup, voice and mic levels |
 
 The model never runs code in the browser. It can only call the declared tools; every call is validated before anything is drawn, and function plots are parsed by a small math expression parser rather than evaluated as JavaScript.
 
@@ -156,9 +157,4 @@ tldraw is free to use in development and on localhost. Deploying Loci publicly i
 * A text protocol fallback for models without tool calling
 * OCR for photos and screenshots, so text-only models can read them
 * Realtime voice conversation
-* Word-exact captions from Fish Audio's timestamp endpoint
 * iPad and Apple Pencil: a shared canvas where the tutor can see handwritten work and circle the term that went wrong
-
-## Credits
-
-The speaking orb in voice mode is [Speaking Orb](https://github.com/aqualang89/shipnotes-components) by Ship Notes (MIT), included unmodified in `public/vendor/speaking-orb.js`.

@@ -1,17 +1,18 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { MoreIcon, SpeakerIcon } from './icons'
+import { MoreIcon, NewBoardIcon, SpeakerIcon } from './icons'
 import type { TutorStatus } from '../useTutor'
 
 interface Props {
 	status: TutorStatus
 	voiceOut: boolean
+	voiceProvider: 'fish' | 'browser' | null
 	onToggleVoice: () => void
 	onClear: () => void
 	onSample: () => void
 }
 
-export function TopBar({ status, voiceOut, onToggleVoice, onClear, onSample }: Props) {
+export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear, onSample }: Props) {
 	const [menu, setMenu] = useState(false)
 	const ref = useRef<HTMLDivElement>(null)
 	useEffect(() => {
@@ -30,8 +31,20 @@ export function TopBar({ status, voiceOut, onToggleVoice, onClear, onSample }: P
 					{status.configured ? status.model : 'No model connected'}
 				</span>
 			)}
-			<button className="loci-icon-btn" data-active={voiceOut} onClick={onToggleVoice} title={voiceOut ? 'Turn voice mode off' : 'Voice mode: Loci speaks its answers'}>
+			<button className="loci-icon-btn" data-active={voiceOut} onClick={onToggleVoice} title={
+					voiceOut
+						? `Loci speaks its answers${voiceProvider === 'fish' ? ' (Fish Audio)' : voiceProvider === 'browser' ? " (your browser's voice)" : ''}. Click to turn off.`
+						: 'Voice mode: Loci speaks its answers'
+				}>
 				<SpeakerIcon off={!voiceOut} />
+			</button>
+			<button
+				className="loci-icon-btn"
+				onClick={() => confirm('Start a new board? This clears the canvas and the conversation.') && onClear()}
+				title="New board (clears the canvas and conversation)"
+				aria-label="New board"
+			>
+				<NewBoardIcon />
 			</button>
 			<div className="loci-menu" ref={ref}>
 				<button className="loci-icon-btn" onClick={() => setMenu((m) => !m)} title="Board menu" aria-expanded={menu}>

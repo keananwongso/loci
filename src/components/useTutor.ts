@@ -3,9 +3,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Editor } from 'tldraw'
 import { lastMark, runTutorTurn } from '@/lib/tutor/client'
 import { clearConversation, loadConversation, saveConversation, type Turn } from '@/lib/storage/conversation'
-import { moveTutorTo, setTutorMode } from '@/lib/canvas/presence'
+import { endTutorTurn, moveTutorTo, setTutorMode } from '@/lib/canvas/presence'
 import { playSpeech, prepareSpeech, stopAllSpeech, type PreparedSpeech } from '@/lib/voice/player'
-import { setOrbState } from '@/lib/voice/orb'
 import { describeSelection } from './selection'
 import { loadUserKey, type UserKey } from '@/lib/storage/userKey'
 
@@ -37,9 +36,12 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 		return () => window.removeEventListener('loci:user-key', sync)
 	}, [])
 
+	const resets = useRef(0)
 	useEffect(() => {
+		const at = resets.current
 		loadConversation().then((t) => {
-			setTurns(t)
+			// A reset that happened while loading wins.
+			if (resets.current === at) setTurns(t)
 			loaded.current = true
 		})
 		fetch('/api/tutor')
@@ -78,7 +80,6 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 			const controller = new AbortController()
 			abortRef.current = controller
 			setTutorMode('thinking')
-			setOrbState('thinking')
 			try {
 				const result = await runTutorTurn(
 					editor,
@@ -108,8 +109,7 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 				patch((t) => ({ ...t, status: aborted ? 'stopped' : 'error', error: aborted ? undefined : (err as Error).message }))
 			} finally {
 				abortRef.current = null
-				setTutorMode('idle')
-				setOrbState('listening')
+				endTutorTurn()
 			}
 		},
 		[editor, busy, turns]
@@ -144,6 +144,7 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 	}, [editor, turns])
 
 	const reset = useCallback(async () => {
+		resets.current++
 		stop()
 		setTurns([])
 		await clearConversation()

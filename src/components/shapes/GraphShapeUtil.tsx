@@ -56,7 +56,7 @@ function GraphView({ shape }: { shape: GraphShape }) {
 	const freshIds = new Set(p.items.filter((it) => consumeFresh(`${shape.id}:${it.id}`)).map((it) => it.id))
 	const clipId = `clip-${shape.id.replace(/[^a-zA-Z0-9_-]/g, '')}`
 	return (
-		<HTMLContainer className="loci-graph">
+		<HTMLContainer className="loci-graph loci-hand">
 			{p.title && <div className="loci-graph__title">{p.title}</div>}
 			<svg width={p.w} height={p.h} className="loci-graph__svg">
 				<defs>

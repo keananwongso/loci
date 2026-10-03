@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useEditor, useValue } from 'tldraw'
 import { describeSelection } from '../selection'
 import { canRecognize, startListening } from '@/lib/voice/speech'
-import { orbListen, orbStopListening } from '@/lib/voice/orb'
+import { startMic, stopMic } from '@/lib/voice/level'
+import { setTutorMode, talkKeysLabel } from '@/lib/canvas/presence'
 import { LayersIcon, MicIcon, PageIcon, SendIcon, StopIcon } from './icons'
 
 interface Props {
@@ -60,7 +61,8 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft }: Pro
 		if (busy || listening) return
 		setVoiceError(undefined)
 		setListening(true)
-		orbListen()
+		setTutorMode('listening')
+		startMic()
 		stopListening.current = startListening(setText, (msg) => {
 			setVoiceError(msg)
 			setListening(false)
@@ -69,7 +71,8 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft }: Pro
 	const endVoice = async () => {
 		if (!stopListening.current) return
 		const transcript = await stopListening.current()
-		orbStopListening()
+		stopMic()
+		setTutorMode('idle')
 		stopListening.current = null
 		setListening(false)
 		if (transcript) submit(transcript)
@@ -79,7 +82,7 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft }: Pro
 		? disabledReason
 		: hasSelection
 			? 'Ask about your selection…'
-			: 'Select something on the board, or just ask…'
+			: `Hold ${talkKeysLabel()} and talk, or type here…`
 
 	return (
 		<div className="loci-prompt" onPointerDown={(e) => e.stopPropagation()} data-listening={listening}>

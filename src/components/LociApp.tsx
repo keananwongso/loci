@@ -13,19 +13,21 @@ import { EquationShapeUtil } from './shapes/EquationShapeUtil'
 import { GraphShapeUtil } from './shapes/GraphShapeUtil'
 import { HighlightShapeUtil } from './shapes/HighlightShapeUtil'
 import { RegionShapeUtil, RegionTool } from './shapes/RegionShapeUtil'
-import { TutorCursor } from './ui/TutorCursor'
+import { Buddy } from './ui/Buddy'
 import { Toolbar } from './ui/Toolbar'
 import { PromptBar } from './ui/PromptBar'
 import { ResponsePanel } from './ui/ResponsePanel'
 import { EmptyState } from './ui/EmptyState'
 import { TopBar } from './ui/TopBar'
 import { StylePanel } from './ui/StylePanel'
-import { VoiceOrb } from './ui/VoiceOrb'
+import { HoldToTalk } from './ui/HoldToTalk'
 import { KeyDialog } from './ui/KeyDialog'
 import { Suggestions } from './ui/Suggestions'
 import { useTutor } from './useTutor'
 import { ACCEPTED_TYPES, ingestFiles } from '@/lib/canvas/ingest'
 import { REGION } from '@/lib/canvas/shape-types'
+import { checkSpeechProvider } from '@/lib/voice/player'
+import { loadHandFont } from '@/lib/canvas/hand'
 
 const shapeUtils = [MaterialShapeUtil, EquationShapeUtil, GraphShapeUtil, HighlightShapeUtil, RegionShapeUtil]
 const tools = [RegionTool]
@@ -47,7 +49,7 @@ const components: TLComponents = {
 	DebugMenu: null,
 	HelperButtons: null,
 	Minimap: null,
-	InFrontOfTheCanvas: TutorCursor,
+	InFrontOfTheCanvas: Buddy,
 	StylePanel,
 }
 
@@ -85,6 +87,12 @@ function Shell() {
 			setVoiceOut(localStorage.getItem(VOICE_KEY) === '1')
 		} catch {}
 	}, [])
+
+	// Which voice answers (Fish Audio or the browser's), checked whenever voice is turned on.
+	const [voiceProvider, setVoiceProvider] = useState<'fish' | 'browser' | null>(null)
+	useEffect(() => {
+		if (voiceOut) checkSpeechProvider().then(setVoiceProvider)
+	}, [voiceOut])
 
 	const toggleVoice = () => {
 		setVoiceOut((v) => {
@@ -136,16 +144,36 @@ function Shell() {
 	const clearBoard = useCallback(async () => {
 		editor.deleteShapes([...editor.getCurrentPageShapeIds()])
 		editor.clearHistory()
+		editor.setCamera({ x: 0, y: 0, z: 1 })
 		await tutor.reset()
 	}, [editor, tutor])
+
+	// Open localhost:3000/?reset to always start from an empty board.
+	const resetOnLoad = useRef(true)
+	useEffect(() => {
+		if (!resetOnLoad.current) return
+		resetOnLoad.current = false
+		const url = new URL(window.location.href)
+		if (!url.searchParams.has('reset')) return
+		url.searchParams.delete('reset')
+		window.history.replaceState(null, '', url)
+		clearBoard()
+	}, [clearBoard])
 
 	const disabledReason = tutor.status.checked && !tutor.status.configured ? 'Connect a model to ask questions' : undefined
 
 	return (
 		<div className="loci-ui">
-			<TopBar status={tutor.status} voiceOut={voiceOut} onToggleVoice={toggleVoice} onClear={clearBoard} onSample={loadSample} />
+			<TopBar
+				status={tutor.status}
+				voiceOut={voiceOut}
+				voiceProvider={voiceProvider}
+				onToggleVoice={toggleVoice}
+				onClear={clearBoard}
+				onSample={loadSample}
+			/>
 			<Toolbar onUpload={() => fileRef.current?.click()} />
-			{voiceOut && <VoiceOrb onClose={toggleVoice} />}
+			<HoldToTalk busy={tutor.busy} onAsk={tutor.ask} onStop={tutor.stop} disabled={Boolean(disabledReason)} />
 			<EmptyState onUpload={() => fileRef.current?.click()} onSample={loadSample} loading={loading} />
 			{loading && <div className="loci-toast">{loading}</div>}
 			<div className="loci-dock">
@@ -179,6 +207,7 @@ function Shell() {
 export default function LociApp() {
 	const onMount = useCallback((editor: Editor) => {
 		editor.user.updateUserPreferences({ colorScheme: 'light' })
+		loadHandFont(assetUrls.fonts?.tldraw_draw)
 	}, [])
 
 	return (

@@ -30,7 +30,8 @@ import {
 	type LociMeta,
 } from './shape-types'
 import { DEFAULT_GAP, NORMALIZED_SIDE, placeRelative, sidePoint, union, type Rect } from './placement'
-import { EQUATION_FONT_SIZE, measureLatex } from './katex'
+import { EQUATION_FONT_SIZE, latexToPlain, measureLatex } from './katex'
+import { handFontReady, writeIn, writingTime } from './hand'
 import { TL_COLOR } from './palette'
 import { markFresh } from './fresh'
 import { fitZoom, frameArea, isFramed } from './camera'
@@ -193,7 +194,7 @@ export class CanvasExecutor {
 				richText: toRichText(action.text),
 				color: TL_COLOR[action.color ?? 'blue'],
 				size,
-				font: 'sans',
+				font: 'draw',
 				textAlign: 'start',
 				autoSize: !maxW,
 				...(maxW ? { w: maxW } : {}),
@@ -201,15 +202,22 @@ export class CanvasExecutor {
 		})
 		this.settle(id, action.position)
 		this.done(id)
+		await this.write(id, action.text.length)
+	}
+
+	/** Write a just-created shape out by hand, the pen moving across it. */
+	private async write(id: TLShapeId, chars: number) {
+		const b = this.editor.getShapePageBounds(id)
+		if (b) await writeIn(id, { x: b.x, y: b.y, w: b.w, h: b.h }, writingTime(chars))
 	}
 
 	private async writeEquation(action: ActionOf<'write_equation'>) {
 		const size = action.size ?? 'm'
+		await handFontReady()
 		const m = measureLatex(action.latex, EQUATION_FONT_SIZE[size])
 		const pos = this.resolvePosition(action.position, m)
 		await this.beforeDraw({ ...pos, ...m })
 		const id = toShapeId(action.id!)
-		markFresh(id)
 		this.editor.createShape<EquationShape>({
 			id,
 			type: EQUATION,
@@ -219,6 +227,7 @@ export class CanvasExecutor {
 			props: { latex: action.latex, color: action.color ?? 'ink', size, w: m.w, h: m.h, baseW: m.w, baseH: m.h },
 		})
 		this.done(id)
+		await this.write(id, latexToPlain(action.latex).length)
 	}
 
 	private async highlight(action: ActionOf<'highlight'>) {
@@ -314,7 +323,7 @@ export class CanvasExecutor {
 				color: TL_COLOR[action.color ?? 'blue'],
 				dash: action.dashed ? 'dashed' : 'solid',
 				size: 's',
-				font: 'sans',
+				font: 'draw',
 				arrowheadStart: 'none',
 				arrowheadEnd: isArrow ? 'arrow' : 'none',
 				bend: isArrow ? (action.bend ?? 0) : 0,
@@ -367,7 +376,7 @@ export class CanvasExecutor {
 				dash: action.dashed ? 'dashed' : 'draw',
 				fill: 'none',
 				size: 's',
-				font: 'sans',
+				font: 'draw',
 				...(labelInside ? { richText: toRichText(action.label!) } : {}),
 			},
 		})
@@ -378,7 +387,7 @@ export class CanvasExecutor {
 				x: rect.x,
 				y: rect.y - 34,
 				meta: this.meta(),
-				props: { richText: toRichText(action.label), color: TL_COLOR[action.color ?? 'blue'], size: 's', font: 'sans', autoSize: true },
+				props: { richText: toRichText(action.label), color: TL_COLOR[action.color ?? 'blue'], size: 's', font: 'draw', autoSize: true },
 			})
 		}
 		this.done(id)

@@ -28,6 +28,8 @@ export const EQUATION_PAD = { x: 12, y: 8 }
 export function measureLatex(latex: string, fontSize: number): { w: number; h: number } {
 	if (typeof document === 'undefined') return { w: 200, h: 60 }
 	const el = document.createElement('div')
+	// Same class as the shape, so the handwriting font is measured too.
+	el.className = 'loci-hand'
 	el.style.cssText = `position:absolute;left:-10000px;top:0;visibility:hidden;white-space:nowrap;font-size:${fontSize}px;display:inline-block`
 	el.innerHTML = renderLatex(latex, false)
 	document.body.appendChild(el)

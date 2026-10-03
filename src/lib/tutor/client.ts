@@ -1,8 +1,8 @@
 'use client'
 /**
  * Browser side of a tutoring turn: gather context, call the local /api/tutor route, and
- * replay the streamed events in order. Speech and drawing share one queue, so each sentence
- * appears together with the marks it refers to.
+ * replay the streamed events in order. Speech and drawing share one queue: a sentence starts,
+ * the marks after it are drawn while it is spoken, and the next sentence waits for it to end.
  */
 import type { Editor } from 'tldraw'
 import { CanvasExecutor, type BeforeDraw } from '@/lib/canvas/executor'
@@ -13,7 +13,7 @@ import { userKeyHeaders } from '@/lib/storage/userKey'
 
 export interface TurnCallbacks {
 	onPhase(phase: 'looking' | 'thinking' | 'teaching'): void
-	/** Called in order; may return a promise (voice mode) that holds the queue until the sentence is spoken. */
+	/** Called in order; may return a promise (voice mode) that resolves once the sentence has been spoken. */
 	onSay(text: string, prepared?: unknown): void | Promise<void>
 	/** Called the moment a sentence arrives, so speech can be synthesized ahead of its turn. */
 	prepareSay?(text: string): unknown
@@ -73,6 +73,8 @@ export async function runTutorTurn(
 
 	// One ordered queue for speech and drawing.
 	let queue = Promise.resolve()
+	// The sentence being spoken. Drawing carries on under it; the next sentence waits for it.
+	let speaking: Promise<void> = Promise.resolve()
 	let error: string | undefined
 	let started = false
 	const enqueue = (fn: () => Promise<void> | void) => {
@@ -93,7 +95,11 @@ export async function runTutorTurn(
 		switch (event.type) {
 			case 'say': {
 				const prepared = cb.prepareSay?.(event.text)
-				enqueue(() => cb.onSay(event.text, prepared))
+				enqueue(async () => {
+					await speaking
+					if (signal.aborted) return
+					speaking = Promise.resolve(cb.onSay(event.text, prepared)).catch(() => {})
+				})
 				break
 			}
 			case 'action':
@@ -135,5 +141,6 @@ export async function runTutorTurn(
 		}
 	}
 	await queue
+	await speaking
 	return { error, quotaRemaining }
 }

@@ -4,7 +4,7 @@
  * Note: in some browsers (e.g. Chrome) speech recognition is processed by the browser
  * vendor's servers. Speech synthesis uses voices installed on the device.
  */
-import { speakable } from '@/lib/canvas/richtext'
+import { toSpoken } from './spoken'
 
 interface RecognitionLike {
 	lang: string
@@ -76,12 +76,15 @@ function pickVoice() {
 	return preferred
 }
 
-export function speak(text: string) {
-	if (!canSpeak()) return
-	const u = new SpeechSynthesisUtterance(speakable(text))
+/** Speak with the browser's voice; `onEnd` runs when it finishes or fails. */
+export function speak(text: string, onEnd?: () => void) {
+	if (!canSpeak()) return onEnd?.()
+	const u = new SpeechSynthesisUtterance(toSpoken(text))
 	const voice = pickVoice()
 	if (voice) u.voice = voice
 	u.rate = 1.02
+	u.onend = () => onEnd?.()
+	u.onerror = () => onEnd?.()
 	speechSynthesis.speak(u)
 }
 

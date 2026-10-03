@@ -42,7 +42,7 @@ function EquationView({ shape }: { shape: EquationShape }) {
 	return (
 		<HTMLContainer className={animate ? 'loci-equation loci-pop' : 'loci-equation'} style={{ pointerEvents: isEditing ? 'all' : undefined }}>
 			<div
-				className="loci-equation__body"
+				className="loci-equation__body loci-hand"
 				style={{
 					transform: `scale(${scale})`,
 					color: inkHex(color),

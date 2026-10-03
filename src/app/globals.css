@@ -719,58 +719,92 @@ button {
 	transform: translateY(-1px);
 }
 
-/* tutor presence */
+/* tutor presence: a small particle orb that sits by your cursor and flies to where it draws */
 
-.loci-tutor-cursor {
+.loci-buddy {
 	position: absolute;
 	left: 0;
 	top: 0;
+	width: 72px;
+	height: 72px;
+	margin: -36px 0 0 -36px;
 	pointer-events: none;
-	transition:
-		transform 0.42s cubic-bezier(0.2, 0.8, 0.2, 1),
-		opacity 0.3s;
-	opacity: 0;
 	z-index: 10;
+	opacity: 0;
+	transition: opacity 0.4s;
+	will-change: transform;
 }
 
-.loci-tutor-cursor[data-visible='true'] {
+.loci-buddy[data-ready='true'] {
 	opacity: 1;
 }
 
-.loci-tutor-cursor__dot {
-	position: absolute;
-	left: -7px;
-	top: -7px;
-	width: 14px;
-	height: 14px;
-	border-radius: 50%;
-	background: conic-gradient(from 200deg, #3b74ff, #8b5cf6, #ec4899, #f59e0b, #3b74ff);
-	box-shadow: 0 0 0 2px #fff, 0 2px 8px rgba(36, 87, 230, 0.45);
+.loci-buddy canvas {
+	width: 100%;
+	height: 100%;
+	display: block;
 }
 
-.loci-tutor-cursor__halo {
+.loci-buddy__hint {
 	position: absolute;
-	left: -26px;
-	top: -26px;
-	width: 52px;
-	height: 52px;
-	border-radius: 50%;
-	background: conic-gradient(from 200deg, #3b74ff, #8b5cf6, #ec4899, #f59e0b, #3b74ff);
-	filter: blur(16px);
-	opacity: 0.45;
-	animation: loci-breathe 1.6s ease-in-out infinite;
-}
-
-.loci-tutor-cursor__tag {
-	position: absolute;
-	left: 12px;
-	top: 8px;
-	padding: 2px 8px;
+	left: 50%;
+	top: calc(100% - 10px);
+	transform: translateX(-50%);
+	padding: 3px 9px;
 	border-radius: 999px;
-	background: var(--loci-ink);
-	color: #fff;
-	font-size: 11px;
-	font-weight: 550;
+	background: rgba(255, 255, 255, 0.92);
+	box-shadow: 0 0 0 1px var(--loci-line), 0 4px 14px -6px rgba(17, 24, 39, 0.25);
+	color: var(--loci-ink-2, #5b6476);
+	font-size: 11.5px;
+	white-space: nowrap;
+	opacity: 0;
+	transition: opacity 0.2s;
+}
+
+.loci-buddy[data-mode='listening'] .loci-buddy__hint {
+	opacity: 1;
+}
+
+/* hold to talk: while the keys are down, the board is a highlighter */
+
+.loci-ui > .loci-talk {
+	position: fixed;
+	inset: 0;
+	z-index: 1;
+	cursor: crosshair;
+	touch-action: none;
+}
+
+.loci-talk__ink {
+	position: fixed;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	overflow: visible;
+}
+
+.loci-ui > .loci-talk__ink--fading {
+	pointer-events: none;
+	animation: loci-ink-fade 0.9s ease-out forwards;
+}
+
+.loci-talk__ink polyline {
+	fill: none;
+	stroke: rgba(255, 200, 0, 0.42);
+	stroke-width: 20;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	mix-blend-mode: multiply;
+}
+
+@keyframes loci-ink-fade {
+	from {
+		opacity: 1;
+	}
+	to {
+		opacity: 0;
+	}
 }
 
 /* ------------------------------------------------------------------ canvas shapes */
@@ -950,6 +984,33 @@ button {
 	}
 }
 
+/* handwriting: the tutor's equations use the hand font for letters, numbers and operators; KaTeX keeps
+   the layout, and symbols the hand font lacks (∇, ⟨⟩, roots) fall back to KaTeX's own fonts */
+
+.loci-hand .katex {
+	font-family: 'loci-hand', KaTeX_Main, 'Times New Roman', serif;
+}
+
+.loci-hand .katex .mathnormal,
+.loci-hand .katex .mathit {
+	font-family: 'loci-hand', KaTeX_Math, serif;
+	font-style: normal;
+}
+
+.loci-graph.loci-hand .loci-graph__title {
+	font-family: 'loci-hand', var(--loci-sans);
+}
+
+/* a pen writing left to right */
+@keyframes loci-write {
+	from {
+		clip-path: inset(-20% 100% -20% -2%);
+	}
+	to {
+		clip-path: inset(-20% -2% -20% -2%);
+	}
+}
+
 @keyframes loci-pop {
 	from {
 		opacity: 0;
@@ -1021,70 +1082,10 @@ button {
 	.loci-fade-late,
 	.loci-wipe,
 	.loci-pop,
-	.loci-empty__glow,
-	.loci-tutor-cursor__halo {
+	.loci-empty__glow {
 		animation: none !important;
 		opacity: 1;
 		stroke-dashoffset: 0;
-	}
-}
-
-/* voice mode: the speaking orb on its own dark tile (its particles glow additively, so it needs a dark ground) */
-
-.loci-voice {
-	position: absolute;
-	right: 16px;
-	bottom: 44px;
-	width: 236px;
-	padding: 8px 8px 14px;
-	border-radius: 24px;
-	background: radial-gradient(120% 90% at 50% 30%, #1b1626 0%, #0c0a12 70%);
-	box-shadow: var(--loci-shadow-lg), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
-	color: #fff;
-	animation: loci-rise 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.loci-voice__head {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 2px 4px 0 10px;
-	font-size: 11.5px;
-	letter-spacing: 0.04em;
-	color: rgba(255, 255, 255, 0.55);
-}
-
-.loci-voice__close {
-	display: grid;
-	place-items: center;
-	width: 26px;
-	height: 26px;
-	border: 0;
-	border-radius: 8px;
-	background: transparent;
-	color: rgba(255, 255, 255, 0.6);
-	cursor: pointer;
-}
-
-.loci-voice__close:hover {
-	background: rgba(255, 255, 255, 0.08);
-	color: #fff;
-}
-
-.loci-voice__close svg {
-	width: 14px;
-	height: 14px;
-}
-
-.loci-voice__orb {
-	--cap-font: var(--loci-sans);
-	margin-top: -6px;
-}
-
-@media (max-width: 900px) {
-	.loci-voice {
-		width: 168px;
-		bottom: 110px;
 	}
 }
 
