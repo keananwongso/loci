@@ -10,7 +10,7 @@ export interface TutorPresence {
 	x: number
 	y: number
 	away: boolean
-	mode: 'idle' | 'listening' | 'thinking' | 'drawing'
+	mode: 'idle' | 'listening' | 'transcribing' | 'thinking' | 'drawing'
 	/** What it is looking at or about to draw on: it hovers beside this, not on top of it. */
 	beside?: { x: number; y: number; w: number; h: number }
 }
@@ -47,10 +47,10 @@ export async function penAlong(area: { x: number; y: number; w: number; h: numbe
 	await Promise.race([glide, wait(ms + 150)])
 }
 
-/** A turn ended (or was stopped): come back to the cursor, unless the student is already talking again. */
+/** A turn ended: leave a newer recording or transcription alone. */
 export function endTutorTurn() {
 	clearThinking()
-	if (tutorPresence.get().mode !== 'listening') setTutorMode('idle')
+	if (!['listening', 'transcribing'].includes(tutorPresence.get().mode)) setTutorMode('idle')
 }
 
 export function setTutorMode(mode: TutorPresence['mode']) {

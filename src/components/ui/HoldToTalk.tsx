@@ -64,7 +64,7 @@ export function HoldToTalk({ busy, onAsk, onStop, disabled, voice }: Props) {
 		// Feedback the instant the keys come up, before the words are even transcribed.
 		startTimeline('released the talk keys')
 		listenEndSound()
-		setTutorMode('thinking')
+		setTutorMode('transcribing')
 		setBuddyStatus('')
 		setThought({ text: 'got it…' })
 		const rec = recording.current
@@ -76,10 +76,10 @@ export function HoldToTalk({ busy, onAsk, onStop, disabled, voice }: Props) {
 		// Clips under about half a second are a tap, not a question.
 		const spoke = Boolean(clip && clip.size > 3000)
 		const browserText = await browserWords
-		heard.set('')
 		// Fish is more accurate; if the browser already heard words, don't wait long for it.
 		const fish = spoke ? await transcribe(clip!, browserText.trim() ? 3500 : 7000) : null
 		const transcript = (fish ?? browserText).trim()
+		heard.set(transcript)
 		markTime('transcript ready')
 		console.info('[loci] hold to talk:', { recordedBytes: clip?.size ?? 0, fish, browser: browserText, asking: transcript })
 		if (transcript) {
@@ -90,6 +90,7 @@ export function HoldToTalk({ busy, onAsk, onStop, disabled, voice }: Props) {
 		}
 		clearThinking()
 		endTimeline('nothing to ask')
+		heard.set('')
 		setTutorMode('idle')
 		if (marked.current) {
 			// Pointed at something but said nothing: type the question instead.

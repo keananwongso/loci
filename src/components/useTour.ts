@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Editor } from 'tldraw'
-import { emphasize, endTutorTurn, lookAt } from '@/lib/canvas/presence'
+import { emphasize, endTutorTurn, heard, lookAt, setTutorMode } from '@/lib/canvas/presence'
 import { loadPack, loadPackVoice, placePack, pointArea } from '@/lib/demo/client'
 import { pickBranch, type DemoBranch, type DemoPack, type DemoStep } from '@/lib/demo/pack'
 import { playSpeech, prepareSpeech, stopAllSpeech } from '@/lib/voice/player'
@@ -53,6 +53,7 @@ interface Deps {
 export function useTour({ editor, ask, busy, clear, setVoiceOut, setLoading, record }: Deps) {
 	const [pack, setPack] = useState<DemoPack | null>(null)
 	const [phase, setPhase] = useState<TourPhase>('off')
+	const [coachDismissed, setCoachDismissed] = useState(false)
 	const [index, setIndex] = useState(0)
 	/** The line the tutor is saying (the step's instruction), shown in the coach card. */
 	const [line, setLine] = useState('')
@@ -94,6 +95,7 @@ export function useTour({ editor, ask, busy, clear, setVoiceOut, setLoading, rec
 		async (i: number) => {
 			if (!pack) return
 			setIndex(i)
+			setCoachDismissed(false)
 			setEntered(i)
 			setRecorded(null)
 			const next = pack.steps[i]
@@ -164,8 +166,16 @@ export function useTour({ editor, ask, busy, clear, setVoiceOut, setLoading, rec
 	 */
 	const tourAsk = useCallback(
 		async (question: string, opts: AskOptions = {}, forceBranch?: DemoBranch): Promise<TurnResult | null> => {
-			if (!step) return ask(question, opts)
-			run.current++
+			if (!step || coachDismissed || busy || !question.trim()) return ask(question, opts)
+			const at = ++run.current
+			// Final-only recognizers still get a brief, truthful read-along update before sending.
+			if (!record && opts.spoken) {
+				heard.set(question)
+				setTutorMode('transcribing')
+				await new Promise((resolve) => setTimeout(resolve, 450))
+				if (run.current !== at) return null
+			}
+			if (!record) setCoachDismissed(true)
 			stopAllSpeech()
 			setSpeaking(false)
 			const branch = forceBranch ?? (step.kind === 'ask' ? pickBranch(step, '') : pickBranch(step, question))
@@ -175,7 +185,13 @@ export function useTour({ editor, ask, busy, clear, setVoiceOut, setLoading, rec
 				if (target) editor.select(target.id)
 			}
 			const result = await ask(question, { ...opts, guidedDemo: !record && index === 0 })
-			if (!result || result.error) return result
+			if (run.current !== at) return result
+			if (result?.error) { setCoachDismissed(false); return result }
+			if (!result) {
+				// Interrupting an accepted question leaves onboarding behind.
+				if (!record) { setPhase('off'); markDone() }
+				return result
+			}
 			if (record) {
 				setRecorded({ step, branch, question, result })
 				return result
@@ -183,7 +199,7 @@ export function useTour({ editor, ask, busy, clear, setVoiceOut, setLoading, rec
 			if (branch.next === 'continue') await enterStep(index + 1)
 			return result
 		},
-		[step, ask, record, editor, enterStep, index],
+		[step, coachDismissed, busy, ask, record, editor, enterStep, index],
 	)
 
 	/** Record mode: go on to the next step without keeping anything. */
@@ -199,6 +215,7 @@ export function useTour({ editor, ask, busy, clear, setVoiceOut, setLoading, rec
 	return {
 		pack,
 		phase,
+		coachDismissed,
 		index,
 		step,
 		line,

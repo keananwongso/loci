@@ -4,12 +4,12 @@ import { useEditor, useValue } from 'tldraw'
 import { describeSelection } from '../selection'
 import { canRecognize, startListening } from '@/lib/voice/speech'
 import { startMic, stopMic } from '@/lib/voice/level'
-import { setTutorMode, talkKeysLabel } from '@/lib/canvas/presence'
+import { heard, setTutorMode, talkKeysLabel } from '@/lib/canvas/presence'
 import { LayersIcon, MicIcon, PageIcon, SendIcon, StopIcon } from './icons'
 
 interface Props {
 	busy: boolean
-	onAsk: (question: string) => void
+	onAsk: (question: string, opts?: { spoken: true }) => void
 	onStop: () => void
 	disabledReason?: string
 	/** Hosted demo: free questions left today on this device. */
@@ -54,9 +54,9 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft }: Pro
 		el.style.height = `${Math.min(el.scrollHeight, 160)}px`
 	}, [text])
 
-	const submit = (value = text) => {
+	const submit = (value = text, opts?: { spoken: true }) => {
 		if (!value.trim() || busy || disabledReason) return
-		onAsk(value)
+		onAsk(value, opts)
 		setText('')
 	}
 
@@ -64,21 +64,25 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft }: Pro
 		if (busy || listening) return
 		setVoiceError(undefined)
 		setListening(true)
+		heard.set('')
 		setTutorMode('listening')
 		startMic()
-		stopListening.current = startListening(setText, (msg) => {
+		stopListening.current = startListening((words) => { setText(words); heard.set(words) }, (msg) => {
 			setVoiceError(msg)
 			setListening(false)
 		})
 	}
 	const endVoice = async () => {
 		if (!stopListening.current) return
-		const transcript = await stopListening.current()
-		stopMic()
-		setTutorMode('idle')
+		const stop = stopListening.current
 		stopListening.current = null
+		setTutorMode('transcribing')
+		const transcript = await stop()
+		stopMic()
 		setListening(false)
-		if (transcript) submit(transcript)
+		heard.set(transcript)
+		if (transcript) submit(transcript, { spoken: true })
+		else { heard.set(''); setTutorMode('idle') }
 	}
 
 	const placeholder = disabledReason

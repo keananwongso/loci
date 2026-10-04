@@ -41,16 +41,12 @@ export function startListening(onInterim: (text: string) => void, onError: (msg:
 	rec.lang = navigator.language?.startsWith('en') ? navigator.language : 'en-US'
 	rec.interimResults = true
 	rec.continuous = true
-	let finalText = ''
-	let interim = ''
+	let transcript = ''
 	rec.onresult = (e) => {
-		interim = ''
-		for (let i = e.resultIndex; i < e.results.length; i++) {
-			const r = e.results[i]
-			if (r.isFinal) finalText += r[0].transcript
-			else interim += r[0].transcript
-		}
-		onInterim(cleanVoiceTranscript(finalText + interim))
+		// Results are cumulative and may revise earlier entries. Rebuild rather than append,
+		// and keep spaces between segments even when the recognizer omits them.
+		transcript = cleanVoiceTranscript(Array.from(e.results, (r) => r[0].transcript.trim()).join(' '))
+		onInterim(transcript)
 	}
 	rec.onerror = (e) => {
 		if (e.error !== 'aborted' && e.error !== 'no-speech') onError(`Voice input error: ${e.error}`)
@@ -62,7 +58,7 @@ export function startListening(onInterim: (text: string) => void, onError: (msg:
 	return async () => {
 		rec.stop()
 		await Promise.race([done, new Promise((r) => setTimeout(r, 1500))])
-		return cleanVoiceTranscript(finalText + interim)
+		return transcript
 	}
 }
 

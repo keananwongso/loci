@@ -266,7 +266,7 @@ function Shell() {
 			{record ? (
 				<TourRecord tour={tour} busy={tutor.busy} model={tutor.status.model} onRedo={tutor.undoLastTurn} />
 			) : (
-				<TourCoach tour={tour} busy={tutor.busy} listening={voiceMode === 'listening'} sending={voiceMode === 'thinking'} />
+				<TourCoach tour={tour} busy={tutor.busy} listening={voiceMode === 'listening'} transcribing={voiceMode === 'transcribing'} sending={voiceMode === 'thinking'} />
 			)}
 			<TourEnd
 				tour={tour}
@@ -278,7 +278,7 @@ function Shell() {
 				<ResponsePanel turns={tutor.turns} busy={tutor.busy} status={tutor.status} onUndo={tutor.undoLastTurn} voice={voiceOut} />
 				<PromptBar
 					busy={tutor.busy}
-					onAsk={(q) => ask(q)}
+					onAsk={(q, opts) => ask(q, opts)}
 					onStop={tutor.stop}
 					disabledReason={disabledReason}
 					freeLeft={tutor.status.hosted && !tutor.userKey ? tutor.status.quota?.remaining : undefined}

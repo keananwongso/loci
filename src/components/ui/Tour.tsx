@@ -27,11 +27,12 @@ export function TourStart({ tour }: { tour: Tour; overBoard: boolean }) {
 	)
 }
 
-export function TourCoach({ tour, busy, listening, sending }: { tour: Tour; busy: boolean; listening: boolean; sending: boolean }) {
+export function TourCoach({ tour, busy, listening, transcribing, sending }: { tour: Tour; busy: boolean; listening: boolean; transcribing: boolean; sending: boolean }) {
 	const { step } = tour
 	const transcript = useValue('tour-live-transcript', () => heard.get(), [])
-	if (tour.phase !== 'running' || !step || busy || sending) return null
-	const spoken = spokenScriptWords(step.prompt, listening ? transcript : '')
+	if (tour.phase !== 'running' || tour.coachDismissed || !step || busy || sending) return null
+	const reading = listening || transcribing
+	const spoken = spokenScriptWords(step.prompt, reading ? transcript : '')
 	const words = step.prompt.split(/\s+/)
 	return (
 		<>
@@ -48,7 +49,7 @@ export function TourCoach({ tour, busy, listening, sending }: { tour: Tour; busy
 					</button>
 				</div>
 				<p className="loci-coach__say-label">Then say this aloud:</p>
-				<blockquote data-reading={listening} aria-label={`Say: ${step.prompt}`}>
+				<blockquote data-reading={reading} aria-label={`Say: ${step.prompt}`}>
 					“{words.map((word, index) => (
 						<span key={index} className="loci-coach__word" data-spoken={spoken.has(index)}>{word}{index < words.length - 1 ? ' ' : ''}</span>
 					))}”
@@ -59,6 +60,8 @@ export function TourCoach({ tour, busy, listening, sending }: { tour: Tour; busy
 						<span>
 							<strong>Listening</strong> · release to send
 						</span>
+					) : transcribing ? (
+						<span>Transcribing…</span>
 					) : (
 						<span>
 							Release the keys when you’re done.
