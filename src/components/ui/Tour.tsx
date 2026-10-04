@@ -1,6 +1,6 @@
 'use client'
 import { talkKeysLabel } from '@/lib/canvas/presence'
-import { CloseIcon } from './icons'
+import { CloseIcon, MicIcon } from './icons'
 import { REPO_URL } from './KeyDialog'
 import type { useTour } from '../useTour'
 
@@ -25,32 +25,38 @@ export function TourStart({ tour }: { tour: Tour; overBoard: boolean }) {
 	)
 }
 
-export function TourCoach({ tour, busy, listening }: { tour: Tour; busy: boolean; listening: boolean }) {
+export function TourCoach({ tour, busy, listening, sending }: { tour: Tour; busy: boolean; listening: boolean; sending: boolean }) {
 	const { step } = tour
-	if (tour.phase !== 'running' || !step || busy || listening) return null
+	if (tour.phase !== 'running' || !step || busy || sending) return null
 	return (
-		<section className="loci-coach loci-coach--floating" aria-label="Ask your first question" onPointerDown={(e) => e.stopPropagation()}>
+		<section
+			className="loci-coach loci-coach--floating loci-coach--question"
+			aria-label="Ask your first question"
+			onPointerDown={(e) => e.stopPropagation()}
+		>
 			<div className="loci-coach__head">
-				<span className="loci-landing__eyebrow">Your turn</span>
+				<h2>Hold <kbd>{talkKeysLabel() === '⌃ + ⌥' ? 'Control + Option' : talkKeysLabel()}</kbd> to talk</h2>
 				<button className="loci-coach__skip" onClick={tour.skip}>
 					Skip
 				</button>
 			</div>
-			<h2>Ask Loci your first question.</h2>
-			<p>
-				Hold <kbd>{talkKeysLabel() === '⌃ + ⌥' ? 'Control + Option' : talkKeysLabel()}</kbd>, ask the question below, then release to send. You can
-				point at the notes while you talk.
-			</p>
-			<blockquote>{step.prompt}</blockquote>
-			<div className="loci-coach__ask">
-				<button
-					className="loci-secondary loci-secondary--sm"
-					onClick={() => window.dispatchEvent(new CustomEvent('loci:prefill-prompt', { detail: step.prompt }))}
-				>
-					Type instead
-				</button>
-				<span className="loci-landing__fine">Or hold the microphone below.</span>
+			<p className="loci-coach__say-label">Then say this aloud:</p>
+			<blockquote>“{step.prompt}”</blockquote>
+			<div className="loci-coach__instruction" role="status" aria-live="polite" data-listening={listening}>
+				<MicIcon />
+				{listening ? (
+					<span>
+						<strong>Listening</strong> · release to send
+					</span>
+				) : (
+					<span>
+						Release the keys when you’re done.
+					</span>
+				)}
 			</div>
+			<button className="loci-coach__type" onClick={() => window.dispatchEvent(new CustomEvent('loci:prefill-prompt', { detail: step.prompt }))}>
+				Type instead →
+			</button>
 		</section>
 	)
 }

@@ -80,7 +80,7 @@ function Shell() {
 	const [loading, setLoading] = useState<string | null>(null)
 	const [keyDialog, setKeyDialog] = useState(false)
 	const [ownNotes, setOwnNotes] = useState(false)
-	const listening = useValue('tour-listening', () => ['listening', 'thinking'].includes(tutorPresence.get().mode), [])
+	const voiceMode = useValue('tour-voice-mode', () => tutorPresence.get().mode, [])
 
 	useEffect(() => {
 		const open = () => setKeyDialog(true)
@@ -247,7 +247,7 @@ function Shell() {
 			{record ? (
 				<TourRecord tour={tour} busy={tutor.busy} model={tutor.status.model} onRedo={tutor.undoLastTurn} />
 			) : (
-				<TourCoach tour={tour} busy={tutor.busy} listening={listening} />
+				<TourCoach tour={tour} busy={tutor.busy} listening={voiceMode === 'listening'} sending={voiceMode === 'thinking'} />
 			)}
 			<TourEnd
 				tour={tour}

@@ -30,12 +30,7 @@ export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear
 		<div className="loci-topbar" onPointerDown={(e) => e.stopPropagation()}>
 			<a className="loci-brand" href="/" style={{ textDecoration: 'none', color: 'inherit' }}>Loci</a>
 			<a className="loci-topbar__github" href="https://github.com/keananwongso/loci" target="_blank" rel="noreferrer">★ Star on GitHub</a>
-			{status.checked && (
-				<span className="loci-model" data-ok={status.configured} title={status.configured ? `Tutor model via ${status.provider}` : status.setupHint}>
-					<span className="loci-model__dot" />
-					{status.configured ? status.model : 'No model connected'}
-				</span>
-			)}
+
 			<button className="loci-icon-btn" data-active={voiceOut} onClick={onToggleVoice} title={
 					voiceOut
 						? `Loci speaks its answers${voiceProvider === 'fish' ? ' (Fish Audio)' : voiceProvider === 'browser' ? " (your browser's voice)" : ''}. Click to turn off.`

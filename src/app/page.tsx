@@ -1,15 +1,8 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { REPO_URL } from '@/components/ui/KeyDialog'
 
 export default function Page() {
-	const [preview, setPreview] = useState(false)
-	const dialog = useRef<HTMLDialogElement>(null)
-	useEffect(() => {
-		if (preview) dialog.current?.showModal()
-		else dialog.current?.close()
-	}, [preview])
 	return (
 		<main className="loci-landing">
 			<nav className="loci-landing__nav">
@@ -35,9 +28,9 @@ export default function Page() {
 					<a className="loci-primary" href={REPO_URL} target="_blank" rel="noreferrer">
 						★ Star on GitHub
 					</a>
-					<button className="loci-secondary" onClick={() => setPreview(true)}>
-						See how Loci works ↗
-					</button>
+					<Link className="loci-secondary" href="/demo?lesson">
+						Try Loci →
+					</Link>
 				</div>
 				<p className="loci-landing__fine">Try the live demo. No account needed.</p>
 				<div className="loci-landing__board" aria-label="Illustration of Loci drawing a gradient beside calculus notes">
@@ -91,31 +84,6 @@ export default function Page() {
 					GitHub ↗
 				</a>
 			</footer>
-			<dialog
-				ref={dialog}
-				className="loci-entry"
-				aria-labelledby="loci-entry-title"
-				onCancel={() => setPreview(false)}
-				onClick={(e) => {
-					if (e.target === e.currentTarget) setPreview(false)
-				}}
-			>
-				<p className="loci-landing__eyebrow">See how Loci works</p>
-				<h2 id="loci-entry-title">
-					One question.
-					<br />A whiteboard full of intuition.
-				</h2>
-				<p>We’ve placed some calculus notes on the canvas. You’ll ask a question and watch Loci explain it live, then try a problem of your own.</p>
-				<div className="loci-landing__actions">
-					<Link className="loci-primary" href="/demo?lesson">
-						Let’s try it →
-					</Link>
-					<button className="loci-secondary" onClick={() => setPreview(false)}>
-						Back
-					</button>
-				</div>
-				<p className="loci-landing__fine">Turn your sound on. Typing works too.</p>
-			</dialog>
 		</main>
 	)
 }
