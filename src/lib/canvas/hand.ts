@@ -5,6 +5,7 @@
  * left to right as the pen moves across it.
  */
 import { penAlong } from './presence'
+import { lineClip, type WritingLine } from './writing-layout'
 
 export const HAND_FAMILY = 'loci-hand'
 
@@ -35,6 +36,37 @@ export function writingTime(chars: number) {
 	return Math.max(380, Math.min(1800, chars * 55))
 }
 
+/** Measure actual wrapped rows after layout, rather than treating a paragraph as one stroke. */
+function textLines(shape: HTMLElement): WritingLine[] {
+	const text = shape.querySelector('.tl-rich-text')
+	const bounds = shape.getBoundingClientRect()
+	if (!text || !bounds.width || !bounds.height) return []
+	const walker = document.createTreeWalker(text, NodeFilter.SHOW_TEXT)
+	const rects: DOMRect[] = []
+	while (walker.nextNode()) {
+		const range = document.createRange()
+		range.selectNodeContents(walker.currentNode)
+		rects.push(...Array.from(range.getClientRects()).filter((r) => r.width > 0 && r.height > 0))
+	}
+	const rows: WritingLine[] = []
+	for (const rect of rects.sort((a, b) => a.top - b.top || a.left - b.left)) {
+		const line = { x: (rect.left - bounds.left) / bounds.width, y: (rect.top - bounds.top) / bounds.height, w: rect.width / bounds.width, h: rect.height / bounds.height }
+		const prev = rows.at(-1)
+		if (prev && Math.abs(prev.y - line.y) < Math.min(prev.h, line.h) / 2) {
+			const right = Math.max(prev.x + prev.w, line.x + line.w)
+			prev.x = Math.min(prev.x, line.x)
+			prev.w = right - prev.x
+			prev.h = Math.max(prev.h, line.y + line.h - prev.y)
+		} else rows.push(line)
+	}
+	// Split whitespace between rows evenly so ascenders and descenders remain visible.
+	return rows.map((row, i) => {
+		const top = i ? (rows[i - 1].y + rows[i - 1].h + row.y) / 2 : -0.2
+		const bottom = i + 1 < rows.length ? (row.y + row.h + rows[i + 1].y) / 2 : 1.2
+		return { ...row, clipTop: top, clipBottom: bottom }
+	})
+}
+
 /**
  * Reveal a freshly created shape left to right over `ms` while the tutor's pen moves along it.
  * Works for any shape (native tldraw text included) by styling its DOM node by id.
@@ -45,11 +77,36 @@ export async function writeIn(shapeId: string, area: { x: number; y: number; w: 
 	if (reduce) return
 	const style = document.createElement('style')
 	const sel = `.tl-shape[data-shape-id="${CSS.escape(shapeId)}"]`
-	style.textContent = `${sel} > * { animation: loci-write ${ms}ms linear both; }`
+	style.textContent = `${sel} { clip-path: inset(0 100% 0 0); }`
 	document.head.appendChild(style)
+	let animation: Animation | undefined
 	try {
-		await penAlong(area, ms)
+		// Give React a frame to mount the newly created text. Keep it hidden during that frame.
+		await new Promise<void>((resolve) => {
+			const timer = setTimeout(resolve, 100)
+			requestAnimationFrame(() => { clearTimeout(timer); resolve() })
+		})
+		const shape = document.querySelector<HTMLElement>(sel)
+		const lines = shape ? textLines(shape) : []
+		if (shape && lines.length > 1) {
+			const total = lines.reduce((sum, line) => sum + line.w, 0)
+			let offset = 0
+			const frames: Keyframe[] = []
+			for (const line of lines) {
+				frames.push({ clipPath: lineClip(line, 0), offset })
+				offset += line.w / total
+				frames.push({ clipPath: lineClip(line, 1), offset: Math.min(1, offset) })
+			}
+			animation = shape.animate(frames, { duration: ms, easing: 'linear', fill: 'both' })
+			for (const line of lines) {
+				await penAlong({ x: area.x + line.x * area.w, y: area.y + line.y * area.h, w: line.w * area.w, h: line.h * area.h }, ms * line.w / total)
+			}
+		} else {
+			style.textContent = `${sel} > * { animation: loci-write ${ms}ms linear both; }`
+			await penAlong(area, ms)
+		}
 	} finally {
-		setTimeout(() => style.remove(), 120)
+		style.remove()
+		animation?.cancel()
 	}
 }
