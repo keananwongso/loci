@@ -61,6 +61,11 @@ export interface TurnOptions {
 	take?: Take
 }
 
+const WRITES = new Set(['write_text', 'write_equation'])
+
+/** About how long a sentence takes to say, from its word count. */
+const speakingTime = (text: string) => 300 + text.split(/\s+/).filter(Boolean).length * 400
+
 /** Longest pause kept between a take's events while the tutor is still "thinking". */
 const MAX_REPLAY_GAP = 900
 
@@ -151,6 +156,11 @@ export async function runTutorTurn(
 	let started = false
 	const startedAt = performance.now()
 	const events: TakeEvent[] = []
+	// Pacing the pen to the voice: each piece of writing belongs to the sentence before it, and
+	// shares out the time left in that sentence with the writing still to come in it.
+	let sentence = 0
+	let sentenceEnds = 0
+	const pendingWrites = new Map<number, number>()
 	const enqueue = (fn: () => Promise<void> | void) => {
 		queue = queue.then(async () => {
 			if (signal.aborted) return
@@ -171,6 +181,7 @@ export async function runTutorTurn(
 		}
 		switch (event.type) {
 			case 'say': {
+				sentence++
 				const prepared = cb.prepareSay?.(event.text)
 				enqueue(async () => {
 					await speaking
@@ -180,18 +191,29 @@ export async function runTutorTurn(
 					if (area) cb.onLook?.(area)
 					const playback = cb.onSay(event.text, prepared)
 					if (!playback) return
+					playback.started.then(() => (sentenceEnds = performance.now() + speakingTime(event.text)))
 					speaking = playback.done.catch(() => {})
 					// Draw what this sentence talks about while it is being said, not before.
 					await Promise.race([playback.started, new Promise((r) => setTimeout(r, MAX_VOICE_WAIT))])
 				})
 				break
 			}
-			case 'action':
+			case 'action': {
+				const writes = WRITES.has(event.action.type)
+				const of = sentence
+				if (writes) pendingWrites.set(of, (pendingWrites.get(of) ?? 0) + 1)
 				enqueue(async () => {
-					await executor.execute(event.action)
+					let writeMs: number | undefined
+					if (writes) {
+						const left = sentenceEnds - performance.now()
+						if (left > 0) writeMs = left / Math.max(1, pendingWrites.get(of) ?? 1)
+						pendingWrites.set(of, (pendingWrites.get(of) ?? 1) - 1)
+					}
+					await executor.execute(event.action, { writeMs })
 					cb.onAction(event.action, event.summary)
 				})
 				break
+			}
 			case 'rejected':
 				// The model sees the reason and usually retries; only log it.
 				console.info(`[loci] ${event.tool} rejected: ${event.reason}`)

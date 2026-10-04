@@ -43,6 +43,8 @@ export const toModelId = (id: string) => id.replace(/^shape:/, '')
 export type BeforeDraw = (area: Rect) => Promise<void>
 
 const TEXT_PX = { s: 18, m: 24, l: 36 } as const
+/** The slowest a line is written out, however long its sentence is. */
+const MAX_PACED_WRITE = 4500
 /** Space between lines of working. */
 const LINE_GAP = 14
 
@@ -168,7 +170,15 @@ export class CanvasExecutor {
 		if (rects.length) this.turnArea = union(rects)
 	}
 
-	async execute(action: CanvasAction): Promise<void> {
+	/**
+	 * How long the next piece of writing may take, so the pen keeps pace with the sentence being
+	 * spoken about it rather than finishing early and waiting. Never shorter than the natural
+	 * writing time.
+	 */
+	private writeBudget: number | undefined
+
+	async execute(action: CanvasAction, opts: { writeMs?: number } = {}): Promise<void> {
+		this.writeBudget = opts.writeMs
 		switch (action.type) {
 			case 'say':
 				return
@@ -253,7 +263,10 @@ export class CanvasExecutor {
 	/** Write a just-created shape out by hand, the pen moving across it. */
 	private async write(id: TLShapeId, chars: number) {
 		const b = this.editor.getShapePageBounds(id)
-		if (b) await writeIn(id, { x: b.x, y: b.y, w: b.w, h: b.h }, writingTime(chars))
+		const natural = writingTime(chars)
+		const ms = this.writeBudget ? Math.min(MAX_PACED_WRITE, Math.max(natural, this.writeBudget)) : natural
+		console.log('[loci] PACE', id, 'natural', natural, 'budget', Math.round(this.writeBudget ?? 0), '->', Math.round(ms))
+		if (b) await writeIn(id, { x: b.x, y: b.y, w: b.w, h: b.h }, ms)
 	}
 
 	private async writeEquation(action: ActionOf<'write_equation'>) {
