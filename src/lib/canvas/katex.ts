@@ -25,7 +25,7 @@ export const EQUATION_FONT_SIZE = { s: 20, m: 28, l: 40 } as const
 export const EQUATION_PAD = { x: 12, y: 8 }
 
 /** Measure rendered KaTeX in the DOM so equation shapes get their natural size. */
-export function measureLatex(latex: string, fontSize: number): { w: number; h: number } {
+export function measureLatex(latex: string, fontSize: number): { w: number; h: number; relX?: number } {
 	if (typeof document === 'undefined') return { w: 200, h: 60 }
 	const el = document.createElement('div')
 	// Same class as the shape, so the handwriting font is measured too.
@@ -34,10 +34,14 @@ export function measureLatex(latex: string, fontSize: number): { w: number; h: n
 	el.innerHTML = renderLatex(latex, false)
 	document.body.appendChild(el)
 	const rect = el.getBoundingClientRect()
+	// The first relation sign (=, ≈, ≤, ⇒ …) at the top level, for lining up lines of working.
+	const rel = el.querySelector('.katex-html > .katex-base > .mrel, .katex-html > .base > .mrel')
+	const relRect = rel?.getBoundingClientRect()
 	el.remove()
 	return {
 		w: Math.ceil(rect.width) + EQUATION_PAD.x * 2,
 		h: Math.ceil(rect.height) + EQUATION_PAD.y * 2,
+		...(relRect ? { relX: relRect.left - rect.left + EQUATION_PAD.x } : {}),
 	}
 }
 

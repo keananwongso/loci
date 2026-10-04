@@ -29,7 +29,7 @@ import {
 	type HighlightShape,
 	type LociMeta,
 } from './shape-types'
-import { DEFAULT_GAP, NORMALIZED_SIDE, placeRelative, sidePoint, union, type Rect } from './placement'
+import { DEFAULT_GAP, NORMALIZED_SIDE, overlaps, placeRelative, sidePoint, union, type Rect } from './placement'
 import { EQUATION_FONT_SIZE, latexToPlain, measureLatex } from './katex'
 import { handFontReady, writeIn, writingTime } from './hand'
 import { TL_COLOR } from './palette'
@@ -43,6 +43,8 @@ export const toModelId = (id: string) => id.replace(/^shape:/, '')
 export type BeforeDraw = (area: Rect) => Promise<void>
 
 const TEXT_PX = { s: 18, m: 24, l: 36 } as const
+/** Space between lines of working. */
+const LINE_GAP = 14
 
 export class CanvasExecutor {
 	private turnArea: Rect | null = null
@@ -80,8 +82,13 @@ export class CanvasExecutor {
 		return { x: g.x + local.x, y: g.y + local.y, shape: g, local }
 	}
 
-	/** Resolve a semantic position to the top-left corner of an object of the given size. */
-	private resolvePosition(pos: Position, size: { w: number; h: number }, exclude?: Set<TLShapeId>) {
+	/**
+	 * Resolve a semantic position to the top-left corner of an object of the given size. `relX`
+	 * is where a new equation's relation sign sits from its left edge, to line it up with the
+	 * previous line of working.
+	 */
+	private resolvePosition(pos: Position, size: { w: number; h: number; relX?: number }, exclude?: Set<TLShapeId>) {
+		if ('nextLineOf' in pos) return this.nextLine(pos.nextLineOf, size, exclude)
 		if ('relativeTo' in pos) {
 			const ref = this.bounds(pos.relativeTo)
 			if (!ref) throw new Error(`Unknown object ${pos.relativeTo}`)
@@ -94,9 +101,29 @@ export class CanvasExecutor {
 		return { x: pos.x, y: pos.y }
 	}
 
+	/**
+	 * The next line of working: right under `prevId`, its relation sign under the previous
+	 * line's (left edges aligned when either line has none). If something is in the way, it
+	 * falls back to an ordinary placement below.
+	 */
+	private nextLine(prevId: string, size: { w: number; h: number; relX?: number }, exclude?: Set<TLShapeId>) {
+		const ref = this.bounds(prevId)
+		if (!ref) throw new Error(`Unknown object ${prevId}`)
+		const prev = this.editor.getShape(toShapeId(prevId))
+		let x = ref.x
+		if (prev?.type === EQUATION && size.relX !== undefined) {
+			const p = (prev as EquationShape).props
+			const prevRel = measureLatex(p.latex, EQUATION_FONT_SIZE[p.size]).relX
+			if (prevRel !== undefined) x = ref.x + prevRel * (p.w / p.baseW) - size.relX
+		}
+		const rect = { x, y: ref.y + ref.h + LINE_GAP, w: size.w, h: size.h }
+		if (!this.obstacles(exclude).some((o) => overlaps(o, rect))) return { x: rect.x, y: rect.y }
+		return placeRelative(ref, size, 'below', this.obstacles(exclude), LINE_GAP, 'start')
+	}
+
 	/** Re-place a just-created shape using its real measured size (text wraps unpredictably). */
 	private settle(id: TLShapeId, pos: Position | undefined) {
-		if (!pos || !('relativeTo' in pos)) return
+		if (!pos || !('relativeTo' in pos || 'nextLineOf' in pos)) return
 		const b = this.editor.getShapePageBounds(id)
 		if (!b) return
 		const next = this.resolvePosition(pos, { w: b.w, h: b.h }, new Set([id]))

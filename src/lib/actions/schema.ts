@@ -54,6 +54,14 @@ export const Position = z
 			),
 		z
 			.object({
+				nextLineOf: ObjectId.describe('The equation (or line of working) this continues.'),
+			})
+			.strict()
+			.describe(
+				'The next line of a worked derivation or calculation: directly under that equation, with its = (or other relation sign) lined up under that one\'s, the way working is written on a board.'
+			),
+		z
+			.object({
 				graphId: ObjectId,
 				at: Vec2,
 			})

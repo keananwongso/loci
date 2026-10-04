@@ -290,6 +290,7 @@ export class ActionSession {
 		const pos = (p?: Position) => {
 			if (!p) return
 			if ('relativeTo' in p) refs.push(p.relativeTo)
+			if ('nextLineOf' in p) refs.push(p.nextLineOf)
 			if ('graphId' in p) refs.push(p.graphId)
 		}
 		const anchor = (a: Anchor) => {
