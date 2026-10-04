@@ -11,7 +11,7 @@ export async function guardUsage(req: Request, kind: Exclude<UsageKind, 'questio
 	const config = limitConfigFromEnv()
 	if (!config.enabled) return {}
 	const device = deviceFor(req)
-	const decision = await takeUsage(kind, config[kind], device.id, ipHashFor(req), amount).catch((err) => {
+	const decision = await Promise.resolve().then(() => takeUsage(kind, config[kind], device.id, ipHashFor(req), amount)).catch((err) => {
 		// A broken counter store must not turn into unlimited spend.
 		console.error(`[loci] ${kind} limit check failed:`, err instanceof Error ? err.message : err)
 		return null

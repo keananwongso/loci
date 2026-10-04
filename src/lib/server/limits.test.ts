@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MemoryStore, UpstashStore, limitConfigFromEnv, readQuota, takeQuestion, takeUsage } from './limits'
+import { MemoryStore, UpstashStore, limitConfigFromEnv, readQuota, takeQuestion, takeUsage, getStore } from './limits'
 import { deviceFor, ipHashFor } from './device'
 
 const config = {
@@ -33,6 +33,13 @@ describe('demo limits', () => {
 		expect((await readQuota(config, 'dev-z', 'ip-9', s)).remaining).toBe(0)
 	})
 
+	it('does not overspend under simultaneous requests', async () => {
+		const s = new MemoryStore()
+		const results = await Promise.all(Array.from({ length: 30 }, () => takeQuestion(config, 'same-device', 'same-ip', s)))
+		expect(results.filter((r) => r.ok)).toHaveLength(2)
+		expect((await readQuota(config, 'same-device', 'same-ip', s)).remaining).toBe(0)
+	})
+
 	it('counts speech in characters, separately from questions', async () => {
 		const s = new MemoryStore()
 		expect((await takeUsage('speech', config.speech, 'dev-a', 'ip-1', 60, s)).ok).toBe(true)
@@ -47,7 +54,42 @@ describe('demo limits', () => {
 
 	it('is off unless enabled', () => {
 		expect(limitConfigFromEnv({} as unknown as NodeJS.ProcessEnv).enabled).toBe(false)
-		expect(limitConfigFromEnv({ LOCI_DEMO_LIMITS: 'on', LOCI_LIMIT_PER_DEVICE: '7' } as unknown as NodeJS.ProcessEnv)).toMatchObject({ enabled: true, perDevice: 7, perIp: 20, global: 300 })
+		expect(limitConfigFromEnv({ LOCI_DEMO_LIMITS: 'on', LOCI_LIMIT_PER_DEVICE: '7' } as unknown as NodeJS.ProcessEnv)).toMatchObject({
+			enabled: true,
+			perDevice: 7,
+			perIp: 20,
+			global: 300,
+		})
+	})
+
+	it('reserves usage through one Redis EVAL and preserves refusal counts', async () => {
+		const calls: unknown[][][] = []
+		const fake = (async (_url: string, init: RequestInit) => {
+			calls.push(JSON.parse(String(init.body)))
+			return Response.json([{ result: calls.length === 1 ? [0, 2, 3, 5] : [1, 2, 3, 5] }])
+		}) as typeof fetch
+		const s = new UpstashStore('https://x.upstash.io', 'tok', fake)
+		expect(await takeQuestion(config, 'dev', 'ip', s)).toEqual({ ok: true, quota: { limit: 2, remaining: 0 } })
+		expect(await takeQuestion(config, 'dev', 'ip', s)).toEqual({ ok: false, reason: 'global', quota: { limit: 2, remaining: 0 } })
+		expect(calls[0]).toHaveLength(1)
+		expect(calls[0][0][0]).toBe('EVAL')
+		expect(calls[0][0].slice(2)).toEqual([
+			3,
+			expect.stringContaining('dev:dev'),
+			expect.stringContaining('ip:ip'),
+			expect.stringContaining('all'),
+			1,
+			93600,
+			2,
+			3,
+			5,
+		])
+	})
+
+	it('requires persistent limits and signing in production', () => {
+		expect(() => getStore({ NODE_ENV: 'production', LOCI_DEMO_LIMITS: 'on' } as NodeJS.ProcessEnv)).toThrow('Hosted limits require')
+		expect(limitConfigFromEnv({ NODE_ENV: 'production', VERCEL: '1' } as NodeJS.ProcessEnv).enabled).toBe(true)
+		expect(limitConfigFromEnv({ NODE_ENV: 'production', VERCEL: '1', LOCI_DEMO_LIMITS: 'off' } as NodeJS.ProcessEnv).enabled).toBe(false)
 	})
 
 	it('speaks the Upstash REST pipeline format', async () => {
@@ -60,7 +102,14 @@ describe('demo limits', () => {
 		const s = new UpstashStore('https://x.upstash.io/', 'tok', fake)
 		expect(await s.get(['a', 'b', 'c'])).toEqual([0, 2, 7])
 		expect(await s.incr(['a'], 100)).toEqual([3])
-		expect(sent[1]).toMatchObject({ url: 'https://x.upstash.io/pipeline', auth: 'Bearer tok', body: [['INCRBY', 'a', 1], ['EXPIRE', 'a', 100, 'NX']] })
+		expect(sent[1]).toMatchObject({
+			url: 'https://x.upstash.io/pipeline',
+			auth: 'Bearer tok',
+			body: [
+				['INCRBY', 'a', 1],
+				['EXPIRE', 'a', 100, 'NX'],
+			],
+		})
 	})
 })
 
@@ -71,7 +120,9 @@ describe('device id', () => {
 		const value = first.setCookie!.split(';')[0].split('=')[1]
 		const again = deviceFor(new Request('https://loci.example/api/tutor', { headers: { cookie: `loci_device=${value}` } }))
 		expect(again).toEqual({ id: first.id })
-		const forged = deviceFor(new Request('https://loci.example/api/tutor', { headers: { cookie: `loci_device=someone-else.${value.split('.')[1]}` } }))
+		const forged = deviceFor(
+			new Request('https://loci.example/api/tutor', { headers: { cookie: `loci_device=someone-else.${value.split('.')[1]}` } }),
+		)
 		expect(forged.id).not.toBe('someone-else')
 		expect(forged.setCookie).toBeDefined()
 	})
