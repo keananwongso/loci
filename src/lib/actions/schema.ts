@@ -258,7 +258,7 @@ export const toolInputSchemas = {
 					'Exact text to find in the target\'s extracted text (copy it from the text lines). Loci locates it precisely.'
 				),
 			region: NormalizedRegion.optional().describe(
-				'Use when the target has no extracted text (images) or text matching fails. Normalised to the target.'
+				'Top-left x/y and width/height in 0..1 coordinates of the FULL target, never the viewport or a close-up crop. For images without extracted text, tightly enclose the visible target. With text, this is a location hint for repeated matches.'
 			),
 			style: z
 				.enum(['marker', 'box', 'circle', 'underline'])

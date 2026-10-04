@@ -250,7 +250,7 @@ export async function captureImages(editor: Editor, focus: FocusInfo): Promise<C
 				images.push(
 					encode(
 						drawScaled(bmp, n.x * bmp.width, n.y * bmp.height, n.w * bmp.width, n.h * bmp.height, 1400, 900),
-						`Close-up of the region the student selected on ${label}`
+						`Close-up of the region the student selected on ${label}. Crop bounds in FULL-page coordinates: ${JSON.stringify(n)}. For highlight regions, convert close-up coordinates (u, v, width, height) to {x: ${n.x} + u * ${n.w}, y: ${n.y} + v * ${n.h}, w: width * ${n.w}, h: height * ${n.h}}; do not use close-up coordinates directly.`
 					)
 				)
 				images.push(encode(drawScaled(bmp, 0, 0, bmp.width, bmp.height, 1100), `Full page ${label} for context`))
@@ -296,4 +296,3 @@ export async function captureImages(editor: Editor, focus: FocusInfo): Promise<C
 	}
 	return images.slice(0, 4)
 }
-

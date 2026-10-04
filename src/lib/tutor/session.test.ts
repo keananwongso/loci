@@ -95,6 +95,37 @@ describe('ActionSession', () => {
 		if (!r.ok) expect(r.error).toMatch(/Directional derivative/)
 	})
 
+	it('does not silently draw guessed coordinates when a text match fails', () => {
+		const { s, events } = session()
+		const r = s.handle('highlight', {
+			target: 'notes-p1', text: 'missing symbol', style: 'circle',
+			region: { x: 0.7, y: 0.5, w: 0.1, h: 0.05 },
+		})
+		expect(r.ok).toBe(false)
+		expect(events.some((e) => e.type === 'action')).toBe(false)
+	})
+
+	it('uses the supplied region hint to choose between repeated text matches', () => {
+		const events: TutorEvent[] = []
+		const repeated: BoardContext = {
+			...board,
+			objects: [{ ...board.objects[0], material: {
+				...board.objects[0].material!,
+				textItems: [
+					{ t: 'variable t', b: [0.1, 0.2, 0.2, 0.03] },
+					{ t: 'variable t', b: [0.1, 0.7, 0.2, 0.03] },
+				],
+			} }],
+		}
+		const s = new ActionSession(repeated, (e) => events.push(e))
+		expect(s.handle('highlight', {
+			target: 'notes-p1', text: 'variable t',
+			region: { x: 0.1, y: 0.7, w: 0.2, h: 0.03 },
+		}).ok).toBe(true)
+		const ev = events.find((e) => e.type === 'action')
+		expect(ev?.type === 'action' && ev.action.type === 'highlight' && ev.action.region?.y).toBeCloseTo(0.694)
+	})
+
 	it('validates graph items: angles need vectors, functions must parse', () => {
 		const { s } = session()
 		expect(s.handle('add_to_graph', { graphId: 'graph-1', items: [{ kind: 'angle', id: 'a', between: ['g', 'zzz'] }] }).ok).toBe(false)
