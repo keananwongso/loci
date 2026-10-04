@@ -5,6 +5,7 @@
  * vendor's servers. Speech synthesis uses voices installed on the device.
  */
 import { toSpoken } from './spoken'
+import { cleanVoiceTranscript } from './transcript'
 
 interface RecognitionLike {
 	lang: string
@@ -49,7 +50,7 @@ export function startListening(onInterim: (text: string) => void, onError: (msg:
 			if (r.isFinal) finalText += r[0].transcript
 			else interim += r[0].transcript
 		}
-		onInterim((finalText + interim).trim())
+		onInterim(cleanVoiceTranscript(finalText + interim))
 	}
 	rec.onerror = (e) => {
 		if (e.error !== 'aborted' && e.error !== 'no-speech') onError(`Voice input error: ${e.error}`)
@@ -61,7 +62,7 @@ export function startListening(onInterim: (text: string) => void, onError: (msg:
 	return async () => {
 		rec.stop()
 		await Promise.race([done, new Promise((r) => setTimeout(r, 1500))])
-		return (finalText + interim).trim()
+		return cleanVoiceTranscript(finalText + interim)
 	}
 }
 

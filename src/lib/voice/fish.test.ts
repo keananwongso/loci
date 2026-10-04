@@ -47,6 +47,12 @@ describe('fishSpeech', () => {
 })
 
 describe('fishTranscribe', () => {
+	it('rejects a Chinese result despite the English language hint', async () => {
+		const fake = (async () => Response.json({ text: '东台市。' })) as typeof fetch
+		const text = await fishTranscribe(new Blob(['audio'], { type: 'audio/wav' }), { ...base, apiKey: 'fk', fetch: fake })
+		expect(text).toBe('')
+	})
+
 	it('posts the clip as multipart and returns the text', async () => {
 		let seen: { url: string; init: RequestInit } | undefined
 		const fake = (async (url: string, init: RequestInit) => {

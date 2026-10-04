@@ -1,3 +1,4 @@
+import { cleanVoiceTranscript } from './transcript'
 import 'server-only'
 /**
  * Fish Audio text to speech, called from the local server so the key never reaches the browser.
@@ -104,7 +105,7 @@ export async function fishTranscribe(audio: Blob, config: FishConfig, signal?: A
 		throw new FishError(res.status, `Fish Audio transcription error ${res.status}: ${body.slice(0, 200)}`)
 	}
 	const data = (await res.json()) as { text?: string }
-	return (data.text ?? '').trim()
+	return cleanVoiceTranscript(data.text ?? '')
 }
 
 /** A file name extension Fish can recognise the format by. */
