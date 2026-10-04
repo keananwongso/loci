@@ -232,7 +232,7 @@ function Shell() {
 				void ingest(files).then((ids) => {
 					if (!ids.length) return
 					setOwnNotes(false)
-					requestAnimationFrame(() => window.dispatchEvent(new Event('loci:focus-prompt')))
+					requestAnimationFrame(() => window.dispatchEvent(new Event('loci:focus-voice')))
 				})
 			}}
 		>
@@ -299,7 +299,7 @@ function Shell() {
 						editor.select(id)
 						editor.zoomToBounds(editor.getSelectionPageBounds()!, { inset: 100 })
 						setOwnNotes(false)
-						requestAnimationFrame(() => window.dispatchEvent(new Event('loci:focus-prompt')))
+						requestAnimationFrame(() => window.dispatchEvent(new Event('loci:focus-voice')))
 					}}
 				/>
 			)}

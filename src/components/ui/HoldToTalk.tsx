@@ -103,11 +103,15 @@ export function HoldToTalk({ busy, onAsk, onStop, disabled, voice }: Props) {
 
 	useEffect(() => {
 		let down = false
+		const start = () => {
+			if (down || live.current.disabled) return
+			down = true
+			begin()
+		}
 		const onKeyDown = (e: KeyboardEvent) => {
 			if (down || e.repeat || !isTalkCombo(e)) return
 			e.preventDefault()
-			down = true
-			begin()
+			start()
 		}
 		const release = () => {
 			if (!down) return
@@ -120,10 +124,14 @@ export function HoldToTalk({ busy, onAsk, onStop, disabled, voice }: Props) {
 		window.addEventListener('keydown', onKeyDown, true)
 		window.addEventListener('keyup', onKeyUp, true)
 		window.addEventListener('blur', release)
+		window.addEventListener('loci:talk-start', start)
+		window.addEventListener('loci:talk-end', release)
 		return () => {
 			window.removeEventListener('keydown', onKeyDown, true)
 			window.removeEventListener('keyup', onKeyUp, true)
 			window.removeEventListener('blur', release)
+			window.removeEventListener('loci:talk-start', start)
+			window.removeEventListener('loci:talk-end', release)
 		}
 	}, [begin, end])
 
