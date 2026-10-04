@@ -220,6 +220,8 @@ async function loadBitmap(material: MaterialShape) {
 	return blob ? createImageBitmap(blob) : null
 }
 
+const hasText = (m: MaterialShape) => m.props.textItems.length > 0
+
 function encode(canvas: HTMLCanvasElement, label: string): ContextImage {
 	const url = canvas.toDataURL('image/jpeg', 0.85)
 	return { label, mediaType: 'image/jpeg', data: url.slice(url.indexOf(',') + 1), width: canvas.width, height: canvas.height }
@@ -238,6 +240,59 @@ function drawScaled(source: CanvasImageSource, sx: number, sy: number, sw: numbe
 	return canvas
 }
 
+/**
+ * Rule a labelled coordinate grid over an image of `crop` (a part of the full page, in 0..1 page
+ * coordinates), so a model can read positions off the lines instead of estimating them by eye.
+ * Labels are always full-page coordinates, so a close-up needs no conversion.
+ */
+export function drawGrid(canvas: HTMLCanvasElement, crop = { x: 0, y: 0, w: 1, h: 1 }) {
+	const ctx = canvas.getContext('2d')!
+	const { width: W, height: H } = canvas
+	const step = gridStep(Math.min(crop.w, crop.h))
+	const font = Math.max(10, Math.round(Math.min(W, H) / 70))
+	ctx.save()
+	ctx.font = `600 ${font}px ui-monospace, Menlo, monospace`
+	ctx.textBaseline = 'top'
+	const label = (text: string, x: number, y: number) => {
+		const w = ctx.measureText(text).width + 4
+		ctx.fillStyle = 'rgba(255,255,255,0.85)'
+		ctx.fillRect(x, y, w, font + 3)
+		ctx.fillStyle = 'rgba(200,0,120,0.95)'
+		ctx.fillText(text, x + 2, y + 2)
+	}
+	const digits = step < 0.1 ? 2 : 1
+	for (const axis of ['x', 'y'] as const) {
+		const [start, size, px] = axis === 'x' ? [crop.x, crop.w, W] : [crop.y, crop.h, H]
+		for (let v = Math.ceil(start / step - 1e-9) * step; v <= start + size + 1e-9; v += step) {
+			const at = ((v - start) / size) * px
+			if (at < 2 || at > px - 2) continue
+			ctx.strokeStyle = 'rgba(200,0,120,0.28)'
+			ctx.lineWidth = 1
+			ctx.beginPath()
+			if (axis === 'x') {
+				ctx.moveTo(at, 0)
+				ctx.lineTo(at, H)
+			} else {
+				ctx.moveTo(0, at)
+				ctx.lineTo(W, at)
+			}
+			ctx.stroke()
+			const text = `${axis}${v.toFixed(digits)}`
+			if (axis === 'x') label(text, at + 2, 0)
+			else label(text, 0, at + 2)
+		}
+	}
+	ctx.restore()
+	return canvas
+}
+
+/** About 10 lines across whatever is shown: 0.1 on a full page, finer on a close-up. */
+export function gridStep(span: number) {
+	return [0.1, 0.05, 0.02, 0.01].find((s) => span / s >= 6) ?? 0.01
+}
+
+const GRID_NOTE = 'A magenta grid is drawn over it, labelled in full-page coordinates (x0.3 is 30% across, y0.5 halfway down): read highlight regions straight off the grid lines.'
+
 /** Page images / region crop / viewport screenshot for the current question. */
 export async function captureImages(editor: Editor, focus: FocusInfo): Promise<ContextImage[]> {
 	const images: ContextImage[] = []
@@ -247,13 +302,19 @@ export async function captureImages(editor: Editor, focus: FocusInfo): Promise<C
 			const bmp = await loadBitmap(material)
 			if (bmp) {
 				const label = `${toModelId(material.id)}`
+				// No text layer to highlight by: the model has to locate things in the image itself.
+				const grid = !hasText(material)
+				const crop = drawScaled(bmp, n.x * bmp.width, n.y * bmp.height, n.w * bmp.width, n.h * bmp.height, 1400, 900)
 				images.push(
 					encode(
-						drawScaled(bmp, n.x * bmp.width, n.y * bmp.height, n.w * bmp.width, n.h * bmp.height, 1400, 900),
-						`Close-up of the region the student selected on ${label}. Crop bounds in FULL-page coordinates: ${JSON.stringify(n)}. For highlight regions, convert close-up coordinates (u, v, width, height) to {x: ${n.x} + u * ${n.w}, y: ${n.y} + v * ${n.h}, w: width * ${n.w}, h: height * ${n.h}}; do not use close-up coordinates directly.`
+						grid ? drawGrid(crop, n) : crop,
+						grid
+							? `Close-up of the region the student selected on ${label} (full-page bounds ${JSON.stringify(n)}). ${GRID_NOTE}`
+							: `Close-up of the region the student selected on ${label}. Crop bounds in FULL-page coordinates: ${JSON.stringify(n)}. For highlight regions, convert close-up coordinates (u, v, width, height) to {x: ${n.x} + u * ${n.w}, y: ${n.y} + v * ${n.h}, w: width * ${n.w}, h: height * ${n.h}}; do not use close-up coordinates directly.`
 					)
 				)
-				images.push(encode(drawScaled(bmp, 0, 0, bmp.width, bmp.height, 1100), `Full page ${label} for context`))
+				const full = drawScaled(bmp, 0, 0, bmp.width, bmp.height, 1100)
+				images.push(encode(grid ? drawGrid(full) : full, `Full page ${label} for context${grid ? `. ${GRID_NOTE}` : ''}`))
 				bmp.close()
 			}
 		} else {
@@ -261,7 +322,9 @@ export async function captureImages(editor: Editor, focus: FocusInfo): Promise<C
 				const bmp = await loadBitmap(m)
 				if (!bmp) continue
 				const what = m.props.kind === 'pdf' ? `Page ${m.props.page} of "${m.props.name}"` : `Image "${m.props.name}"`
-				images.push(encode(drawScaled(bmp, 0, 0, bmp.width, bmp.height, 1400), `${what} (object ${toModelId(m.id)})`))
+				const page = drawScaled(bmp, 0, 0, bmp.width, bmp.height, 1400)
+				const grid = !hasText(m)
+				images.push(encode(grid ? drawGrid(page) : page, `${what} (object ${toModelId(m.id)})${grid ? `. ${GRID_NOTE}` : ''}`))
 				bmp.close()
 			}
 		}
