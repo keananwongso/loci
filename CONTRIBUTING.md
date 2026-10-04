@@ -20,7 +20,7 @@ Keep each pull request to one change, and say in the description what it changes
 
 ## Where things live
 
-The Architecture section of the README maps the code. Most changes to what the tutor can draw start in `src/lib/actions/schema.ts` (the action protocol), then `src/lib/tutor/session.ts` (validation) and `src/lib/canvas/executor.ts` (drawing).
+The [Architecture section of the guide](docs/guide.md#architecture) maps the code. Most changes to what the tutor can draw start in `src/lib/actions/schema.ts` (the action protocol), then `src/lib/tutor/session.ts` (validation) and `src/lib/canvas/executor.ts` (drawing).
 
 ## Reporting a bug
 
