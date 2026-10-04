@@ -27,7 +27,7 @@ export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear
 	}, [menu])
 
 	return (
-		<div className="loci-topbar" onPointerDown={(e) => e.stopPropagation()}>
+		<div className="loci-topbar" data-menu-open={menu} onPointerDown={(e) => e.stopPropagation()}>
 			<a className="loci-brand" href="/" style={{ textDecoration: 'none', color: 'inherit' }}>Loci</a>
 			<a className="loci-topbar__github" href="https://github.com/keananwongso/loci" target="_blank" rel="noreferrer">★ Star on GitHub</a>
 
@@ -63,15 +63,17 @@ export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear
 								Replay the lesson
 							</button>
 						)}
-						<button
-							role="menuitem"
-							onClick={() => {
-								setMenu(false)
-								onSample()
-							}}
-						>
-							Add sample notes
-						</button>
+						{!onTour && (
+							<button
+								role="menuitem"
+								onClick={() => {
+									setMenu(false)
+									onSample()
+								}}
+							>
+								Add sample notes
+							</button>
+						)}
 						<button
 							role="menuitem"
 							onClick={() => {
@@ -90,19 +92,6 @@ export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear
 							}}
 						>
 							Erase Loci&rsquo;s drawings
-						</button>
-						<a role="menuitem" href="https://github.com/keananwongso/loci" target="_blank" rel="noreferrer">
-							Source code on GitHub
-						</a>
-						<button
-							role="menuitem"
-							className="loci-danger"
-							onClick={() => {
-								setMenu(false)
-								if (confirm('Clear the whole board and conversation? This cannot be undone.')) onClear()
-							}}
-						>
-							Clear board…
 						</button>
 					</div>
 				)}

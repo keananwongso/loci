@@ -1506,7 +1506,7 @@ button {
 	place-items: center;
 	padding: 16px;
 	background: rgba(68, 64, 59, 0.16);
-	z-index: 10;
+	z-index: 20;
 }
 
 .loci-modal__card {
@@ -1988,6 +1988,7 @@ button {
 
 .loci-ui > .loci-coach-backdrop { position: absolute; inset: 0; background: rgba(35, 33, 31, .24); pointer-events: none; z-index: 11; animation: loci-coach-appear .25s ease-out; }
 .loci-coach--question { z-index: 12; }
+.loci-topbar[data-menu-open='true'] { z-index: 15; }
 .loci-coach__word { transition: color .15s ease, text-shadow .15s ease; }
 .loci-coach--question blockquote[data-reading='true'] { color: rgba(255, 255, 255, .42); }
 .loci-coach--question blockquote[data-reading='true'] .loci-coach__word[data-spoken='true'] { color: #fff; text-shadow: 0 0 12px rgba(255, 255, 255, .2); }
