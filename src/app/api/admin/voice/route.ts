@@ -18,9 +18,11 @@ async function collect(stream: ReadableStream<Uint8Array>) {
 export async function POST(req: Request) {
 	const refused = adminRefusal(req)
 	if (refused) return refused
-	const config = fishConfigFromEnv()
+	// No one is waiting on these: render at full quality.
+	const config = { ...fishConfigFromEnv(), latency: 'normal' as const }
 	if (!config.apiKey) return Response.json({ error: 'Set FISH_API_KEY in .env.local to render the voice.' }, { status: 503 })
-	const voice = `${config.model}:${config.voiceId ?? 'default'}`
+	// Changing the voice or how it is read re-renders every clip.
+	const voice = `${config.model}:${config.voiceId ?? 'default'}:${config.speed}:${config.temperature}`
 	const lines = [...new Set([...(await demoLines(await readPack())), ...Object.values(ACK_PHRASES).flat()])]
 	const old = await readVoiceMap()
 	const map: Record<string, string> = {}

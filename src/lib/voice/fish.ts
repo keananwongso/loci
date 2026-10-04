@@ -12,11 +12,29 @@ export interface FishConfig {
 	apiKey?: string
 	model: string
 	voiceId?: string
+	/** Speaking rate, 1 = the voice's natural pace. Slightly slower suits explaining math. */
+	speed: number
+	/** Higher is more varied and expressive, lower is steadier and flatter. */
+	temperature: number
+	/** "balanced" starts sooner; "normal" is Fish's full quality (used for pre-rendered lines). */
+	latency: 'normal' | 'balanced'
 	fetch?: typeof fetch
 }
 
+const num = (v: string | undefined, d: number, min: number, max: number) => {
+	const n = Number.parseFloat(v ?? '')
+	return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : d
+}
+
 export function fishConfigFromEnv(env: NodeJS.ProcessEnv = process.env): FishConfig {
-	return { apiKey: env.FISH_API_KEY || undefined, model: env.LOCI_TTS_MODEL || 's2-pro', voiceId: env.FISH_VOICE_ID || undefined }
+	return {
+		apiKey: env.FISH_API_KEY || undefined,
+		model: env.LOCI_TTS_MODEL || 's2-pro',
+		voiceId: env.FISH_VOICE_ID || undefined,
+		speed: num(env.LOCI_TTS_SPEED, 0.92, 0.5, 2),
+		temperature: num(env.LOCI_TTS_TEMPERATURE, 0.85, 0.1, 1),
+		latency: env.LOCI_TTS_LATENCY === 'normal' ? 'normal' : 'balanced',
+	}
 }
 
 export class FishError extends Error {
@@ -31,7 +49,15 @@ export class FishError extends Error {
 /** Synthesize `text` to mp3. Returns the streaming response body. */
 export async function fishSpeech(text: string, config: FishConfig, signal?: AbortSignal): Promise<ReadableStream<Uint8Array>> {
 	if (!config.apiKey) throw new FishError(503, 'FISH_API_KEY is not set.')
-	const payload: Record<string, unknown> = { text, format: 'mp3', mp3_bitrate: 128, latency: 'balanced', normalize: true }
+	const payload: Record<string, unknown> = {
+		text,
+		format: 'mp3',
+		mp3_bitrate: 128,
+		latency: config.latency,
+		normalize: true,
+		temperature: config.temperature,
+		prosody: { speed: config.speed, volume: 0 },
+	}
 	if (config.voiceId) payload.reference_id = config.voiceId
 	const res = await (config.fetch ?? fetch)(FISH_URL, {
 		method: 'POST',
