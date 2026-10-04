@@ -46,5 +46,6 @@ describe('fishTranscribe', () => {
 		expect(new Headers(seen!.init.headers).get('model')).toBeNull()
 		const form = seen!.init.body as FormData
 		expect(form.get('audio')).toBeInstanceOf(Blob)
+		expect(form.get('language')).toBe('en')
 	})
 })

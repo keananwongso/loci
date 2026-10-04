@@ -64,6 +64,9 @@ export async function fishTranscribe(audio: Blob, config: FishConfig, signal?: A
 	const form = new FormData()
 	form.append('audio', audio, `question.${extensionFor(audio.type)}`)
 	form.append('ignore_timestamps', 'true')
+	// Loci teaches in English. Left to auto-detect, a short or mumbled clip can come back as
+	// another language (Chinese, for one), and the model then answers in it.
+	form.append('language', 'en')
 	const res = await (config.fetch ?? fetch)(FISH_ASR_URL, {
 		method: 'POST',
 		signal,

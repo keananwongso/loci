@@ -35,7 +35,9 @@ export function startListening(onInterim: (text: string) => void, onError: (msg:
 		return async () => ''
 	}
 	const rec = new Ctor()
-	rec.lang = navigator.language || 'en-US'
+	// English, not the system language: a Chinese or Spanish system would otherwise transcribe
+	// questions in that language, and Loci teaches in English.
+	rec.lang = navigator.language?.startsWith('en') ? navigator.language : 'en-US'
 	rec.interimResults = true
 	rec.continuous = true
 	let finalText = ''
@@ -67,7 +69,8 @@ let preferred: SpeechSynthesisVoice | null = null
 function pickVoice() {
 	if (preferred || !canSpeak()) return preferred
 	const voices = speechSynthesis.getVoices()
-	const lang = (navigator.language || 'en').slice(0, 2)
+	// The tutor speaks English, so the voice must be an English one whatever the system language.
+	const lang = 'en'
 	preferred =
 		voices.find((v) => v.lang.startsWith(lang) && v.localService && /natural|premium|enhanced|samantha|daniel/i.test(v.name)) ??
 		voices.find((v) => v.lang.startsWith(lang) && v.localService) ??
