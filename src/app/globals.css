@@ -1985,3 +1985,10 @@ button {
 .loci-coach__instruction[data-listening='true'] svg { padding: 5px; box-sizing: content-box; border-radius: 50%; background: rgba(255,255,255,.16); margin-left: -5px; }
 .loci-coach__type { align-self: flex-start; margin-top: 8px; padding: 8px 0; background: none; border: 0; font-size: 12px; color: #ddd9d3; cursor: pointer; }
 .loci-coach__type:hover { color: #fff; text-decoration: underline; }
+
+.loci-ui > .loci-coach-backdrop { position: absolute; inset: 0; background: rgba(35, 33, 31, .24); pointer-events: none; z-index: 11; animation: loci-coach-appear .25s ease-out; }
+.loci-coach--question { z-index: 12; }
+.loci-coach__word { transition: color .15s ease, text-shadow .15s ease; }
+.loci-coach--question blockquote[data-reading='true'] { color: rgba(255, 255, 255, .42); }
+.loci-coach--question blockquote[data-reading='true'] .loci-coach__word[data-spoken='true'] { color: #fff; text-shadow: 0 0 12px rgba(255, 255, 255, .2); }
+@media(prefers-reduced-motion: reduce) { .loci-coach-backdrop { animation: none !important; } .loci-coach__word { transition: none; } }

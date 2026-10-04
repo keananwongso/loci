@@ -1,5 +1,7 @@
 'use client'
-import { talkKeysLabel } from '@/lib/canvas/presence'
+import { useValue } from 'tldraw'
+import { heard, talkKeysLabel } from '@/lib/canvas/presence'
+import { spokenScriptWords } from '@/lib/voice/read-along'
 import { CloseIcon, MicIcon } from './icons'
 import { REPO_URL } from './KeyDialog'
 import type { useTour } from '../useTour'
@@ -27,37 +29,47 @@ export function TourStart({ tour }: { tour: Tour; overBoard: boolean }) {
 
 export function TourCoach({ tour, busy, listening, sending }: { tour: Tour; busy: boolean; listening: boolean; sending: boolean }) {
 	const { step } = tour
+	const transcript = useValue('tour-live-transcript', () => heard.get(), [])
 	if (tour.phase !== 'running' || !step || busy || sending) return null
+	const spoken = spokenScriptWords(step.prompt, listening ? transcript : '')
+	const words = step.prompt.split(/\s+/)
 	return (
-		<section
-			className="loci-coach loci-coach--floating loci-coach--question"
-			aria-label="Ask your first question"
-			onPointerDown={(e) => e.stopPropagation()}
-		>
-			<div className="loci-coach__head">
-				<h2>Hold <kbd>{talkKeysLabel() === '⌃ + ⌥' ? 'Control + Option' : talkKeysLabel()}</kbd> to talk</h2>
-				<button className="loci-coach__skip" onClick={tour.skip}>
-					Skip
+		<>
+			<div className="loci-coach-backdrop" aria-hidden="true" />
+			<section
+				className="loci-coach loci-coach--floating loci-coach--question"
+				aria-label="Ask your first question"
+				onPointerDown={(e) => e.stopPropagation()}
+			>
+				<div className="loci-coach__head">
+					<h2>Hold <kbd>{talkKeysLabel() === '⌃ + ⌥' ? 'Control + Option' : talkKeysLabel()}</kbd> to talk</h2>
+					<button className="loci-coach__skip" onClick={tour.skip}>
+						Skip
+					</button>
+				</div>
+				<p className="loci-coach__say-label">Then say this aloud:</p>
+				<blockquote data-reading={listening} aria-label={`Say: ${step.prompt}`}>
+					“{words.map((word, index) => (
+						<span key={index} className="loci-coach__word" data-spoken={spoken.has(index)}>{word}{index < words.length - 1 ? ' ' : ''}</span>
+					))}”
+				</blockquote>
+				<div className="loci-coach__instruction" role="status" aria-live="polite" data-listening={listening}>
+					<MicIcon />
+					{listening ? (
+						<span>
+							<strong>Listening</strong> · release to send
+						</span>
+					) : (
+						<span>
+							Release the keys when you’re done.
+						</span>
+					)}
+				</div>
+				<button className="loci-coach__type" onClick={() => window.dispatchEvent(new CustomEvent('loci:prefill-prompt', { detail: step.prompt }))}>
+					Type instead →
 				</button>
-			</div>
-			<p className="loci-coach__say-label">Then say this aloud:</p>
-			<blockquote>“{step.prompt}”</blockquote>
-			<div className="loci-coach__instruction" role="status" aria-live="polite" data-listening={listening}>
-				<MicIcon />
-				{listening ? (
-					<span>
-						<strong>Listening</strong> · release to send
-					</span>
-				) : (
-					<span>
-						Release the keys when you’re done.
-					</span>
-				)}
-			</div>
-			<button className="loci-coach__type" onClick={() => window.dispatchEvent(new CustomEvent('loci:prefill-prompt', { detail: step.prompt }))}>
-				Type instead →
-			</button>
-		</section>
+			</section>
+		</>
 	)
 }
 
