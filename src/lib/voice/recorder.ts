@@ -1,8 +1,8 @@
 'use client'
 /**
  * Hold-to-talk recording. Recording starts the moment the keys go down (the mic is kept warm
- * between presses) and the clip is transcribed on release: by Fish Audio when the server has a
- * key, otherwise by the browser's own speech recognition, which runs alongside as a fallback.
+ * between presses). Two bounded Fish previews provide live text when browser recognition is
+ * unavailable; the complete clip is transcribed on release. All previews use the normal quotas.
  */
 import { openMic, releaseMic } from './level'
 import { checkSpeechProvider, hasFish } from './player'
@@ -23,20 +23,37 @@ function pickMime() {
 export const within = <T>(p: Promise<T>, ms: number, fallback: T) =>
 	Promise.race([p, new Promise<T>((r) => setTimeout(() => r(fallback), ms))])
 
-export function startRecording(): Recording {
+export function startRecording(onInterim?: (text: string) => void, hasBrowserWords: () => boolean = () => false): Recording {
 	const chunks: Blob[] = []
 	let recorder: MediaRecorder | null = null
 	let stopped = false
+	let previewPending = false
+	let previews = 0
+	let lastPreview = 0
+	let previewController: AbortController | undefined
 	const ready = openMic().then((stream) => {
 		if (!stream || stopped || typeof MediaRecorder === 'undefined') return
 		const mimeType = pickMime()
 		recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
-		recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data)
-		recorder.start()
+		recorder.ondataavailable = (e) => {
+			if (e.data.size) chunks.push(e.data)
+			if (!onInterim || stopped || previewPending || previews >= 2 || hasBrowserWords() || performance.now() - lastPreview < 1500) return
+			const clip = new Blob(chunks, { type: recorder!.mimeType || 'audio/webm' })
+			if (clip.size < 3000 || clip.size > MAX_PREVIEW_BYTES) return
+			previewPending = true
+			previews++
+			lastPreview = performance.now()
+			previewController = new AbortController()
+			void transcribe(clip, 4000, previewController.signal).then((text) => {
+				if (!stopped && !hasBrowserWords() && text) onInterim(text)
+			}).finally(() => { previewPending = false })
+		}
+		recorder.start(500)
 	})
 	return {
 		async stop() {
 			stopped = true
+			previewController?.abort()
 			// A mic that is still opening (or waiting on a permission prompt) must not block the question.
 			await within(ready, 1500, undefined)
 			releaseMic()
@@ -61,13 +78,17 @@ export function startRecording(): Recording {
 }
 
 /** Fish Audio transcript of a clip, or null when transcription is unavailable or fails. */
-export async function transcribe(clip: Blob, timeoutMs = 8000): Promise<string | null> {
+export async function transcribe(clip: Blob, timeoutMs = 8000, signal?: AbortSignal): Promise<string | null> {
 	if (!hasFish() && (await within(checkSpeechProvider(), 1500, 'browser' as const)) !== 'fish') return null
 	const controller = new AbortController()
+	const abort = () => controller.abort()
+	if (signal?.aborted) return null
+	signal?.addEventListener('abort', abort, { once: true })
 	const timer = setTimeout(() => controller.abort(), timeoutMs)
 	try {
 		// Browsers record webm, mp4 or ogg; Fish reliably decodes plain WAV, so send that when possible.
 		const audio = (await within(toWav(clip), 2000, null)) ?? clip
+		if (controller.signal.aborted) return null
 		const res = await fetch('/api/transcribe', { method: 'POST', body: audio, headers: { 'Content-Type': audio.type }, signal: controller.signal })
 		if (!res.ok) {
 			console.warn('[loci] Fish transcription failed:', (await res.json().catch(() => ({}))).error ?? res.status)
@@ -79,10 +100,12 @@ export async function transcribe(clip: Blob, timeoutMs = 8000): Promise<string |
 		return null
 	} finally {
 		clearTimeout(timer)
+		signal?.removeEventListener('abort', abort)
 	}
 }
 
 const WAV_RATE = 16000
+const MAX_PREVIEW_BYTES = 400_000
 
 /** The clip as 16 kHz mono 16-bit WAV, or null if this browser can't decode it. */
 export async function toWav(clip: Blob): Promise<Blob | null> {

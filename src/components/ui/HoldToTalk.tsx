@@ -52,9 +52,10 @@ export function HoldToTalk({ busy, onAsk, onStop, disabled, voice }: Props) {
 		setHolding(true)
 		setTutorMode('listening')
 		listenStartSound()
-		recording.current = startRecording()
+		let browserHasWords = false
+		recording.current = startRecording((text) => heard.set(text), () => browserHasWords)
 		// Live words under the buddy, and a fallback transcript when Fish Audio is not set up.
-		stopRec.current = canRecognize() ? startListening((t) => heard.set(t), () => {}) : null
+		stopRec.current = canRecognize() ? startListening((t) => { if (t.trim()) browserHasWords = true; heard.set(t) }, () => {}) : null
 	}, [])
 
 	const end = useCallback(async () => {

@@ -27,7 +27,7 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft }: Pro
 	const listening = mode === 'listening'
 	const transcribing = mode === 'transcribing'
 	const hasSelection = context !== 'Current view'
-	const keys = talkKeysLabel() === '⌃ + ⌥' ? 'Control + Option' : talkKeysLabel()
+	const keys = talkKeysLabel()
 
 	useEffect(() => {
 		const focus = () => { setTyping(true); inputRef.current?.focus() }
@@ -120,10 +120,10 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft }: Pro
 							onKeyUp={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); talk('end') } }}
 						>
 							<MicIcon />
-							<span>{listening ? 'Listening…' : transcribing ? 'Transcribing…' : 'Hold to talk'}</span>
+							<span>{listening ? 'Listening…' : transcribing ? 'Transcribing…' : <>Hold <kbd title={keys === '⌃ + ⌥' ? 'Control + Option' : keys}>{keys}</kbd> to talk</>}</span>
 						</button>
 						<div className="loci-prompt__voice-hint" role="status" aria-live="polite">
-							{listening || transcribing ? <><span className="loci-prompt__heard">{transcript || (listening ? 'Ask about your notes' : 'Finishing your question')}</span><small>{listening ? 'Release to send' : 'Sending when ready'}</small></> : <><kbd>{keys}</kbd><small>{disabledReason ?? 'Point at your notes while you talk'}</small></>}
+							{listening || transcribing ? <><span className="loci-prompt__heard">{transcript || (listening ? 'Ask about your notes' : 'Finishing your question')}</span><small>{listening ? 'Release to send' : 'Sending when ready'}</small></> : <span>{disabledReason ?? 'Point at your notes while you talk'}</span>}
 						</div>
 						<button className="loci-prompt__switch" onClick={() => setTyping(true)}>Type instead</button>
 					</>

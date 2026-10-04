@@ -1998,6 +1998,7 @@ button {
 .loci-prompt__controls { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .loci-prompt__talk { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 46px; padding: 0 18px; border: 0; border-radius: 999px; background: var(--loci-ink); color: var(--color-eggshell); font: inherit; font-size: 14px; white-space: nowrap; cursor: pointer; touch-action: none; user-select: none; }
 .loci-prompt__talk svg { width: 18px; height: 18px; }
+.loci-prompt__talk kbd { font: inherit; padding: 2px 5px; margin: 0 2px; border: 1px solid rgba(255,255,255,.3); border-radius: 5px; }
 .loci-prompt__talk[data-active='true'] { box-shadow: 0 0 0 4px var(--loci-taupe); }
 .loci-prompt__talk:disabled { opacity: .55; cursor: default; }
 .loci-prompt__voice-hint { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; font-size: 12px; color: var(--loci-ink-2); }

@@ -43,7 +43,7 @@ export function TourCoach({ tour, busy, listening, transcribing, sending }: { to
 				onPointerDown={(e) => e.stopPropagation()}
 			>
 				<div className="loci-coach__head">
-					<h2>Hold <kbd>{talkKeysLabel() === '⌃ + ⌥' ? 'Control + Option' : talkKeysLabel()}</kbd> to talk</h2>
+					<h2>Hold <kbd title={talkKeysLabel() === '⌃ + ⌥' ? 'Control + Option' : talkKeysLabel()}>{talkKeysLabel()}</kbd> to talk</h2>
 					<button className="loci-coach__skip" onClick={tour.skip}>
 						Skip
 					</button>
