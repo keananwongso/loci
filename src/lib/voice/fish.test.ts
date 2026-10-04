@@ -26,14 +26,31 @@ describe('fishSpeech', () => {
 			latency: 'balanced',
 			reference_id: 'voice123',
 			temperature: 0.85,
-			prosody: { speed: 0.92, volume: 0 },
+			prosody: { speed: 0.92 },
 		})
 	})
 
 	it('reads the pace and delivery from the environment, within range', () => {
 		const env = { LOCI_TTS_SPEED: '5', LOCI_TTS_TEMPERATURE: '0.6', LOCI_TTS_LATENCY: 'normal' } as unknown as NodeJS.ProcessEnv
 		expect(fishConfigFromEnv(env)).toMatchObject({ speed: 2, temperature: 0.6, latency: 'normal' })
-		expect(fishConfigFromEnv({} as unknown as NodeJS.ProcessEnv)).toMatchObject({ speed: 0.92, temperature: 0.85, latency: 'balanced' })
+		expect(fishConfigFromEnv({} as unknown as NodeJS.ProcessEnv)).toMatchObject({ speed: undefined, temperature: undefined, latency: undefined })
+	})
+
+	it('lets Fish choose delivery defaults when no overrides are configured', async () => {
+		let payload: Record<string, unknown> | undefined
+		const fake = (async (_url: string, init: RequestInit) => {
+			payload = decode(init.body as Uint8Array) as Record<string, unknown>
+			return new Response(new Uint8Array([0xff, 0xfb, 0x90]))
+		}) as unknown as typeof fetch
+		const config = fishConfigFromEnv({ NODE_ENV: 'test', FISH_API_KEY: 'fk', FISH_VOICE_ID: 'voice123' })
+		await fishSpeech('Hello there.', { ...config, fetch: fake })
+		expect(payload).toEqual({ text: 'Hello there.', format: 'mp3', reference_id: 'voice123' })
+	})
+
+	it('ignores empty or invalid delivery overrides', () => {
+		expect(fishConfigFromEnv({ NODE_ENV: 'test', LOCI_TTS_SPEED: '', LOCI_TTS_TEMPERATURE: 'invalid', LOCI_TTS_LATENCY: 'invalid' }))
+			.toMatchObject({ speed: undefined, temperature: undefined, latency: undefined })
+		expect(fishConfigFromEnv({ NODE_ENV: 'test', LOCI_TTS_TEMPERATURE: '0' }).temperature).toBe(0)
 	})
 
 	it('reports a bad key clearly', async () => {
