@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { Analytics } from '@vercel/analytics/next'
 import '@fontsource-variable/inter'
 import 'katex/dist/katex.min.css'
 import 'tldraw/tldraw.css'
@@ -18,7 +19,11 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
 	return (
 		<html lang="en">
-			<body>{children}</body>
+			<body>
+				{children}
+				{/* Cookie-free page views for a Vercel deployment; local and self-hosted builds load nothing. */}
+				{process.env.VERCEL === '1' && <Analytics />}
+			</body>
 		</html>
 	)
 }

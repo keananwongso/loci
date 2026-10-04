@@ -104,6 +104,12 @@ export class AnthropicProvider implements TutorModelProvider {
 			})
 
 			const message = await stream.finalMessage()
+			const u = message.usage
+			input.onUsage?.({
+				input: u.input_tokens + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0),
+				cachedInput: u.cache_read_input_tokens ?? 0,
+				output: u.output_tokens,
+			})
 
 			if (message.stop_reason === 'refusal') {
 				emit({ type: 'error', message: 'The model declined to answer this request.' })

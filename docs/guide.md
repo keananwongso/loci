@@ -97,6 +97,14 @@ Limits default to on on Vercel; other hosts must set `LOCI_DEMO_LIMITS=on`. Prod
 
 tldraw requires a license key on a public domain: request a free [hobby license](https://tldraw.dev/get-a-license/hobby) for non-commercial use and set it as `NEXT_PUBLIC_TLDRAW_LICENSE_KEY`.
 
+### Seeing usage and spend
+
+Set `LOCI_STATS_PASSWORD` and open `/admin/stats` on the deployed site (any username, that password). It shows, per day for the last 30 days: visitors (distinct browsers that opened the board), people who asked, questions, refusals at a limit, model tokens, speech characters and transcriptions, with an estimated cost. Without `LOCI_STATS_PASSWORD` the page doesn't exist.
+
+Fish Audio speech is priced at $15 per million characters by default (`LOCI_PRICE_SPEECH`). For the model, set `LOCI_PRICE_INPUT`, `LOCI_PRICE_OUTPUT` and optionally `LOCI_PRICE_CACHED_INPUT` in USD per million tokens from your provider's pricing page; `LOCI_PRICE_TRANSCRIBE` prices each transcription. Only usage on your key is counted; visitors' own keys are not. Totals are kept in the same Redis for 400 days, and only on the production deployment, so local runs with production credentials don't count. They are estimates; your provider's billing page is the source of truth.
+
+For page views, referrers and countries, enable Web Analytics in the Vercel project. Loci includes Vercel's cookie-free script only in builds on Vercel.
+
 Visitors using the hosted demo send their questions and page images to that server and on to the model provider for inference. For private material, run Loci locally.
 
 ## Privacy
@@ -104,7 +112,7 @@ Visitors using the hosted demo send their questions and page images to that serv
 * Your PDFs, images, board and conversation are stored in your browser’s IndexedDB. The Next.js server forwards question context to the model provider; it does not store your files or conversation.
 * When you ask a question, the local Next.js server sends the context for that one question to the AI provider you configured (nothing leaves your machine at all if you use a local model through Ollama): your question, a description of the board (including the extracted text of the page in focus), recent conversation turns, and a few images (the selected page or region and sometimes a screenshot of your current view). Nothing is stored by the local server.
 * Review your provider's privacy and data retention policy before uploading anything sensitive. Policies differ a lot between providers.
-* No analytics, tracking or telemetry. Next.js's own anonymous telemetry is switched off by the npm scripts. Fonts and icons are bundled, so the app makes no requests to third party CDNs.
+* No analytics, tracking or telemetry when you run Loci yourself. A deployment on Vercel includes Vercel's cookie-free Web Analytics, and a hosted demo keeps daily usage counts (see Seeing usage and spend). Next.js's own anonymous telemetry is switched off by the npm scripts. Fonts and icons are bundled, so the app makes no requests to third party CDNs.
 * Voice input uses the browser's speech recognition. In some browsers (Chrome, for example) that audio is processed by the browser vendor's servers. In voice mode the tutor's spoken sentences go to Fish Audio if you set `FISH_API_KEY`; otherwise speech uses voices installed on your device.
 
 ## Architecture

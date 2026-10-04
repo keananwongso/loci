@@ -181,4 +181,23 @@ describe('getProvider', () => {
 		expect(stray.setupHint).toContain('openrouter (found OPENROUTER_API_KEY)')
 		expect(stray.setupHint).toContain('LOCI_PROVIDER')
 	})
+
+	it('reports token usage from the final stream chunk', async () => {
+		const calls: Array<{ url: string; body: any; headers: Headers }> = []
+		const body = sse([
+			delta({ content: 'Hello.' }, 'stop'),
+			{ choices: [], usage: { prompt_tokens: 900, completion_tokens: 50, prompt_cache_hit_tokens: 600 } },
+		])
+		const provider = new OpenAICompatibleProvider({ name: 'deepseek', baseUrl: 'https://x', apiKey: 'k', model: 'm', vision: false, fetch: fakeFetch([{ status: 200, body }], calls) })
+		const usage: unknown[] = []
+		const emit = () => {}
+		await provider.run(
+			{ system: SYSTEM_PROMPT, tools: getToolDefinitions(), request, turnText: buildTurnText(request), onUsage: (u) => usage.push(u) },
+			new ActionSession(request.board, emit),
+			emit,
+			new AbortController().signal
+		)
+		expect(calls[0].body.stream_options).toEqual({ include_usage: true })
+		expect(usage).toEqual([{ input: 900, cachedInput: 600, output: 50 }])
+	})
 })

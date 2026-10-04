@@ -118,7 +118,7 @@ export class UpstashStore implements CounterStore {
 		private token: string,
 		private doFetch: typeof fetch = fetch,
 	) {}
-	private async pipeline(commands: Array<Array<string | number>>): Promise<unknown[]> {
+	async pipeline(commands: Array<Array<string | number>>): Promise<unknown[]> {
 		const res = await this.doFetch(`${this.url.replace(/\/$/, '')}/pipeline`, {
 			method: 'POST',
 			headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json' },

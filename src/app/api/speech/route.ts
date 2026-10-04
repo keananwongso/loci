@@ -6,6 +6,7 @@ import { readLimitedJson, refuseCrossOrigin } from '@/lib/server/request'
 import { z } from 'zod'
 import { FishError, MAX_SPEECH_CHARS, fishConfigFromEnv, fishSpeech } from '@/lib/voice/fish'
 import { guardUsage } from '@/lib/server/usage'
+import { recordStats } from '@/lib/server/stats'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -29,6 +30,7 @@ export async function POST(req: Request) {
 	if (!config.apiKey) return Response.json({ error: 'FISH_API_KEY is not set.' }, { status: 503 })
 	const { refused, cookie } = await guardUsage(req, 'speech', parsed.data.text.length)
 	if (refused) return refused
+	await recordStats({ speechChars: parsed.data.text.length })
 	try {
 		const audio = await fishSpeech(parsed.data.text, config, req.signal)
 		const timed = audio.pipeThrough(timeStream(parsed.data.text.length, config.model, start))
