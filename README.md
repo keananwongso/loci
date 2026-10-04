@@ -6,13 +6,12 @@ The whiteboard is the interface. The chat is a narrow strip at the bottom.
 
 ## Demo
 
-Click **Try a short lesson** (or open `http://localhost:3000/?lesson`). Loci lays out synthetic calculus notes on directional derivatives, greets you, and walks you through its main gesture:
+The homepage puts **Star on GitHub** and **See how Loci works** first. The demo opens at `http://localhost:3000/demo?lesson`; open `/demo` for your saved board without onboarding.
 
-1. It points at `∇f · u` in the theorem box and suggests a question: *I understand the equation, but what is u geometrically?* Ask it out loud while dragging over the formula, type it, or tap the suggestion.
-2. The tutor highlights `∇f · u`, draws a coordinate plane beside the page with the unit circle, the gradient and a unit vector `u`, marks the angle θ between them, writes `D_u f = ∇f · u = ‖∇f‖ cos θ` below it, connects the highlight to the diagram, and asks what happens to the slope if `u` points along the gradient.
-3. You answer, and it builds on the same diagram: the projection of `∇f` onto `u`, and the direction that makes the slope largest.
-
-The lesson's answers are recorded takes, so they play the same for everyone and cost nothing. After it, every question goes to the model. The lesson itself is data you can replace: see [The demo lesson](#the-demo-lesson).
+1. Click **See how Loci works**, then **Let’s try it**. Directional derivative notes are placed on the canvas.
+2. A translucent card suggests: *What’s a gradient, and how does it relate to partial derivatives?* Hold Control + Option on Mac (Ctrl + Alt elsewhere), ask, and release. **Type instead** fills the prompt for you to submit.
+3. The configured model answers live, highlighting the notes and drawing beside them. The introductory prompt encourages a short example with partial derivatives, a gradient vector, and its components. No recorded answer is replayed.
+4. After the answer, try your own problem: paste text into the dialog, upload a PDF or screenshot, or paste an image onto the canvas. All live questions, including the first, share the same daily allowance.
 
 The fastest way to ask: hold **Ctrl + Alt** (**⌃ + ⌥** on a Mac) and talk. While the keys are down, drag over the part you mean to highlight it, or click an object; let go to ask. You can also press **Q** (or the dashed box tool) to drag a box, then type.
 
@@ -32,7 +31,7 @@ The fastest way to ask: hold **Ctrl + Alt** (**⌃ + ⌥** on a Mac) and talk. W
 * Equations stay editable (double click to edit the LaTeX); undo removes a whole answer's drawing
 * Voice mode: hold to talk, and the tutor speaks each sentence while it draws the marks that sentence is about. Its words are written to be heard (no symbols or formulas read aloud; the math stays on the board). Uses Fish Audio when `FISH_API_KEY` is set, otherwise the browser's built-in voice. The tutor says a short "I heard you" the moment you let go, shows the words it heard beside the orb, and plays each sentence from its first chunk of audio rather than waiting for the whole clip
 * Timing in the terminal: each question logs when the transcript, the first thought, the first spoken sentence and the first mark arrived, plus how long the model and each Fish Audio clip took, so you can see where the wait comes from
-* Board, files and conversation are stored locally in IndexedDB, so a refresh brings everything back. To start over, click the new board button in the top bar, or open `http://localhost:3000/?reset`
+* Board, files and conversation are stored locally in IndexedDB, so a refresh brings everything back. To start over, click the new board button in the top bar, or open `http://localhost:3000/demo?reset`
 
 ## Local setup
 
@@ -47,7 +46,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open http://localhost:3000.
+Open http://localhost:3000 for the landing page, or http://localhost:3000/demo for your own board.
 
 Your key goes in `.env.local`, which git ignores. It is read only by the local server route (`src/app/api/tutor/route.ts`) and is never sent to the browser.
 
@@ -104,7 +103,7 @@ Everything the guided lesson uses lives in `public/demo/`, so changing it never 
 | `takes/*.json` | Recorded answers: exactly what the tutor said and drew, with timing |
 | `voice.json`, `voice/*.mp3` | Every line the lesson can say, pre-rendered with Fish Audio |
 
-A step is something the visitor does. An **ask** step speaks an instruction, pulses the phrase to point at, and suggests a question; whatever the visitor asks replays its take. An **answer** step waits for the answer to the tutor's check question and picks a branch by matching words in it (for example *largest*, *steepest* for the right answer, and a catch-all that lets them try again), each with its own take. A branch without a take asks the live model instead.
+A step is something the visitor does. An **ask** step speaks an instruction, pulses the phrase to point at, and suggests a question; whatever the visitor asks goes to the live model. An **answer** step waits for the answer to the tutor's check question and picks a branch by matching words in it (for example *largest*, *steepest* for the right answer, and a catch-all that lets them try again), and the model responds live. Recorded takes remain available as admin reference files; visitor onboarding does not replay them.
 
 To change it, run `npm run dev` and open **http://localhost:3000/admin**:
 
@@ -116,15 +115,16 @@ To change it, run `npm run dev` and open **http://localhost:3000/admin**:
 
 ## Hosting a public demo
 
-Loci can also run as a public website, for example to share it. Boards and files still live only in each visitor's browser; the only cost is model calls, and three things keep that bounded:
+Loci can also run as a public website. Boards and files stay in the visitor’s browser; selected material is sent to the hosted server and model provider when they ask. Model and voice usage is bounded:
 
-* **Free recorded lesson.** The first run replays recorded takes in the browser, with pre-rendered voice: no model or Fish Audio call at all.
-* **Only the demo's notes.** Visitors can't upload on a hosted demo; dropping a file points them to this repo instead. The server also refuses free questions about any material that isn't in the demo pack.
+* **Live onboarding.** The first question uses the configured model and counts against the daily allowance. Visitors can then paste or upload their own problems.
 * **A few free questions on your key**, limited per device (a signed cookie), more loosely per network (so a campus Wi-Fi isn't locked out), and by a global daily cap that bounds your total spend whatever people do. IPs are stored only as salted hashes, and only counts are kept.
 * **Voice under the same limits.** Fish Audio speech is counted in characters and transcription in requests, per device, per network and globally per day. Past a limit the tutor falls back to the browser's own voice instead of failing.
 * **Bring your own key.** Visitors can paste their own API key for unlimited use. It is kept in their browser and passed through the server per request, never stored or logged. Only the built-in providers are accepted, so the server can't be pointed at arbitrary URLs.
 
 To deploy on Vercel: import the repo, then set your model key (e.g. `ANTHROPIC_API_KEY` or a cheaper provider with `LOCI_MODEL`), `LOCI_DEMO_LIMITS=on`, the `LOCI_LIMIT_*` values (including the `LOCI_LIMIT_SPEECH_*` and `LOCI_LIMIT_TRANSCRIBE_*` ones if you set `FISH_API_KEY`), `LOCI_COOKIE_SECRET`, and `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` from a free [Upstash](https://upstash.com) Redis database (serverless functions don't share memory, so counters need a store). Set a spending limit with your model provider too, as a backstop.
+
+Limits default to on on Vercel; other hosts must set `LOCI_DEMO_LIMITS=on`. Production free usage requires Redis credentials and a stable `LOCI_COOKIE_SECRET`; missing configuration refuses paid requests. Redis reserves device, network, and global usage atomically so concurrent requests cannot exceed caps. Local development can use in-memory counters. Defaults: 5 questions/device/day, 20/network/day, 300 globally/day; speech and transcription have separate caps. All counters reset at midnight UTC.
 
 tldraw requires a license key on a public domain: request a free [hobby license](https://tldraw.dev/get-a-license/hobby) for non-commercial use and set it as `NEXT_PUBLIC_TLDRAW_LICENSE_KEY`.
 

@@ -55,6 +55,7 @@ export interface TurnResult {
 }
 
 export interface TurnOptions {
+	guidedDemo?: boolean
 	/** Speech already playing (the instant acknowledgement); the first sentence waits for it. */
 	leadIn?: Promise<void>
 	/** Replay this recorded answer instead of asking anyone. */
@@ -117,7 +118,7 @@ export async function runTutorTurn(
 	cb.onPhase('looking')
 	const focus = serializeBoard(editor)
 	const images = await captureImages(editor, focus)
-	const request = fitRequest({ question, board: focus.board, images, history: history.slice(-12), turn })
+	const request = fitRequest({ question, board: focus.board, images, history: history.slice(-12), turn, guidedDemo: opts.guidedDemo })
 	const regionText = focus.board.region?.text?.replace(/\s+/g, ' ').trim()
 	if (regionText) cb.onThought?.({ text: `reading “${regionText.length > 34 ? `${regionText.slice(0, 33).trimEnd()}…` : regionText}”` })
 

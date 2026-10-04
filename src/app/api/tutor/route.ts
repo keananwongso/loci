@@ -9,10 +9,9 @@ import { getProvider, providerForUserKey } from '@/lib/providers'
 import type { TutorModelProvider } from '@/lib/providers/types'
 import { deviceFor, ipHashFor } from '@/lib/server/device'
 import { limitConfigFromEnv, readQuota, takeQuestion, type Quota } from '@/lib/server/limits'
-import { buildTurnText, SYSTEM_PROMPT } from '@/lib/tutor/prompt'
+import { buildTurnText, SYSTEM_PROMPT, GUIDED_DEMO_PROMPT } from '@/lib/tutor/prompt'
 import { ActionSession } from '@/lib/tutor/session'
 import { TutorRequestSchema, type TutorEvent, type TutorRequest } from '@/lib/tutor/types'
-import demoPack from '../../../../public/demo/pack.json'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -37,7 +36,7 @@ export async function GET(req: Request) {
 				hosted: limits.enabled,
 				quota,
 			}),
-			device.setCookie
+			device.setCookie,
 		)
 	} catch (err) {
 		return Response.json({ configured: false, setupHint: (err as Error).message, hosted: limits.enabled }, { status: 500 })
@@ -55,30 +54,19 @@ const LIMIT_MESSAGES = {
 	global: "The free demo has hit today's limit.",
 }
 
-const DEMO_FILES = new Set(demoPack.materials.map((m) => m.file))
-
-/**
- * Free questions on the owner's key are only about the demo's own notes. The client never lets a
- * visitor upload on the hosted demo; this catches a modified one.
- */
-function onlyDemoMaterial(request: TutorRequest) {
-	return request.board.objects.every((o) => !o.material || DEMO_FILES.has(o.material.name))
-}
-
 /**
  * Which model answers: the visitor's own key (sent in headers for this
  * request only, never stored or logged), or the server's key under the demo limits.
  */
-async function chooseProvider(req: Request, request: TutorRequest): Promise<{ provider: TutorModelProvider; quota?: Quota; cookie?: string } | Response> {
+async function chooseProvider(
+	req: Request,
+	request: TutorRequest,
+): Promise<{ provider: TutorModelProvider; quota?: Quota; cookie?: string } | Response> {
 	const userKey = req.headers.get('x-loci-key')
 	if (userKey) {
 		try {
 			return {
-				provider: providerForUserKey(
-					req.headers.get('x-loci-provider') ?? '',
-					userKey,
-					req.headers.get('x-loci-model')?.slice(0, 120) || undefined
-				),
+				provider: providerForUserKey(req.headers.get('x-loci-provider') ?? '', userKey, req.headers.get('x-loci-model')?.slice(0, 120) || undefined),
 			}
 		} catch (err) {
 			return Response.json({ error: (err as Error).message }, { status: 400 })
@@ -93,15 +81,19 @@ async function chooseProvider(req: Request, request: TutorRequest): Promise<{ pr
 	}
 	const limits = limitConfigFromEnv()
 	if (!limits.enabled) return { provider }
-	if (!onlyDemoMaterial(request)) {
-		return Response.json({ error: 'This demo only teaches from its sample notes. Run Loci locally to use your own.', ownNotes: true }, { status: 403 })
-	}
 	const device = deviceFor(req)
-	const decision = await takeQuestion(limits, device.id, ipHashFor(req))
+	const decision = await Promise.resolve()
+		.then(() => takeQuestion(limits, device.id, ipHashFor(req)))
+		.catch(() => null)
+	if (!decision)
+		return withCookie(
+			Response.json({ error: 'The free demo is temporarily unavailable. Please try again later.', limitReached: 'store' }, { status: 503 }),
+			device.setCookie,
+		)
 	if (!decision.ok) {
 		return withCookie(
 			Response.json({ error: LIMIT_MESSAGES[decision.reason], limitReached: decision.reason, quota: decision.quota }, { status: 429 }),
-			device.setCookie
+			device.setCookie,
 		)
 	}
 	return { provider, quota: decision.quota, cookie: device.setCookie }
@@ -141,10 +133,15 @@ export async function POST(req: Request) {
 			const session = new ActionSession(request.board, emit)
 			try {
 				await provider.run(
-					{ system: SYSTEM_PROMPT, tools: getToolDefinitions(), request, turnText: buildTurnText(request) },
+					{
+						system: SYSTEM_PROMPT + (request.guidedDemo ? GUIDED_DEMO_PROMPT : ''),
+						tools: getToolDefinitions(),
+						request,
+						turnText: buildTurnText(request),
+					},
 					session,
 					emit,
-					abort.signal
+					abort.signal,
 				)
 			} catch (err) {
 				if (!abort.signal.aborted) {

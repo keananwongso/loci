@@ -1,7 +1,7 @@
 'use client'
 /**
  * Local editor for the demo pack in public/demo/: the materials and their roles, the lines the
- * tutor speaks, and the lesson's steps and branches. Takes are recorded in the app (/?record) and
+ * tutor speaks, and the lesson's steps and branches. Takes are recorded in the app (/demo?record) and
  * the voice is rendered here. Publishing is a commit: everything lives in public/demo/.
  */
 import { useCallback, useEffect, useState } from 'react'
@@ -136,10 +136,10 @@ export function AdminApp() {
 					</p>
 				</div>
 				<div className="loci-admin__actions">
-					<a className="loci-secondary loci-secondary--sm" href="/?lesson&reset" target="_blank">
+					<a className="loci-secondary loci-secondary--sm" href="/demo?lesson&reset" target="_blank">
 						Preview lesson
 					</a>
-					<a className="loci-secondary loci-secondary--sm" href="/?record&reset" target="_blank">
+					<a className="loci-secondary loci-secondary--sm" href="/demo?record&reset" target="_blank">
 						Record takes
 					</a>
 					<button className="loci-primary loci-primary--sm" disabled={!dirty || busy} onClick={save}>

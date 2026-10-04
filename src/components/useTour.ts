@@ -1,15 +1,13 @@
 'use client'
 /**
  * The guided first run, driven by the demo pack. The tutor speaks each step's instruction and points
- * at what to ask about; whatever the visitor then asks or answers (by voice, typing or the suggested
- * chip) is matched to a branch, and that branch's recorded take replays: the real gesture, a fixed
- * answer, no model call. In record mode (the local admin) the same steps ask the live model instead,
+ * at what to ask about. Visitor questions always go to the live model. In record mode (the local admin) the same steps ask the live model instead,
  * and each answer can be kept as the branch's take.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Editor } from 'tldraw'
 import { emphasize, endTutorTurn, lookAt } from '@/lib/canvas/presence'
-import { loadPack, loadPackVoice, loadTake, placePack, pointArea } from '@/lib/demo/client'
+import { loadPack, loadPackVoice, placePack, pointArea } from '@/lib/demo/client'
 import { pickBranch, type DemoBranch, type DemoPack, type DemoStep } from '@/lib/demo/pack'
 import { playSpeech, prepareSpeech, stopAllSpeech } from '@/lib/voice/player'
 import type { TurnResult } from '@/lib/tutor/client'
@@ -40,8 +38,6 @@ function markDone() {
 		localStorage.setItem(DONE_KEY, '1')
 	} catch {}
 }
-
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 interface Deps {
 	editor: Editor
@@ -105,13 +101,13 @@ export function useTour({ editor, ask, busy, clear, setVoiceOut, setLoading, rec
 				setLine('')
 				setPhase('finished')
 				if (!record) markDone()
-				await say(pack.outro)
+				// The next action is shown in the end card.
 				return
 			}
 			setLine(next.intro ?? '')
 			await say(next.intro, pointArea(editor, next)?.area)
 		},
-		[pack, editor, say, record]
+		[pack, editor, say, record],
 	)
 
 	/** Show the start card. */
@@ -121,7 +117,7 @@ export function useTour({ editor, ask, busy, clear, setVoiceOut, setLoading, rec
 		setPhase('start')
 	}, [])
 
-	/** The visitor pressed start: a fresh board with the pack, voice on, the greeting, then step one. */
+	/** The visitor pressed start: a fresh board with the pack, voice on, then the instruction card. */
 	const begin = useCallback(async () => {
 		if (!pack) return
 		const at = ++run.current
@@ -136,13 +132,8 @@ export function useTour({ editor, ask, busy, clear, setVoiceOut, setLoading, rec
 		await Promise.all([placePack(editor, pack), loadPackVoice()])
 		setLoading(null)
 		if (run.current !== at) return
-		const first = editor.getCurrentPageShapes()[0]
-		const b = first && editor.getShapePageBounds(first)
-		await say(pack.greeting, b ? { x: b.x, y: b.y, w: b.w, h: Math.min(b.h, 200) } : null)
-		if (run.current !== at) return
-		await wait(250)
 		await enterStep(0)
-	}, [pack, editor, clear, setVoiceOut, setLoading, say, enterStep])
+	}, [pack, editor, clear, setVoiceOut, setLoading, enterStep])
 
 	const skip = useCallback(() => {
 		run.current++
@@ -155,6 +146,9 @@ export function useTour({ editor, ask, busy, clear, setVoiceOut, setLoading, rec
 	}, [record])
 
 	const close = useCallback(() => {
+		run.current++
+		stopAllSpeech()
+		endTutorTurn()
 		setPhase('off')
 		setLine('')
 	}, [])
@@ -166,8 +160,7 @@ export function useTour({ editor, ask, busy, clear, setVoiceOut, setLoading, rec
 	}, [editor, step])
 
 	/**
-	 * Ask during the tour: pick the branch, replay its take (or, in record mode or without a take,
-	 * ask the model), then move on as the branch says. Outside the tour, a plain question.
+	 * Ask during the tour: send the real question to the model, then advance after the answer. Outside the tour, a plain question.
 	 */
 	const tourAsk = useCallback(
 		async (question: string, opts: AskOptions = {}, forceBranch?: DemoBranch): Promise<TurnResult | null> => {
@@ -176,15 +169,13 @@ export function useTour({ editor, ask, busy, clear, setVoiceOut, setLoading, rec
 			stopAllSpeech()
 			setSpeaking(false)
 			const branch = forceBranch ?? (step.kind === 'ask' ? pickBranch(step, '') : pickBranch(step, question))
-			const take = !record && branch.take ? await loadTake(branch.take) : null
 			// A live answer needs to see what the step is about.
-			if (!take && step.kind === 'ask' && editor.getSelectedShapeIds().length === 0) {
+			if (step.kind === 'ask' && editor.getSelectedShapeIds().length === 0) {
 				const target = pointArea(editor, step)?.page
 				if (target) editor.select(target.id)
 			}
-			const result = await ask(question, { ...opts, take: take ?? undefined })
+			const result = await ask(question, { ...opts, guidedDemo: !record && index === 0 })
 			if (!result || result.error) return result
-			if (take) setReplayed(true)
 			if (record) {
 				setRecorded({ step, branch, question, result })
 				return result
@@ -192,7 +183,7 @@ export function useTour({ editor, ask, busy, clear, setVoiceOut, setLoading, rec
 			if (branch.next === 'continue') await enterStep(index + 1)
 			return result
 		},
-		[step, ask, record, editor, enterStep, index]
+		[step, ask, record, editor, enterStep, index],
 	)
 
 	/** Record mode: go on to the next step without keeping anything. */
@@ -205,5 +196,23 @@ export function useTour({ editor, ask, busy, clear, setVoiceOut, setLoading, rec
 		return () => clearInterval(t)
 	}, [step, speaking, busy, pointAgain])
 
-	return { pack, phase, index, step, line, speaking, recorded, replayed, setRecorded, open, begin, skip, close, ask: tourAsk, nextStep, pointAgain, setPack }
+	return {
+		pack,
+		phase,
+		index,
+		step,
+		line,
+		speaking,
+		recorded,
+		replayed,
+		setRecorded,
+		open,
+		begin,
+		skip,
+		close,
+		ask: tourAsk,
+		nextStep,
+		pointAgain,
+		setPack,
+	}
 }

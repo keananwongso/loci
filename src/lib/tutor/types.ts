@@ -113,6 +113,7 @@ export const HistoryTurnSchema = z.object({
 export type HistoryTurn = z.infer<typeof HistoryTurnSchema>
 
 export const TutorRequestSchema = z.object({
+	guidedDemo: z.boolean().optional(),
 	question: z.string().min(1).max(4000),
 	board: BoardContextSchema,
 	images: z.array(ContextImageSchema).max(4),

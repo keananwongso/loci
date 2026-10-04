@@ -28,7 +28,8 @@ export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear
 
 	return (
 		<div className="loci-topbar" onPointerDown={(e) => e.stopPropagation()}>
-			<span className="loci-brand">Loci</span>
+			<a className="loci-brand" href="/" style={{ textDecoration: 'none', color: 'inherit' }}>Loci</a>
+			<a className="loci-topbar__github" href="https://github.com/keananwongso/loci" target="_blank" rel="noreferrer">★ Star on GitHub</a>
 			{status.checked && (
 				<span className="loci-model" data-ok={status.configured} title={status.configured ? `Tutor model via ${status.provider}` : status.setupHint}>
 					<span className="loci-model__dot" />

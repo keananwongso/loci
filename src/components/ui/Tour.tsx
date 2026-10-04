@@ -1,118 +1,115 @@
 'use client'
 import { talkKeysLabel } from '@/lib/canvas/presence'
-import { ROLE_LABELS } from '@/lib/documents/roles'
-import type { DemoPack } from '@/lib/demo/pack'
 import { CloseIcon } from './icons'
 import { REPO_URL } from './KeyDialog'
 import type { useTour } from '../useTour'
 
 type Tour = ReturnType<typeof useTour>
 
-/** The first thing a visitor sees: what Loci is, what is about to happen, and one button. */
-export function TourStart({ tour, overBoard }: { tour: Tour; overBoard: boolean }) {
-	const pack = tour.pack
-	if (tour.phase !== 'start' || !pack) return null
+/** Local record mode can still start from the board. */
+export function TourStart({ tour }: { tour: Tour; overBoard: boolean }) {
+	if (tour.phase !== 'start') return null
 	return (
-		<div className="loci-empty loci-tour-start" data-over-board={overBoard || undefined}>
-			<div className="loci-empty__inner" onPointerDown={(e) => e.stopPropagation()}>
-				<div className="loci-sphere" aria-hidden />
-				<span className="loci-badge">Open source · runs on your own machine</span>
-				<h1 className="loci-empty__title">
-					Learn right
-					<br />
-					on the page.
-				</h1>
-				<p className="loci-empty__lede">
-					Loci is a tutor that explains by drawing beside your notes. Try a short lesson on <mark>{pack.title.toLowerCase()}</mark>: point at
-					something, ask out loud, and watch it teach.
-				</p>
-				<MaterialList pack={pack} />
-				<div className="loci-empty__actions">
-					<button className="loci-primary" onClick={tour.begin}>
-						Start the lesson
-					</button>
-					<button className="loci-secondary" onClick={tour.skip}>
-						Skip
-					</button>
-				</div>
-				<p className="loci-empty__fine">Turn your sound on. About two minutes.</p>
+		<div className="loci-coach loci-coach--floating">
+			<h2>See how Loci works</h2>
+			<p>Ask a question about the notes and watch Loci explain it live.</p>
+			<div className="loci-coach__ask">
+				<button className="loci-primary" onClick={tour.begin}>
+					Let’s try it
+				</button>
+				<a className="loci-secondary" href="/">
+					Back
+				</a>
 			</div>
 		</div>
 	)
 }
 
-function MaterialList({ pack }: { pack: DemoPack }) {
-	const roles = [...new Set(pack.materials.map((m) => m.role))]
+export function TourCoach({ tour, busy, listening }: { tour: Tour; busy: boolean; listening: boolean }) {
+	const { step } = tour
+	if (tour.phase !== 'running' || !step || busy || listening) return null
 	return (
-		<div className="loci-tour-start__roles" aria-label="On the board">
-			{roles.map((r) => (
-				<span key={r} className="loci-role" data-role={r}>
-					{ROLE_LABELS[r]}
-				</span>
-			))}
-		</div>
-	)
-}
-
-/** While the tour runs: what to do now, the suggested question, and how to ask it. */
-export function TourCoach({ tour, busy }: { tour: Tour; busy: boolean }) {
-	const { pack, step, index } = tour
-	if (tour.phase !== 'running' || !pack || !step || busy) return null
-	const keys = talkKeysLabel()
-	return (
-		<div className="loci-coach" onPointerDown={(e) => e.stopPropagation()}>
+		<section className="loci-coach loci-coach--floating" aria-label="Ask your first question" onPointerDown={(e) => e.stopPropagation()}>
 			<div className="loci-coach__head">
-				<span className="loci-coach__count">
-					{index + 1} of {pack.steps.length}
-				</span>
-				{tour.line && <p className="loci-coach__line">{tour.line}</p>}
-				<button className="loci-coach__skip" onClick={tour.skip} title="Skip the lesson">
+				<span className="loci-landing__eyebrow">Your turn</span>
+				<button className="loci-coach__skip" onClick={tour.skip}>
 					Skip
 				</button>
 			</div>
-			{step.kind === 'ask' ? (
-				<div className="loci-coach__ask">
-					<button className="loci-suggest__chip" onClick={() => tour.ask(step.prompt)} onPointerEnter={tour.pointAgain}>
-						{step.prompt}
-					</button>
-					<span className="loci-coach__or">
-						or hold <kbd>{keys}</kbd>, drag over it and ask
-					</span>
-				</div>
-			) : (
-				<p className="loci-coach__hint">
-					{step.prompt}. Hold <kbd>{keys}</kbd> to say it, or type below.
-				</p>
-			)}
-		</div>
+			<h2>Ask Loci your first question.</h2>
+			<p>
+				Hold <kbd>{talkKeysLabel() === '⌃ + ⌥' ? 'Control + Option' : talkKeysLabel()}</kbd>, ask the question below, then release to send. You can
+				point at the notes while you talk.
+			</p>
+			<blockquote>{step.prompt}</blockquote>
+			<div className="loci-coach__ask">
+				<button
+					className="loci-secondary loci-secondary--sm"
+					onClick={() => window.dispatchEvent(new CustomEvent('loci:prefill-prompt', { detail: step.prompt }))}
+				>
+					Type instead
+				</button>
+				<span className="loci-landing__fine">Or hold the microphone below.</span>
+			</div>
+		</section>
 	)
 }
 
-/** After the lesson: what was real, what's next, and where the code is. */
-export function TourEnd({ tour, busy, freeLeft }: { tour: Tour; busy: boolean; freeLeft?: number }) {
-	if (tour.phase !== 'finished' || busy || tour.speaking) return null
+export function TourEnd({ tour, busy, freeLeft, onOwnProblem }: { tour: Tour; busy: boolean; freeLeft?: number; onOwnProblem: () => void }) {
+	if (tour.phase !== 'finished' || busy) return null
+	const empty = freeLeft === 0
 	return (
-		<div className="loci-coach loci-coach--end" onPointerDown={(e) => e.stopPropagation()}>
+		<section className="loci-coach loci-coach--floating" aria-label="Try your own problem" onPointerDown={(e) => e.stopPropagation()}>
 			<div className="loci-coach__head">
-				<p className="loci-coach__line">
-					{tour.replayed && 'That lesson was recorded, so it plays the same for everyone. '}
-					{freeLeft !== undefined
-						? `Ask your own question about these notes (${freeLeft} free today), or run Loci on your own notes.`
-						: 'Now ask your own question about these notes.'}
-				</p>
+				<span className="loci-landing__eyebrow">{empty ? 'Keep learning with Loci' : 'Your turn, your problem'}</span>
 				<button className="loci-coach__skip" onClick={tour.close} aria-label="Close">
 					<CloseIcon />
 				</button>
 			</div>
+			<h2>{empty ? 'Take Loci home.' : 'What are you working on?'}</h2>
+			<p>
+				{empty
+					? 'You’ve used today’s free questions. Run Loci locally to keep learning with your own notes.'
+					: 'Paste a problem or a screenshot onto the whiteboard, or keep asking about these notes.'}
+			</p>
+			{freeLeft !== undefined && (
+				<p className="loci-landing__fine">
+					{freeLeft} free question{freeLeft === 1 ? '' : 's'} left today. The first answer counts too.
+				</p>
+			)}
 			<div className="loci-coach__ask">
-				<a className="loci-primary loci-primary--sm" href={REPO_URL} target="_blank" rel="noreferrer">
+				{!empty && (
+					<>
+						<button
+							className="loci-primary loci-primary--sm"
+							onClick={() => {
+								tour.close()
+								onOwnProblem()
+							}}
+						>
+							Try my own problem
+						</button>
+						<button
+							className="loci-secondary loci-secondary--sm"
+							onClick={() => {
+								tour.close()
+								window.dispatchEvent(new Event('loci:focus-prompt'))
+							}}
+						>
+							Keep exploring
+						</button>
+					</>
+				)}
+				<a className={empty ? 'loci-primary loci-primary--sm' : 'loci-coach__github'} href={REPO_URL} target="_blank" rel="noreferrer">
 					★ Star on GitHub
 				</a>
-				<a className="loci-secondary loci-secondary--sm" href={`${REPO_URL}#local-setup`} target="_blank" rel="noreferrer">
-					Use it on your own notes
-				</a>
+				{empty && (
+					<a className="loci-secondary loci-secondary--sm" href={`${REPO_URL}#local-setup`} target="_blank" rel="noreferrer">
+						Run locally ↗
+					</a>
+				)}
 			</div>
-		</div>
+		</section>
 	)
 }
 
@@ -120,7 +117,7 @@ const adminFetch = (path: string, init: RequestInit = {}) =>
 	fetch(path, { ...init, headers: { ...(init.headers ?? {}), 'x-loci-admin': '1', 'Content-Type': 'application/json' } })
 
 /**
- * Record mode (local admin, /?record): ask each step's branches against the live model and keep the
+ * Record mode (local admin, /demo?record): ask each step's branches against the live model and keep the
  * answers you like as takes. Keeping a "continue" branch moves on to the next step.
  */
 export function TourRecord({ tour, busy, model, onRedo }: { tour: Tour; busy: boolean; model?: string; onRedo: () => void }) {
@@ -136,7 +133,10 @@ export function TourRecord({ tour, busy, model, onRedo }: { tour: Tour; busy: bo
 			recordedAt: new Date().toISOString(),
 			events: recorded.result.events,
 		}
-		const res = await adminFetch('/api/admin/take', { method: 'POST', body: JSON.stringify({ step: recorded.step.id, branch: recorded.branch.id, take }) })
+		const res = await adminFetch('/api/admin/take', {
+			method: 'POST',
+			body: JSON.stringify({ step: recorded.step.id, branch: recorded.branch.id, take }),
+		})
 		const body = await res.json().catch(() => ({}))
 		if (!res.ok) return alert(body.error ?? 'Could not keep the take.')
 		tour.setPack(body.pack)

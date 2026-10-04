@@ -28,6 +28,7 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft }: Pro
 
 	useEffect(() => {
 		const focus = () => inputRef.current?.focus()
+		const prefill = (event: Event) => { setText(String((event as CustomEvent).detail)); focus() }
 		const onKey = (e: KeyboardEvent) => {
 			const el = document.activeElement
 			const typing = el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || (el as HTMLElement)?.isContentEditable
@@ -37,9 +38,11 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft }: Pro
 			}
 		}
 		window.addEventListener('loci:focus-prompt', focus)
+		window.addEventListener('loci:prefill-prompt', prefill)
 		window.addEventListener('keydown', onKey)
 		return () => {
 			window.removeEventListener('loci:focus-prompt', focus)
+			window.removeEventListener('loci:prefill-prompt', prefill)
 			window.removeEventListener('keydown', onKey)
 		}
 	}, [editor])

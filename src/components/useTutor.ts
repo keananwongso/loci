@@ -15,6 +15,7 @@ import type { Take } from '@/lib/demo/pack'
 
 export interface AskOptions {
 	spoken?: boolean
+	guidedDemo?: boolean
 	/** Replay this recorded answer instead of asking the model. */
 	take?: Take
 }

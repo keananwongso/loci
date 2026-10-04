@@ -22,3 +22,7 @@ next-env.d.ts
 .DS_Store
 *.log
 coverage/
+
+# local browser checks
+.playwright-cli/
+output/playwright/

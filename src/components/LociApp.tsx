@@ -1,12 +1,6 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import {
-	Tldraw,
-	useEditor,
-	type Editor,
-	type TLComponents,
-	type TLUiOverrides,
-} from 'tldraw'
+import { Tldraw, useEditor, useValue, type Editor, type TLComponents, type TLUiOverrides, toRichText, createShapeId } from 'tldraw'
 import { getAssetUrlsByMetaUrl } from '@tldraw/assets/urls'
 import { MaterialShapeUtil } from './shapes/MaterialShapeUtil'
 import { EquationShapeUtil } from './shapes/EquationShapeUtil'
@@ -23,11 +17,12 @@ import { TopBar } from './ui/TopBar'
 import { StylePanel } from './ui/StylePanel'
 import { HoldToTalk } from './ui/HoldToTalk'
 import { KeyDialog } from './ui/KeyDialog'
-import { OwnNotes } from './ui/OwnNotes'
+import { OwnProblem } from './ui/OwnProblem'
 import { TourCoach, TourEnd, TourRecord, TourStart } from './ui/Tour'
 import { useTutor } from './useTutor'
-import { tourDone, useTour } from './useTour'
+import { useTour } from './useTour'
 import { ACCEPTED_TYPES, ingestFiles } from '@/lib/canvas/ingest'
+import { tutorPresence } from '@/lib/canvas/presence'
 import { REGION } from '@/lib/canvas/shape-types'
 import { checkSpeechProvider } from '@/lib/voice/player'
 import { warmAcks } from '@/lib/voice/ack'
@@ -85,6 +80,7 @@ function Shell() {
 	const [loading, setLoading] = useState<string | null>(null)
 	const [keyDialog, setKeyDialog] = useState(false)
 	const [ownNotes, setOwnNotes] = useState(false)
+	const listening = useValue('tour-listening', () => ['listening', 'thinking'].includes(tutorPresence.get().mode), [])
 
 	useEffect(() => {
 		const open = () => setKeyDialog(true)
@@ -124,13 +120,10 @@ function Shell() {
 
 	// The hosted demo only teaches from its own notes: no uploads, a pointer to the repo instead.
 	const hosted = Boolean(tutor.status.hosted)
-	const hostedRef = useRef(hosted)
-	hostedRef.current = hosted
 
 	// Dropped or pasted pdfs and images become material pages instead of plain images.
 	useEffect(() => {
 		editor.registerExternalContentHandler('files', async (info) => {
-			if (hostedRef.current) return setOwnNotes(true)
 			const ours = info.files.filter((f) => ACCEPTED_TYPES.includes(f.type) || f.name.toLowerCase().endsWith('.pdf'))
 			if (ours.length) await ingest(ours)
 			else {
@@ -153,7 +146,7 @@ function Shell() {
 					editor.timers.setTimeout(() => editor.deleteShapes(stale), 0)
 				}
 			},
-			{ scope: 'session', source: 'user' }
+			{ scope: 'session', source: 'user' },
 		)
 	}, [editor, tutor.busy])
 
@@ -171,7 +164,7 @@ function Shell() {
 		await tutor.reset()
 	}, [editor, tutor])
 
-	// Open localhost:3000/?reset to always start from an empty board.
+	// Open localhost:3000/demo?reset to always start from an empty board.
 	const resetOnLoad = useRef(true)
 	useEffect(() => {
 		if (!resetOnLoad.current) return
@@ -184,7 +177,9 @@ function Shell() {
 	}, [clearBoard])
 
 	// The local admin's record mode: the tour, asking the live model, with a keep button per answer.
-	const [record] = useState(() => process.env.NODE_ENV === 'development' && typeof window !== 'undefined' && new URL(window.location.href).searchParams.has('record'))
+	const [record] = useState(
+		() => process.env.NODE_ENV === 'development' && typeof window !== 'undefined' && new URL(window.location.href).searchParams.has('record'),
+	)
 	const tour = useTour({
 		editor,
 		ask: tutor.ask,
@@ -208,7 +203,8 @@ function Shell() {
 		if (opened.current || !tour.pack || !tutor.status.checked) return
 		opened.current = true
 		const lesson = new URL(window.location.href).searchParams.has('lesson')
-		if (record || lesson || (tutor.status.hosted && !tourDone())) tour.open()
+		if (record) tour.open()
+		else if (lesson) void tour.begin().catch(() => setLoading('Could not load the demo. Refresh to try again.'))
 		else if (tutor.status.hosted && editor.getCurrentPageShapeIds().size === 0) loadSample()
 	}, [tour, tutor.status, record, editor, loadSample])
 
@@ -232,26 +228,35 @@ function Shell() {
 				onEraseDrawings={() => {
 					if (tutor.busy) tutor.stop()
 					const n = tutor.eraseDrawings()
-					setLoading(n ? `Erased ${n} drawing${n === 1 ? '' : 's'}. Press ${/Mac/.test(navigator.platform) ? '⌘' : 'Ctrl'} + Z to bring them back.` : 'Nothing drawn by Loci to erase.')
+					setLoading(
+						n
+							? `Erased ${n} drawing${n === 1 ? '' : 's'}. Press ${/Mac/.test(navigator.platform) ? '⌘' : 'Ctrl'} + Z to bring them back.`
+							: 'Nothing drawn by Loci to erase.',
+					)
 					setTimeout(() => setLoading(null), 2800)
 				}}
 			/>
-			<Toolbar onUpload={hosted ? undefined : () => fileRef.current?.click()} />
+			<Toolbar onUpload={() => fileRef.current?.click()} />
 			<HoldToTalk busy={tutor.busy} onAsk={ask} onStop={tutor.stop} disabled={Boolean(disabledReason)} voice={voiceOut} />
 			{tour.phase === 'start' ? (
 				<TourStart tour={tour} overBoard={editor.getCurrentPageShapeIds().size > 0} />
 			) : tour.phase === 'running' ? null : (
-				<EmptyState onUpload={() => (hosted ? setOwnNotes(true) : fileRef.current?.click())} onSample={tour.pack?.steps.length ? startTour : loadSample} loading={loading} />
+				<EmptyState onUpload={() => fileRef.current?.click()} onSample={tour.pack?.steps.length ? startTour : loadSample} loading={loading} />
 			)}
 			{loading && <div className="loci-toast">{loading}</div>}
+			{record ? (
+				<TourRecord tour={tour} busy={tutor.busy} model={tutor.status.model} onRedo={tutor.undoLastTurn} />
+			) : (
+				<TourCoach tour={tour} busy={tutor.busy} listening={listening} />
+			)}
+			<TourEnd
+				tour={tour}
+				busy={tutor.busy}
+				onOwnProblem={() => setOwnNotes(true)}
+				freeLeft={tutor.status.hosted && !tutor.userKey ? tutor.status.quota?.remaining : undefined}
+			/>
 			<div className="loci-dock">
 				<ResponsePanel turns={tutor.turns} busy={tutor.busy} status={tutor.status} onUndo={tutor.undoLastTurn} voice={voiceOut} />
-				{record ? (
-					<TourRecord tour={tour} busy={tutor.busy} model={tutor.status.model} onRedo={tutor.undoLastTurn} />
-				) : (
-					<TourCoach tour={tour} busy={tutor.busy} />
-				)}
-				<TourEnd tour={tour} busy={tutor.busy} freeLeft={tutor.status.hosted && !tutor.userKey ? tutor.status.quota?.remaining : undefined} />
 				<PromptBar
 					busy={tutor.busy}
 					onAsk={(q) => ask(q)}
@@ -261,7 +266,24 @@ function Shell() {
 				/>
 			</div>
 			{keyDialog && <KeyDialog onClose={() => setKeyDialog(false)} />}
-			{ownNotes && <OwnNotes onClose={() => setOwnNotes(false)} />}
+			{ownNotes && (
+				<OwnProblem
+					onClose={() => setOwnNotes(false)}
+					onUpload={() => {
+						setOwnNotes(false)
+						fileRef.current?.click()
+					}}
+					onAdd={(text) => {
+						const center = editor.getViewportPageBounds().center
+						const id = createShapeId()
+						editor.createShape({ id, type: 'text', x: center.x, y: center.y, props: { richText: toRichText(text), autoSize: false, w: 420 } })
+						editor.select(id)
+						editor.zoomToBounds(editor.getSelectionPageBounds()!, { inset: 100 })
+						setOwnNotes(false)
+						requestAnimationFrame(() => window.dispatchEvent(new Event('loci:focus-prompt')))
+					}}
+				/>
+			)}
 			<input
 				ref={fileRef}
 				type="file"
