@@ -118,7 +118,7 @@ function Shell() {
 
 	const ingest = useCallback((files: File[]) => ingestFiles(editor, files, setLoading), [editor])
 
-	// The hosted demo only teaches from its own notes: no uploads, a pointer to the repo instead.
+	// Hosted visitors share the daily demo allowance.
 	const hosted = Boolean(tutor.status.hosted)
 
 	// Dropped or pasted pdfs and images become material pages instead of plain images.
@@ -216,7 +216,26 @@ function Shell() {
 	const disabledReason = tutor.status.checked && !tutor.status.configured ? 'Connect a model to ask questions' : undefined
 
 	return (
-		<div className="loci-ui">
+		<div
+			className="loci-ui"
+			onPasteCapture={(e) => {
+				// Editable fields bypass tldraw's canvas paste handler. Accept files there too.
+				if (!ownNotes && !(e.target instanceof Element && e.target.closest('.loci-prompt'))) return
+				const clipboardFiles = Array.from(e.clipboardData.files)
+				const files = (clipboardFiles.length ? clipboardFiles : Array.from(e.clipboardData.items).flatMap((item) => {
+					const file = item.kind === 'file' ? item.getAsFile() : null
+					return file ? [file] : []
+				})).filter((file) => ACCEPTED_TYPES.includes(file.type) || file.name.toLowerCase().endsWith('.pdf'))
+				if (!files.length) return // Let ordinary text paste into the field.
+				e.preventDefault()
+				e.stopPropagation()
+				void ingest(files).then((ids) => {
+					if (!ids.length) return
+					setOwnNotes(false)
+					requestAnimationFrame(() => window.dispatchEvent(new Event('loci:focus-prompt')))
+				})
+			}}
+		>
 			<TopBar
 				status={tutor.status}
 				voiceOut={voiceOut}

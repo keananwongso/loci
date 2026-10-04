@@ -18,7 +18,7 @@ export function OwnProblem({ onClose, onAdd, onUpload }: { onClose: () => void; 
 		>
 			<h2 id="loci-own-title">Bring your own problem.</h2>
 			<p>
-				Paste the question below to place it on the whiteboard. You can also upload a screenshot or PDF, or paste an image directly onto the canvas.
+				Paste a question or screenshot below to place it on the whiteboard. You can also upload an image or PDF.
 			</p>
 			<form
 				onSubmit={(e) => {
@@ -31,7 +31,7 @@ export function OwnProblem({ onClose, onAdd, onUpload }: { onClose: () => void; 
 					autoFocus
 					aria-label="Your problem"
 					maxLength={4000}
-					placeholder="Paste your math or STEM problem…"
+					placeholder="Paste your question or screenshot…"
 					value={text}
 					onChange={(e) => setText(e.target.value)}
 				/>
