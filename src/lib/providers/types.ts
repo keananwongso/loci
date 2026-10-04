@@ -8,6 +8,15 @@ export interface TutorInput {
 	request: TutorRequest
 	/** Text part of the current turn (board description + question). */
 	turnText: string
+	/** Called with each model call's token counts, for the hosted demo's spend estimate. */
+	onUsage?: (usage: TokenUsage) => void
+}
+
+export interface TokenUsage {
+	/** All prompt tokens, cached ones included. */
+	input: number
+	cachedInput: number
+	output: number
 }
 
 /**

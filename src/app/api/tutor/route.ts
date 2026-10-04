@@ -10,6 +10,7 @@ import { getProvider, providerForUserKey } from '@/lib/providers'
 import type { TutorModelProvider } from '@/lib/providers/types'
 import { deviceFor, ipHashFor } from '@/lib/server/device'
 import { limitConfigFromEnv, readQuota, takeQuestion, type Quota } from '@/lib/server/limits'
+import { recordStats } from '@/lib/server/stats'
 import { buildTurnText, SYSTEM_PROMPT, GUIDED_DEMO_PROMPT } from '@/lib/tutor/prompt'
 import { ActionSession } from '@/lib/tutor/session'
 import { TutorRequestSchema, type TutorEvent, type TutorRequest } from '@/lib/tutor/types'
@@ -26,6 +27,8 @@ export async function GET(req: Request) {
 	const device = deviceFor(req)
 	let quota: Quota | undefined
 	if (limits.enabled) quota = await Promise.resolve().then(() => readQuota(limits, device.id, ipHashFor(req))).catch(() => undefined)
+	// The board asks for this once when it opens, so it doubles as the visitor count.
+	await recordStats({}, { set: 'visitors', id: device.id })
 	try {
 		const provider = getProvider()
 		return withCookie(
@@ -62,7 +65,7 @@ const LIMIT_MESSAGES = {
 async function chooseProvider(
 	req: Request,
 	request: TutorRequest,
-): Promise<{ provider: TutorModelProvider; quota?: Quota; cookie?: string } | Response> {
+): Promise<{ provider: TutorModelProvider; quota?: Quota; cookie?: string; ownerPays?: { deviceId: string } } | Response> {
 	const userKey = req.headers.get('x-loci-key')
 	if (userKey) {
 		try {
@@ -81,8 +84,8 @@ async function chooseProvider(
 		return Response.json({ error: (err as Error).message }, { status: 500 })
 	}
 	const limits = limitConfigFromEnv()
-	if (!limits.enabled) return { provider }
 	const device = deviceFor(req)
+	if (!limits.enabled) return { provider, cookie: device.setCookie, ownerPays: { deviceId: device.id } }
 	const decision = await Promise.resolve()
 		.then(() => takeQuestion(limits, device.id, ipHashFor(req)))
 		.catch(() => null)
@@ -92,12 +95,13 @@ async function chooseProvider(
 			device.setCookie,
 		)
 	if (!decision.ok) {
+		await recordStats({ refused: 1 })
 		return withCookie(
 			Response.json({ error: LIMIT_MESSAGES[decision.reason], limitReached: decision.reason, quota: decision.quota }, { status: 429 }),
 			device.setCookie,
 		)
 	}
-	return { provider, quota: decision.quota, cookie: device.setCookie }
+	return { provider, quota: decision.quota, cookie: device.setCookie, ownerPays: { deviceId: device.id } }
 }
 
 export async function POST(req: Request) {
@@ -116,7 +120,7 @@ export async function POST(req: Request) {
 
 	const chosen = await chooseProvider(req, request)
 	if (chosen instanceof Response) return chosen
-	const { provider, quota, cookie } = chosen
+	const { provider, quota, cookie, ownerPays } = chosen
 	if (!provider.isConfigured()) {
 		return Response.json({ error: `No model configured. ${provider.setupHint}` }, { status: 503 })
 	}
@@ -134,6 +138,8 @@ export async function POST(req: Request) {
 				controller.enqueue(encoder.encode(JSON.stringify(event) + '\n'))
 			}
 			const session = new ActionSession(request.board, emit)
+			// Only turns on the owner's key are counted; a visitor's own key is their spend.
+			const tokens = { inputTokens: 0, cachedTokens: 0, outputTokens: 0 }
 			try {
 				await provider.run(
 					{
@@ -141,6 +147,11 @@ export async function POST(req: Request) {
 						tools: getToolDefinitions(),
 						request,
 						turnText: buildTurnText(request),
+						onUsage: (u) => {
+							tokens.inputTokens += u.input
+							tokens.cachedTokens += u.cachedInput
+							tokens.outputTokens += u.output
+						},
 					},
 					session,
 					emit,
@@ -153,6 +164,7 @@ export async function POST(req: Request) {
 				}
 			}
 			emit({ type: 'done' })
+			if (ownerPays) await recordStats({ questions: 1, ...tokens }, { set: 'askers', id: ownerPays.deviceId })
 			controller.close()
 			console.info(`[loci] tutor ${provider.name} ${provider.model}: ${timing.summary()}${abort.signal.aborted ? ' (stopped)' : ''}`)
 		},

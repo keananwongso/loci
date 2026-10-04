@@ -6,6 +6,7 @@ import { readLimitedBody, refuseCrossOrigin } from '@/lib/server/request'
  */
 import { FishError, MAX_RECORDING_BYTES, fishConfigFromEnv, fishTranscribe } from '@/lib/voice/fish'
 import { guardUsage } from '@/lib/server/usage'
+import { recordStats } from '@/lib/server/stats'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -22,6 +23,7 @@ export async function POST(req: Request) {
 	if (audio.size > MAX_RECORDING_BYTES) return Response.json({ error: 'Recording too long.' }, { status: 413 })
 	const { refused, cookie } = await guardUsage(req, 'transcribe', 1)
 	if (refused) return refused
+	await recordStats({ transcriptions: 1 })
 	const start = performance.now()
 	try {
 		const text = await fishTranscribe(audio, config, req.signal)

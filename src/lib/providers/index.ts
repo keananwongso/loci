@@ -79,6 +79,7 @@ export function getProvider(env: NodeJS.ProcessEnv = process.env): TutorModelPro
 		vision: parseVision(env.LOCI_VISION),
 		extraHeaders: preset.extraHeaders,
 		extraBody: thinkingBody(preset, env.LOCI_THINKING),
+		streamUsage: name !== 'custom',
 		chosenBecause,
 	})
 }

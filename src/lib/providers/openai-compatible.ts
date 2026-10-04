@@ -23,6 +23,8 @@ export interface OpenAICompatibleConfig {
 	extraHeaders?: Record<string, string>
 	/** Extra fields merged into every request body, e.g. DeepSeek's `thinking` switch. */
 	extraBody?: Record<string, unknown>
+	/** Ask for token counts at the end of each stream (off for unknown endpoints, which may reject it). */
+	streamUsage?: boolean
 	fetch?: typeof fetch
 	/** How this provider was picked, for setup hints (e.g. "found OPENROUTER_API_KEY"). */
 	chosenBecause?: string
@@ -134,7 +136,7 @@ export class OpenAICompatibleProvider implements TutorModelProvider {
 
 		for (let round = 0; round < MAX_ROUNDS; round++) {
 			const thoughts = new ThoughtStream(emit)
-			const { content, reasoning, toolCalls, finish } = await this.complete(messages, tools, session, signal, thoughts)
+			const { content, reasoning, toolCalls, finish } = await this.complete(messages, tools, session, signal, thoughts, input.onUsage)
 			if (content.trim()) session.sayPlainText(content)
 			if (!toolCalls.length) return
 			if (finish === 'length') {
@@ -161,7 +163,8 @@ export class OpenAICompatibleProvider implements TutorModelProvider {
 		tools: unknown[],
 		session: ActionSession,
 		signal: AbortSignal,
-		thoughts?: ThoughtStream
+		thoughts?: ThoughtStream,
+		onUsage?: TutorInput['onUsage']
 	): Promise<{ content: string; reasoning: string; toolCalls: Array<{ call: ToolCall; result: string }>; finish: string | null }> {
 		const doFetch = this.config.fetch ?? fetch
 		const res = await doFetch(`${this.config.baseUrl.replace(/\/$/, '')}/chat/completions`, {
@@ -172,7 +175,7 @@ export class OpenAICompatibleProvider implements TutorModelProvider {
 				...(this.config.apiKey ? { Authorization: `Bearer ${this.config.apiKey}` } : {}),
 				...this.config.extraHeaders,
 			},
-			body: JSON.stringify({ model: this.model, messages, tools, tool_choice: 'auto', stream: true, ...this.config.extraBody }),
+			body: JSON.stringify({ model: this.model, messages, tools, tool_choice: 'auto', stream: true, ...(this.config.streamUsage === false ? {} : { stream_options: { include_usage: true } }), ...this.config.extraBody }),
 		})
 		if (!res.ok || !res.body) throw new HttpError(res.status, await res.text().catch(() => ''))
 
@@ -213,6 +216,7 @@ export class OpenAICompatibleProvider implements TutorModelProvider {
 				if (data === '[DONE]') continue
 				let chunk: {
 					error?: { message?: string }
+					usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_cache_hit_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } } | null
 					choices?: Array<{ delta?: { content?: string | null; reasoning_content?: string | null; tool_calls?: Array<{ index?: number; id?: string; function?: { name?: string; arguments?: string } }> }; finish_reason?: string | null }>
 				}
 				try {
@@ -221,6 +225,13 @@ export class OpenAICompatibleProvider implements TutorModelProvider {
 					continue
 				}
 				if (chunk.error) throw new HttpError(500, chunk.error.message ?? 'stream error')
+				// Sent once, in a final chunk with no choices.
+				if (chunk.usage)
+					onUsage?.({
+						input: chunk.usage.prompt_tokens ?? 0,
+						cachedInput: chunk.usage.prompt_cache_hit_tokens ?? chunk.usage.prompt_tokens_details?.cached_tokens ?? 0,
+						output: chunk.usage.completion_tokens ?? 0,
+					})
 				const choice = chunk.choices?.[0]
 				if (!choice) continue
 				if (choice.delta?.content) content += choice.delta.content
