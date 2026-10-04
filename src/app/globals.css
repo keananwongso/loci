@@ -1187,9 +1187,14 @@ button {
 	font-size: 14px;
 }
 
+.loci-highlight {
+	/* Blend the entire mark with the page, including outlines crossing text or drawings. */
+	background: transparent;
+	mix-blend-mode: multiply;
+}
+
 .loci-marker {
 	border-radius: 3px;
-	mix-blend-mode: multiply;
 }
 
 .loci-equation {
