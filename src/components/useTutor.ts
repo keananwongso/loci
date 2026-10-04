@@ -76,6 +76,27 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 				return null
 			}
 			stopAllSpeech()
+			// Out of free questions: say so straight away instead of acting out an answer the server will refuse.
+			if (!opts.take && status.hosted && !userKey && status.quota?.remaining === 0) {
+				setBuddyStatus('')
+				endTutorTurn()
+				setTurns((ts) => [
+					...ts,
+					{
+						id: crypto.randomUUID(),
+						turn: (ts.at(-1)?.turn ?? 0) + 1,
+						question: question.trim(),
+						context: describeSelection(editor),
+						said: [],
+						actions: [],
+						status: 'error',
+						error: "You've used today's free questions on this device.",
+						limitReached: 'device',
+					},
+				])
+				window.dispatchEvent(new CustomEvent('loci:open-key-dialog'))
+				return null
+			}
 			if (!opts.spoken) startTimeline('asked')
 			// Instant feedback, before any model has answered: fly to what they pointed at, show what
 			// was heard and what it is looking at, and in voice mode acknowledge out loud.
@@ -158,6 +179,7 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 				)
 				outcome = result
 				patch((t) => ({ ...t, status: result.error ? 'error' : 'done', error: result.error, limitReached: result.limitReached }))
+				if (result.limitReached && result.limitReached !== 'store') window.dispatchEvent(new CustomEvent('loci:open-key-dialog'))
 				if (result.quotaRemaining !== undefined) {
 					setStatus((st) => ({ ...st, quota: { limit: st.quota?.limit ?? result.quotaRemaining!, remaining: result.quotaRemaining! } }))
 				}
@@ -174,7 +196,7 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 			}
 			return outcome
 		},
-		[editor, busy, turns]
+		[editor, busy, turns, status, userKey]
 	)
 
 	const stop = useCallback(() => {
