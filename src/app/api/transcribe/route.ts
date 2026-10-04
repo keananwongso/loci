@@ -1,3 +1,4 @@
+import { readLimitedBody, refuseCrossOrigin } from '@/lib/server/request'
 /**
  * Speech to text for hold-to-talk. The recording of the student's question is sent to Fish Audio
  * and the transcript returned; nothing is stored. Without FISH_API_KEY this returns 503 and the
@@ -10,9 +11,13 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: Request) {
+	const refusedOrigin = refuseCrossOrigin(req)
+	if (refusedOrigin) return refusedOrigin
 	const config = fishConfigFromEnv()
 	if (!config.apiKey) return Response.json({ error: 'FISH_API_KEY is not set.' }, { status: 503 })
-	const audio = await req.blob().catch(() => null)
+	const body = await readLimitedBody(req, MAX_RECORDING_BYTES)
+	if (body instanceof Response) return body
+	const audio = new Blob([body as BlobPart], { type: req.headers.get('content-type') ?? '' })
 	if (!audio || audio.size === 0) return Response.json({ error: 'No audio.' }, { status: 400 })
 	if (audio.size > MAX_RECORDING_BYTES) return Response.json({ error: 'Recording too long.' }, { status: 413 })
 	const { refused, cookie } = await guardUsage(req, 'transcribe', 1)
@@ -21,7 +26,7 @@ export async function POST(req: Request) {
 	try {
 		const text = await fishTranscribe(audio, config, req.signal)
 		const took = ((performance.now() - start) / 1000).toFixed(2)
-		console.info(`[loci] transcribed ${Math.round(audio.size / 1024)} KB (${audio.type || 'unknown type'}) in ${took}s: ${text ? `"${text.slice(0, 80)}"` : '(no words)'}`)
+		console.info(`[loci] transcribed ${Math.round(audio.size / 1024)} KB (${audio.type || 'unknown type'}) in ${took}s: ${text ? 'words detected' : 'no words'}`)
 		const res = Response.json({ text })
 		if (cookie) res.headers.append('Set-Cookie', cookie)
 		return res

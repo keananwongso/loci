@@ -26,3 +26,8 @@ coverage/
 # local browser checks
 .playwright-cli/
 output/playwright/
+.vercel
+.env*
+
+# generated screenshots and artifacts
+output/

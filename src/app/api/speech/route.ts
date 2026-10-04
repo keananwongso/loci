@@ -1,3 +1,4 @@
+import { readLimitedJson, refuseCrossOrigin } from '@/lib/server/request'
 /**
  * Local text-to-speech endpoint for voice mode. Only the tutor's spoken sentences are sent to
  * Fish Audio; nothing is stored. Without FISH_API_KEY the browser's built-in voice is used.
@@ -17,7 +18,11 @@ export async function GET() {
 const Body = z.object({ text: z.string().min(1).max(MAX_SPEECH_CHARS) })
 
 export async function POST(req: Request) {
-	const parsed = Body.safeParse(await req.json().catch(() => null))
+	const refusedOrigin = refuseCrossOrigin(req)
+	if (refusedOrigin) return refusedOrigin
+	const body = await readLimitedJson(req, 16 * 1024)
+	if (body instanceof Response) return body
+	const parsed = Body.safeParse(body.value)
 	if (!parsed.success) return Response.json({ error: 'Invalid request.' }, { status: 400 })
 	const start = performance.now()
 	const config = fishConfigFromEnv()

@@ -23,18 +23,19 @@ export const TL_COLOR: Record<InkColor, TLDefaultColorStyle> = {
 	grey: 'grey',
 }
 
+/** Keep source text and student ink readable underneath tutor marks. */
 export const HIGHLIGHT_FILL: Record<HighlightColor, string> = {
-	yellow: 'rgba(255, 214, 10, 0.42)',
-	green: 'rgba(52, 211, 120, 0.32)',
-	blue: 'rgba(80, 160, 255, 0.30)',
-	pink: 'rgba(255, 99, 170, 0.30)',
+	yellow: 'rgba(255, 214, 10, 0.24)',
+	green: 'rgba(52, 211, 120, 0.20)',
+	blue: 'rgba(80, 160, 255, 0.20)',
+	pink: 'rgba(255, 99, 170, 0.20)',
 }
 
 export const HIGHLIGHT_STROKE: Record<HighlightColor, string> = {
-	yellow: '#e08a00',
-	green: '#16a34a',
-	blue: '#2457e6',
-	pink: '#db2777',
+	yellow: 'rgba(224, 138, 0, 0.65)',
+	green: 'rgba(22, 163, 74, 0.65)',
+	blue: 'rgba(36, 87, 230, 0.65)',
+	pink: 'rgba(219, 39, 119, 0.65)',
 }
 
 export function inkHex(color: string | undefined, fallback: InkColor = 'ink'): string {

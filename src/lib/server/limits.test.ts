@@ -133,3 +133,11 @@ describe('device id', () => {
 		expect(h).toBe(ipHashFor(new Request('https://x', { headers: { 'x-forwarded-for': '203.0.113.7' } })))
 	})
 })
+
+
+describe('Vercel Redis integration', () => {
+	it('recognizes Marketplace credentials without needing copied aliases', () => {
+		const store = getStore({ NODE_ENV: 'production', LOCI_DEMO_LIMITS: 'on', LOCI_COOKIE_SECRET: 'test-secret', KV_REST_API_URL: 'https://test.upstash.io', KV_REST_API_TOKEN: 'test-token' })
+		expect(store).toBeInstanceOf(UpstashStore)
+	})
+})

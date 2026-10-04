@@ -230,6 +230,7 @@ export class CanvasExecutor {
 	}
 
 	private async writeText(action: ActionOf<'write_text'>) {
+		await handFontReady()
 		const size = action.size ?? 'm'
 		const px = TEXT_PX[size]
 		const maxW = action.maxWidth

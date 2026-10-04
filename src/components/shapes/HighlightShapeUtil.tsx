@@ -26,7 +26,7 @@ function HighlightView({ shape }: { shape: HighlightShape }) {
 	const stroke = HIGHLIGHT_STROKE[color]
 	if (style === 'marker') {
 		return (
-			<HTMLContainer>
+			<HTMLContainer className="loci-highlight">
 				<div
 					className={animate ? 'loci-marker loci-wipe' : 'loci-marker'}
 					style={{ width: w, height: h, background: HIGHLIGHT_FILL[color] }}
@@ -36,14 +36,14 @@ function HighlightView({ shape }: { shape: HighlightShape }) {
 	}
 	if (style === 'box') {
 		return (
-			<HTMLContainer>
+			<HTMLContainer className="loci-highlight">
 				<div className={animate ? 'loci-pop' : undefined} style={{ width: w, height: h, border: `2px solid ${stroke}`, borderRadius: 6 }} />
 			</HTMLContainer>
 		)
 	}
 	const d = style === 'circle' ? ringPath(w, h) : `M -2 ${h + 2} Q ${w * 0.3} ${h + 5}, ${w * 0.55} ${h + 2.5} T ${w + 2} ${h + 2}`
 	return (
-		<HTMLContainer style={{ overflow: 'visible' }}>
+		<HTMLContainer className="loci-highlight" style={{ overflow: 'visible' }}>
 			<svg width={w} height={h} style={{ overflow: 'visible', position: 'absolute', inset: 0 }}>
 				<path
 					d={d}

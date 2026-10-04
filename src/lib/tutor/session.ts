@@ -174,16 +174,16 @@ export class ActionSession {
 							)
 						}
 					} else {
-						const near = this.region?.materialId === action.target ? this.region.normalized : undefined
+						const near = action.region ?? (this.region?.materialId === action.target ? this.region.normalized : undefined)
 						const found = findTextBox(material.textItems, action.text, near)
 						if (found) region = found
-						else if (!region) {
+						else {
 							const lines = groupLines(material.textItems)
 								.slice(0, 60)
 								.map((l) => l.text)
 								.filter(Boolean)
 							return fail(
-								`Could not find "${action.text}" in ${action.target}. Quote a shorter exact substring of one of its lines, or pass \`region\`. Lines: ${JSON.stringify(lines).slice(0, 1800)}`
+								`Could not find "${action.text}" in ${action.target}. Quote a shorter exact substring of one of its lines. A region hint cannot replace a failed text match; omit text only when marking a non-text feature such as a blank or diagram. Lines: ${JSON.stringify(lines).slice(0, 1800)}`
 							)
 						}
 					}
