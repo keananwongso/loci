@@ -34,7 +34,7 @@ import { EQUATION_FONT_SIZE, latexToPlain, measureLatex } from './katex'
 import { handFontReady, writeIn, writingTime } from './hand'
 import { TL_COLOR } from './palette'
 import { markFresh } from './fresh'
-import { fitZoom, frameArea, isFramed } from './camera'
+import { MIN_READABLE_ZOOM, fitZoom, frameArea, isFramed } from './camera'
 
 export const toShapeId = (id: string) => (id.startsWith('shape:') ? (id as TLShapeId) : createShapeId(id))
 export const toModelId = (id: string) => id.replace(/^shape:/, '')
@@ -223,7 +223,10 @@ export class CanvasExecutor {
 				return
 			case 'focus': {
 				const rects = action.ids.map((id) => this.bounds(id)).filter((r): r is Rect => Boolean(r))
-				if (rects.length) frameArea(this.editor, union(rects))
+				if (!rects.length) return
+				// Things spread across the board can't all be read at once: frame the first one named.
+				const all = union(rects)
+				frameArea(this.editor, fitZoom(this.editor, all) >= MIN_READABLE_ZOOM ? all : rects[0])
 				return
 			}
 		}

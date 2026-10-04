@@ -1,36 +1,64 @@
 import 'server-only'
 /**
- * Daily usage totals for a hosted demo, so the owner can see how many people used it and roughly
- * what it cost. Only counts are stored, plus anonymous device ids folded into HyperLogLogs (which
- * estimate how many distinct ids were seen without keeping the ids). Never questions, answers or
- * files. Totals live in the same Redis as the limits and are kept for 400 days.
+ * Usage totals for a hosted demo, so the owner can see how many people used it, how much each one
+ * asked, and roughly what it cost. Kept per day, and per visitor keyed by the anonymous device id
+ * from the limits cookie, with the country Vercel derives from the IP (the IP itself is never
+ * stored). Only counts, never questions, answers or files. Totals live in the same Redis as the
+ * limits and are kept for 400 days.
  */
 import { getStore, UpstashStore } from './limits'
 
 export const STAT_FIELDS = ['questions', 'refused', 'inputTokens', 'cachedTokens', 'outputTokens', 'speechChars', 'transcriptions'] as const
 export type StatField = (typeof STAT_FIELDS)[number]
+/** Times the board was opened; kept per visitor. */
+const VISITOR_FIELDS = [...STAT_FIELDS, 'visits'] as const
+export type VisitorField = (typeof VISITOR_FIELDS)[number]
+export type Counts = Partial<Record<VisitorField, number>>
 /** Visitors opened the board; askers sent at least one question on the owner's key. */
 export type UniqueSet = 'visitors' | 'askers'
 
 export type DayStats = Record<StatField | UniqueSet, number> & { day: string }
+export type VisitorStats = Record<VisitorField, number> & { id: string; first: number; last: number; country?: string }
+
+/** Whose use this was: their device id, and which daily distinct-count it belongs in. */
+export interface Who {
+	id: string
+	country?: string
+	unique?: UniqueSet
+}
 
 export interface StatsStore {
-	add(day: string, fields: Partial<Record<StatField, number>>, unique?: { set: UniqueSet; id: string }): Promise<void>
+	add(day: string, fields: Counts, who?: Who): Promise<void>
 	read(days: string[]): Promise<DayStats[]>
+	/** The most recently active visitors, newest first. */
+	visitors(limit: number): Promise<VisitorStats[]>
 }
 
 const TTL = 60 * 60 * 24 * 400
+/** Visitors remembered in the recent list; older ones fall off. */
+const MAX_VISITORS = 5000
 const key = (day: string) => `loci:stats:${day}`
+const visitorKey = (id: string) => `loci:stats:visitor:${id}`
+const RECENT = 'loci:stats:visitors'
 const empty = (day: string): DayStats => ({ day, visitors: 0, askers: 0, ...Object.fromEntries(STAT_FIELDS.map((f) => [f, 0])) }) as DayStats
+const emptyVisitor = (id: string): VisitorStats => ({ id, first: 0, last: 0, ...Object.fromEntries(VISITOR_FIELDS.map((f) => [f, 0])) }) as VisitorStats
 
 export class UpstashStats implements StatsStore {
-	constructor(private redis: UpstashStore) {}
+	constructor(private redis: UpstashStore, private now = () => Date.now()) {}
 
-	async add(day: string, fields: Partial<Record<StatField, number>>, unique?: { set: UniqueSet; id: string }) {
+	async add(day: string, fields: Counts, who?: Who) {
 		const commands: Array<Array<string | number>> = []
-		for (const [field, by] of Object.entries(fields)) if (by) commands.push(['HINCRBY', key(day), field, Math.round(by)])
+		const counts = Object.entries(fields).filter(([, by]) => by)
+		for (const [field, by] of counts) commands.push(['HINCRBY', key(day), field, Math.round(by!)])
 		if (commands.length) commands.push(['EXPIRE', key(day), TTL])
-		if (unique) commands.push(['PFADD', `${key(day)}:${unique.set}`, unique.id], ['EXPIRE', `${key(day)}:${unique.set}`, TTL])
+		if (who?.unique) commands.push(['PFADD', `${key(day)}:${who.unique}`, who.id], ['EXPIRE', `${key(day)}:${who.unique}`, TTL])
+		if (who) {
+			const k = visitorKey(who.id)
+			const now = this.now()
+			for (const [field, by] of counts) commands.push(['HINCRBY', k, field, Math.round(by!)])
+			commands.push(['HSETNX', k, 'first', now], ['HSET', k, 'last', now, ...(who.country ? ['country', who.country] : [])], ['EXPIRE', k, TTL])
+			commands.push(['ZADD', RECENT, now, who.id], ['ZREMRANGEBYRANK', RECENT, 0, -(MAX_VISITORS + 1)])
+		}
 		if (commands.length) await this.redis.pipeline(commands)
 	}
 
@@ -47,26 +75,55 @@ export class UpstashStats implements StatsStore {
 			return out
 		})
 	}
+
+	async visitors(limit: number) {
+		const [ids] = (await this.redis.pipeline([['ZREVRANGE', RECENT, 0, limit - 1]])) as [string[] | null]
+		if (!ids?.length) return []
+		const hashes = await this.redis.pipeline(ids.map((id) => ['HGETALL', visitorKey(id)]))
+		return ids.map((id, i) => {
+			const out = emptyVisitor(id)
+			const hash = (hashes[i] as string[] | null) ?? []
+			for (let j = 0; j + 1 < hash.length; j += 2) {
+				const [field, value] = [hash[j], hash[j + 1]]
+				if (field === 'country') out.country = value
+				else if (field === 'first' || field === 'last' || (VISITOR_FIELDS as readonly string[]).includes(field)) out[field as VisitorField | 'first' | 'last'] = Number(value) || 0
+			}
+			return out
+		})
+	}
 }
 
 /** For local runs: counts in this process's memory. */
 export class MemoryStats implements StatsStore {
 	private days = new Map<string, { totals: DayStats; sets: Record<UniqueSet, Set<string>> }>()
+	private people = new Map<string, VisitorStats>()
+	constructor(private now = () => Date.now()) {}
 	private of(day: string) {
 		let d = this.days.get(day)
 		if (!d) this.days.set(day, (d = { totals: empty(day), sets: { visitors: new Set(), askers: new Set() } }))
 		return d
 	}
-	async add(day: string, fields: Partial<Record<StatField, number>>, unique?: { set: UniqueSet; id: string }) {
+	async add(day: string, fields: Counts, who?: Who) {
 		const d = this.of(day)
-		for (const [field, by] of Object.entries(fields)) d.totals[field as StatField] += by ?? 0
-		if (unique) d.sets[unique.set].add(unique.id)
+		for (const [field, by] of Object.entries(fields)) if (field in d.totals) d.totals[field as StatField] += by ?? 0
+		if (who?.unique) d.sets[who.unique].add(who.id)
+		if (who) {
+			const v = this.people.get(who.id) ?? { ...emptyVisitor(who.id), first: this.now() }
+			for (const [field, by] of Object.entries(fields)) v[field as VisitorField] += by ?? 0
+			v.last = this.now()
+			if (who.country) v.country = who.country
+			this.people.delete(who.id)
+			this.people.set(who.id, v)
+		}
 	}
 	async read(days: string[]) {
 		return days.map((day) => {
 			const d = this.days.get(day)
 			return d ? { ...d.totals, visitors: d.sets.visitors.size, askers: d.sets.askers.size } : empty(day)
 		})
+	}
+	async visitors(limit: number) {
+		return [...this.people.values()].reverse().slice(0, limit)
 	}
 }
 
@@ -85,10 +142,16 @@ export function getStats(env: NodeJS.ProcessEnv = process.env): StatsStore {
 
 export const today = () => new Date().toISOString().slice(0, 10)
 
+/** The visitor's country as Vercel reports it, e.g. "CA". */
+export function countryOf(req: Request): string | undefined {
+	const c = req.headers.get('x-vercel-ip-country')?.toUpperCase()
+	return c && /^[A-Z]{2}$/.test(c) ? c : undefined
+}
+
 /** Count something for today. Never throws: stats must not break a visitor's request. */
-export async function recordStats(fields: Partial<Record<StatField, number>>, unique?: { set: UniqueSet; id: string }) {
+export async function recordStats(fields: Counts, who?: Who) {
 	try {
-		await getStats().add(today(), fields, unique)
+		await getStats().add(today(), fields, who)
 	} catch (err) {
 		console.error('[loci] stats not recorded:', err instanceof Error ? err.message : err)
 	}
@@ -127,7 +190,7 @@ export function pricesFromEnv(env: NodeJS.ProcessEnv = process.env): Prices {
 }
 
 /** Estimated spend; `model` is undefined until model prices are configured. */
-export function costOf(s: Omit<DayStats, 'day'>, prices: Prices): { model?: number; voice: number } {
+export function costOf(s: Record<'inputTokens' | 'cachedTokens' | 'outputTokens' | 'speechChars' | 'transcriptions', number>, prices: Prices): { model?: number; voice: number } {
 	const model =
 		prices.input === undefined || prices.output === undefined
 			? undefined

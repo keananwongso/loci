@@ -1,7 +1,7 @@
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { statsAuthorized } from '@/lib/server/stats-auth'
-import { costOf, getStats, lastDays, pricesFromEnv, sumDays, type DayStats, type Prices } from '@/lib/server/stats'
+import { costOf, getStats, lastDays, pricesFromEnv, sumDays, type DayStats, type Prices, type VisitorStats } from '@/lib/server/stats'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Loci · Stats', robots: { index: false, follow: false } }
@@ -10,7 +10,7 @@ export const metadata = { title: 'Loci · Stats', robots: { index: false, follow
 export default async function StatsPage() {
 	if (!statsAuthorized((await headers()).get('authorization'))) notFound()
 
-	const days = await getStats().read(lastDays(30))
+	const [days, visitors] = await Promise.all([getStats().read(lastDays(30)), getStats().visitors(200)])
 	const prices = pricesFromEnv()
 	const periods = [
 		{ label: 'Today (UTC)', days: days.slice(0, 1) },
@@ -44,6 +44,39 @@ export default async function StatsPage() {
 					})}
 				</div>
 				<p className="muted small">Visitors and askers over several days add up each day&apos;s count, so a person who comes back on two days counts twice.</p>
+
+				<h2>Visitors</h2>
+				<p className="muted small">The {visitors.length === 200 ? '200 ' : ''}most recently active browsers. Each is an anonymous id from the limits cookie, so clearing cookies or switching browsers shows up as a new visitor.</p>
+				<div className="table">
+					<table>
+						<thead>
+							<tr>
+								<th>Visitor</th>
+								<th>Country</th>
+								<th>First seen</th>
+								<th>Last seen</th>
+								<th>Board opens</th>
+								<th>Questions</th>
+								<th>Limited</th>
+								<th>Tokens in / out</th>
+								<th>Speech chars</th>
+								<th>Est. spend</th>
+							</tr>
+						</thead>
+						<tbody>
+							{visitors.length === 0 && (
+								<tr>
+									<td colSpan={10} className="muted">
+										No visitors yet.
+									</td>
+								</tr>
+							)}
+							{visitors.map((v) => (
+								<VisitorRow key={v.id} v={v} prices={prices} />
+							))}
+						</tbody>
+					</table>
+				</div>
 
 				<h2>By day</h2>
 				<div className="table">
@@ -119,6 +152,30 @@ function Row({ d, prices }: { d: DayStats; prices: Prices }) {
 	)
 }
 
+function VisitorRow({ v, prices }: { v: VisitorStats; prices: Prices }) {
+	const n = (x: number) => x.toLocaleString('en-US')
+	return (
+		<tr>
+			<td className="mono">{v.id.slice(0, 8)}</td>
+			<td>{v.country ?? '–'}</td>
+			<td>{when(v.first)}</td>
+			<td>{when(v.last)}</td>
+			<td>{n(v.visits)}</td>
+			<td>{n(v.questions)}</td>
+			<td>{n(v.refused)}</td>
+			<td>
+				{n(v.inputTokens)} / {n(v.outputTokens)}
+			</td>
+			<td>{n(v.speechChars)}</td>
+			<td>{total2(costOf(v, prices))}</td>
+		</tr>
+	)
+}
+
+/** e.g. "Oct 4, 05:31" in UTC. */
+const when = (ms: number) =>
+	ms ? new Date(ms).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' }) : '–'
+
 const usd = (v: number) => (v > 0 && v < 0.01 ? '<$0.01' : `$${v.toFixed(2)}`)
 const total2 = (c: { model?: number; voice: number }) => (c.model === undefined ? `${usd(c.voice)} + model` : usd(c.model + c.voice))
 
@@ -145,4 +202,5 @@ const CSS = `
 .stats th:first-child, .stats td:first-child { text-align: left; }
 .stats th { color: var(--muted); font-weight: 500; }
 .stats tr:last-child td { border-bottom: 0; }
+.stats .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 `

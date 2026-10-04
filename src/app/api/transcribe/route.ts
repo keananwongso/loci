@@ -6,7 +6,8 @@ import { readLimitedBody, refuseCrossOrigin } from '@/lib/server/request'
  */
 import { FishError, MAX_RECORDING_BYTES, fishConfigFromEnv, fishTranscribe } from '@/lib/voice/fish'
 import { guardUsage } from '@/lib/server/usage'
-import { recordStats } from '@/lib/server/stats'
+import { countryOf, recordStats } from '@/lib/server/stats'
+import { deviceFor } from '@/lib/server/device'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -23,7 +24,9 @@ export async function POST(req: Request) {
 	if (audio.size > MAX_RECORDING_BYTES) return Response.json({ error: 'Recording too long.' }, { status: 413 })
 	const { refused, cookie } = await guardUsage(req, 'transcribe', 1)
 	if (refused) return refused
-	await recordStats({ transcriptions: 1 })
+	const device = deviceFor(req)
+	// Only a returning browser (it has the cookie) is attributed; a new random id would be a phantom visitor.
+	await recordStats({ transcriptions: 1 }, device.setCookie ? undefined : { id: device.id, country: countryOf(req) })
 	const start = performance.now()
 	try {
 		const text = await fishTranscribe(audio, config, req.signal)

@@ -26,14 +26,23 @@ export function fitZoom(editor: Editor, area: Rect, pad = 40): number {
 	return Math.min(1, safe.w / (area.w + pad * 2), safe.h / (area.h + pad * 2))
 }
 
-/** Animate the camera so `area` is centred in the part of the screen the student can see. */
+/** Below this the tutor's handwriting and the notes' text are too small to read. */
+export const MIN_READABLE_ZOOM = 0.45
+
+/**
+ * Animate the camera so `area` is centred in the part of the screen the student can see. Never
+ * zooms out past readable: an area too big for that (things spread across a busy board) is shown
+ * from its top-left corner, where reading starts, instead of shrinking everything to specks.
+ */
 export function frameArea(editor: Editor, area: Rect, opts: { pad?: number; duration?: number } = {}) {
 	const safe = safeScreenArea(editor)
-	const z = Math.max(0.2, fitZoom(editor, area, opts.pad ?? 40))
-	const cx = area.x + area.w / 2
-	const cy = area.y + area.h / 2
+	const pad = opts.pad ?? 40
+	const fit = fitZoom(editor, area, pad)
+	const z = Math.max(MIN_READABLE_ZOOM, fit)
+	// tldraw: screen = (page + camera) * zoom
+	const cx = (area.w + pad * 2) * z <= safe.w ? area.x + area.w / 2 : area.x - pad + safe.w / z / 2
+	const cy = (area.h + pad * 2) * z <= safe.h ? area.y + area.h / 2 : area.y - pad + safe.h / z / 2
 	const sx = safe.x + safe.w / 2
 	const sy = safe.y + safe.h / 2
-	// tldraw: screen = (page + camera) * zoom
 	editor.setCamera({ x: sx / z - cx, y: sy / z - cy, z }, { animation: { duration: opts.duration ?? 520 } })
 }
