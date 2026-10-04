@@ -1,3 +1,4 @@
+import { readLimitedJson, refuseCrossOrigin } from '@/lib/server/request'
 /**
  * Local tutor endpoint. Runs on the user's own machine (`npm run dev`); it holds the
  * provider API key server-side, forwards only the context for this one question to the
@@ -24,7 +25,7 @@ export async function GET(req: Request) {
 	const limits = limitConfigFromEnv()
 	const device = deviceFor(req)
 	let quota: Quota | undefined
-	if (limits.enabled) quota = await readQuota(limits, device.id, ipHashFor(req)).catch(() => undefined)
+	if (limits.enabled) quota = await Promise.resolve().then(() => readQuota(limits, device.id, ipHashFor(req))).catch(() => undefined)
 	try {
 		const provider = getProvider()
 		return withCookie(
@@ -100,10 +101,12 @@ async function chooseProvider(
 }
 
 export async function POST(req: Request) {
-	const length = Number(req.headers.get('content-length') ?? 0)
-	if (length > MAX_BODY_BYTES) return Response.json({ error: 'Request too large.' }, { status: 413 })
 
-	const parsed = TutorRequestSchema.safeParse(await req.json().catch(() => null))
+	const refusedOrigin = refuseCrossOrigin(req)
+	if (refusedOrigin) return refusedOrigin
+	const body = await readLimitedJson(req, MAX_BODY_BYTES)
+	if (body instanceof Response) return body
+	const parsed = TutorRequestSchema.safeParse(body.value)
 	if (!parsed.success) {
 		const where = parsed.error.issues.slice(0, 5).map((i) => `${i.path.join('.')}: ${i.message}`)
 		console.warn(`[loci] rejected a tutor request: ${where.join('; ')}`)

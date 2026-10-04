@@ -148,8 +148,8 @@ export class UpstashStore implements CounterStore {
 let store: CounterStore | null = null
 export function getStore(env: NodeJS.ProcessEnv = process.env): CounterStore {
 	if (!store) {
-		const url = env.UPSTASH_REDIS_REST_URL
-		const token = env.UPSTASH_REDIS_REST_TOKEN
+		const url = env.UPSTASH_REDIS_REST_URL || env.KV_REST_API_URL
+		const token = env.UPSTASH_REDIS_REST_TOKEN || env.KV_REST_API_TOKEN
 		if (limitConfigFromEnv(env).enabled && env.NODE_ENV === 'production' && (!url || !token || !env.LOCI_COOKIE_SECRET)) {
 			throw new Error('Hosted limits require Upstash Redis and LOCI_COOKIE_SECRET in production')
 		}

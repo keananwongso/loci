@@ -104,7 +104,7 @@ export function ResponsePanel({ turns, busy, status, onUndo, voice }: Props) {
 		)
 	}
 
-	const phase = last.limitReached ? 'Free questions used up' : PHASE[last.status]
+	const phase = last.limitReached === 'store' ? 'Demo temporarily unavailable' : last.limitReached ? 'Free questions used up' : PHASE[last.status]
 	const live = ['looking', 'thinking', 'teaching'].includes(last.status)
 	return (
 		<section className="loci-panel" onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()} aria-live="polite">
