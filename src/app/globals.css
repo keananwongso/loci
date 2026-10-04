@@ -569,9 +569,14 @@ button {
 	max-width: 100%;
 	margin: 0;
 	padding: 0 8px;
+	/* the whole sentence, wrapped over up to three balanced lines, never cut off */
 	overflow: hidden;
-	white-space: nowrap;
-	text-overflow: ellipsis;
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 3;
+	line-clamp: 3;
+	text-wrap: balance;
+	line-height: 1.45;
 	color: var(--loci-ink-2);
 	font-size: 15px;
 	text-align: center;
