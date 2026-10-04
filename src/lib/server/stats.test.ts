@@ -6,11 +6,11 @@ import { statsAuthorized } from './stats-auth'
 describe('usage stats', () => {
 	it('counts totals and distinct devices per day', async () => {
 		const s = new MemoryStats()
-		await s.add('2026-10-03', {}, { set: 'visitors', id: 'a' })
-		await s.add('2026-10-03', {}, { set: 'visitors', id: 'a' })
-		await s.add('2026-10-03', {}, { set: 'visitors', id: 'b' })
-		await s.add('2026-10-03', { questions: 1, inputTokens: 1000, outputTokens: 200 }, { set: 'askers', id: 'a' })
-		await s.add('2026-10-03', { questions: 1, inputTokens: 500 }, { set: 'askers', id: 'a' })
+		await s.add('2026-10-03', {}, { id: 'a', unique: 'visitors' })
+		await s.add('2026-10-03', {}, { id: 'a', unique: 'visitors' })
+		await s.add('2026-10-03', {}, { id: 'b', unique: 'visitors' })
+		await s.add('2026-10-03', { questions: 1, inputTokens: 1000, outputTokens: 200 }, { id: 'a', unique: 'askers' })
+		await s.add('2026-10-03', { questions: 1, inputTokens: 500 }, { id: 'a', unique: 'askers' })
 		const [day, other] = await s.read(['2026-10-03', '2026-10-02'])
 		expect(day).toMatchObject({ visitors: 2, askers: 1, questions: 2, inputTokens: 1500, outputTokens: 200 })
 		expect(other.questions).toBe(0)
@@ -49,5 +49,41 @@ describe('stats password', () => {
 		expect(statsAuthorized('Basic !!!', 'hunter2')).toBe(false)
 		expect(statsAuthorized(basic('me', ''), undefined)).toBe(false)
 		expect(statsAuthorized(null, 'hunter2')).toBe(false)
+	})
+})
+
+describe('per-visitor stats', () => {
+	it('keeps each visitor’s totals, newest first', async () => {
+		let now = 1000
+		const s = new MemoryStats(() => now)
+		await s.add('2026-10-03', { visits: 1 }, { id: 'a', country: 'CA', unique: 'visitors' })
+		now = 2000
+		await s.add('2026-10-03', { visits: 1 }, { id: 'b', unique: 'visitors' })
+		now = 3000
+		await s.add('2026-10-03', { questions: 1, inputTokens: 100, outputTokens: 10 }, { id: 'a', unique: 'askers' })
+		const [a, b] = await s.visitors(10)
+		expect(a).toMatchObject({ id: 'a', country: 'CA', visits: 1, questions: 1, inputTokens: 100, first: 1000, last: 3000 })
+		expect(b).toMatchObject({ id: 'b', visits: 1, questions: 0 })
+		// Board opens are a per-visitor count, not a daily total.
+		expect((await s.read(['2026-10-03']))[0]).not.toHaveProperty('visits')
+	})
+
+	it('writes and reads visitors through Upstash', async () => {
+		const sent: unknown[][] = []
+		const fake = (async (_url: string, init: RequestInit) => {
+			sent.push(JSON.parse(String(init.body)))
+			return Response.json([])
+		}) as unknown as typeof fetch
+		const stats = new UpstashStats(new UpstashStore('https://test.upstash.io', 't', fake), () => 5000)
+		await stats.add('2026-10-03', { questions: 1 }, { id: 'a', country: 'CA', unique: 'askers' })
+		expect(sent[0]).toContainEqual(['HINCRBY', 'loci:stats:visitor:a', 'questions', 1])
+		expect(sent[0]).toContainEqual(['HSET', 'loci:stats:visitor:a', 'last', 5000, 'country', 'CA'])
+		expect(sent[0]).toContainEqual(['ZADD', 'loci:stats:visitors', 5000, 'a'])
+		let call = 0
+		const replies = [[{ result: ['a'] }], [{ result: ['questions', '2', 'first', '100', 'last', '5000', 'country', 'CA'] }]]
+		const reader = new UpstashStats(
+			new UpstashStore('https://test.upstash.io', 't', (async () => Response.json(replies[call++])) as unknown as typeof fetch)
+		)
+		expect(await reader.visitors(10)).toEqual([expect.objectContaining({ id: 'a', questions: 2, first: 100, last: 5000, country: 'CA' })])
 	})
 })

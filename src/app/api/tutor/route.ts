@@ -10,7 +10,7 @@ import { getProvider, providerForUserKey } from '@/lib/providers'
 import type { TutorModelProvider } from '@/lib/providers/types'
 import { deviceFor, ipHashFor } from '@/lib/server/device'
 import { limitConfigFromEnv, readQuota, takeQuestion, type Quota } from '@/lib/server/limits'
-import { recordStats } from '@/lib/server/stats'
+import { countryOf, recordStats } from '@/lib/server/stats'
 import { buildTurnText, SYSTEM_PROMPT, GUIDED_DEMO_PROMPT } from '@/lib/tutor/prompt'
 import { ActionSession } from '@/lib/tutor/session'
 import { TutorRequestSchema, type TutorEvent, type TutorRequest } from '@/lib/tutor/types'
@@ -28,7 +28,7 @@ export async function GET(req: Request) {
 	let quota: Quota | undefined
 	if (limits.enabled) quota = await Promise.resolve().then(() => readQuota(limits, device.id, ipHashFor(req))).catch(() => undefined)
 	// The board asks for this once when it opens, so it doubles as the visitor count.
-	await recordStats({}, { set: 'visitors', id: device.id })
+	await recordStats({ visits: 1 }, { id: device.id, country: countryOf(req), unique: 'visitors' })
 	try {
 		const provider = getProvider()
 		return withCookie(
@@ -65,7 +65,7 @@ const LIMIT_MESSAGES = {
 async function chooseProvider(
 	req: Request,
 	request: TutorRequest,
-): Promise<{ provider: TutorModelProvider; quota?: Quota; cookie?: string; ownerPays?: { deviceId: string } } | Response> {
+): Promise<{ provider: TutorModelProvider; quota?: Quota; cookie?: string; ownerPays?: { id: string; country?: string } } | Response> {
 	const userKey = req.headers.get('x-loci-key')
 	if (userKey) {
 		try {
@@ -85,7 +85,7 @@ async function chooseProvider(
 	}
 	const limits = limitConfigFromEnv()
 	const device = deviceFor(req)
-	if (!limits.enabled) return { provider, cookie: device.setCookie, ownerPays: { deviceId: device.id } }
+	if (!limits.enabled) return { provider, cookie: device.setCookie, ownerPays: { id: device.id, country: countryOf(req) } }
 	const decision = await Promise.resolve()
 		.then(() => takeQuestion(limits, device.id, ipHashFor(req)))
 		.catch(() => null)
@@ -95,13 +95,13 @@ async function chooseProvider(
 			device.setCookie,
 		)
 	if (!decision.ok) {
-		await recordStats({ refused: 1 })
+		await recordStats({ refused: 1 }, { id: device.id, country: countryOf(req) })
 		return withCookie(
 			Response.json({ error: LIMIT_MESSAGES[decision.reason], limitReached: decision.reason, quota: decision.quota }, { status: 429 }),
 			device.setCookie,
 		)
 	}
-	return { provider, quota: decision.quota, cookie: device.setCookie, ownerPays: { deviceId: device.id } }
+	return { provider, quota: decision.quota, cookie: device.setCookie, ownerPays: { id: device.id, country: countryOf(req) } }
 }
 
 export async function POST(req: Request) {
@@ -164,7 +164,7 @@ export async function POST(req: Request) {
 				}
 			}
 			emit({ type: 'done' })
-			if (ownerPays) await recordStats({ questions: 1, ...tokens }, { set: 'askers', id: ownerPays.deviceId })
+			if (ownerPays) await recordStats({ questions: 1, ...tokens }, { ...ownerPays, unique: 'askers' })
 			controller.close()
 			console.info(`[loci] tutor ${provider.name} ${provider.model}: ${timing.summary()}${abort.signal.aborted ? ' (stopped)' : ''}`)
 		},
