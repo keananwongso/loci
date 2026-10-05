@@ -12,8 +12,12 @@ export function safeScreenArea(editor: Editor): Rect {
 	return { x: left, y: top, w: Math.max(200, vp.w - left - 24), h: Math.max(160, vp.h - top - bottom) }
 }
 
-/** True if a page-space rect is fully visible inside the safe area. */
+/**
+ * True if a page-space rect is fully visible inside the safe area, at a zoom where it can be read.
+ * A student who zoomed out to see the whole board "sees" everything, but can read none of it.
+ */
 export function isFramed(editor: Editor, area: Rect): boolean {
+	if (editor.getZoomLevel() < MIN_READABLE_ZOOM - 0.01) return false
 	const safe = safeScreenArea(editor)
 	const a = editor.pageToViewport({ x: area.x, y: area.y })
 	const b = editor.pageToViewport({ x: area.x + area.w, y: area.y + area.h })

@@ -146,8 +146,9 @@ export async function runTutorTurn(
 
 	lastMark.set(turn, editor.markHistoryStoppingPoint(`tutor-turn-${turn}`))
 	const executor = new CanvasExecutor(editor, turn, cb.beforeDraw)
-	// Frame from the region the student drew, if any; whole pages are too big to keep framed.
-	if (focus.board.region) executor.focusContext([focus.board.region.id])
+	// Frame, and build, from what the student pointed at: the region they drew, else what they selected.
+	// Nothing pointed at: the first highlight or material the tutor builds beside sets it instead.
+	executor.focusContext(focus.board.region ? [focus.board.region.id] : focus.board.selectedIds)
 
 	// One ordered queue for speech and drawing.
 	let queue = Promise.resolve()
@@ -189,7 +190,10 @@ export async function runTutorTurn(
 					if (signal.aborted) return
 					const area = event.look ? executor.lookArea(event.look) : null
 					if (event.look) console.info(`[loci] looking at ${JSON.stringify(event.look)}${area ? '' : ' (not found)'}`)
-					if (area) cb.onLook?.(area)
+					if (area) {
+						executor.look(area)
+						cb.onLook?.(area)
+					}
 					const playback = cb.onSay(event.text, prepared)
 					if (!playback) return
 					playback.started.then(() => (sentenceEnds = performance.now() + speakingTime(event.text)))

@@ -29,7 +29,7 @@ import {
 	type HighlightShape,
 	type LociMeta,
 } from './shape-types'
-import { DEFAULT_GAP, NORMALIZED_SIDE, overlaps, placeRelative, sidePoint, union, type Rect } from './placement'
+import { DEFAULT_GAP, NORMALIZED_SIDE, distance, overlaps, placeNear, sidePoint, union, type Rect } from './placement'
 import { EQUATION_FONT_SIZE, latexToPlain, measureLatex } from './katex'
 import { handFontReady, writeIn, writingTime } from './hand'
 import { TL_COLOR } from './palette'
@@ -48,8 +48,16 @@ const MAX_PACED_WRITE = 4500
 /** Space between lines of working. */
 const LINE_GAP = 14
 
+/** An absolute position further than this from the material in focus is re-anchored beside it. */
+const FAR_FROM_FOCUS = 900
+
 export class CanvasExecutor {
 	private turnArea: Rect | null = null
+	/**
+	 * The material (or part of it) this turn is about: what the student pointed at, else the first
+	 * thing the tutor highlights or builds beside. Stray work is pulled back next to it.
+	 */
+	private focusArea: Rect | null = null
 
 	constructor(
 		private editor: Editor,
@@ -94,13 +102,28 @@ export class CanvasExecutor {
 		if ('relativeTo' in pos) {
 			const ref = this.bounds(pos.relativeTo)
 			if (!ref) throw new Error(`Unknown object ${pos.relativeTo}`)
-			return placeRelative(ref, size, pos.placement, this.obstacles(exclude), pos.gap ?? DEFAULT_GAP, pos.align ?? 'start')
+			if (this.editor.getShape(toShapeId(pos.relativeTo))?.type === MATERIAL) this.focusArea ??= ref
+			return placeNear(ref, size, pos.placement, this.obstacles(exclude), pos.gap ?? DEFAULT_GAP, pos.align ?? 'start')
 		}
 		if ('graphId' in pos) {
 			const p = this.graphPoint(pos.graphId, pos.at)
 			return { x: p.x, y: p.y }
 		}
-		return { x: pos.x, y: pos.y }
+		return this.absolute(pos, size, exclude)
+	}
+
+	/**
+	 * Raw coordinates are kept when they land in free space near what the turn is about. On top of
+	 * something, or far across the board from the material in focus, the object goes in the nearest
+	 * free spot beside that material instead.
+	 */
+	private absolute(pos: { x: number; y: number }, size: { w: number; h: number }, exclude?: Set<TLShapeId>) {
+		const rect = { x: pos.x, y: pos.y, ...size }
+		const obstacles = this.obstacles(exclude)
+		const clear = !obstacles.some((o) => overlaps(rect, o, 10))
+		const anchor = this.focusArea
+		if (clear && (!anchor || distance(rect, anchor) <= FAR_FROM_FOCUS)) return { x: pos.x, y: pos.y }
+		return placeNear(anchor ?? { x: pos.x, y: pos.y, w: 0, h: 0 }, size, 'right', obstacles)
 	}
 
 	/**
@@ -120,7 +143,7 @@ export class CanvasExecutor {
 		}
 		const rect = { x, y: ref.y + ref.h + LINE_GAP, w: size.w, h: size.h }
 		if (!this.obstacles(exclude).some((o) => overlaps(o, rect))) return { x: rect.x, y: rect.y }
-		return placeRelative(ref, size, 'below', this.obstacles(exclude), LINE_GAP, 'start')
+		return placeNear(ref, size, 'below', this.obstacles(exclude), LINE_GAP, 'start')
 	}
 
 	/** Re-place a just-created shape using its real measured size (text wraps unpredictably). */
@@ -164,10 +187,25 @@ export class CanvasExecutor {
 		}
 	}
 
-	/** Start the frame from what the student pointed at (a region or highlight, not a whole page). */
+	/**
+	 * Start the frame, and the place new work goes, from what the student pointed at (a region, or
+	 * the selected question). If they zoomed out too far to read it, bring the camera in to it now.
+	 */
 	focusContext(ids: string[]) {
 		const rects = ids.map((id) => this.bounds(id)).filter((r): r is Rect => Boolean(r))
-		if (rects.length) this.turnArea = union(rects)
+		if (!rects.length) return
+		this.turnArea = this.focusArea = union(rects)
+		if (this.editor.getZoomLevel() < MIN_READABLE_ZOOM) frameArea(this.editor, this.turnArea)
+	}
+
+	/**
+	 * Looking at something while talking about it: if the student can't see it (off screen, or the
+	 * board zoomed out past readable), bring it into view along with this turn's work.
+	 */
+	look(area: Rect) {
+		const vp = this.editor.getViewportPageBounds()
+		const offScreen = !overlaps(area, { x: vp.x, y: vp.y, w: vp.w, h: vp.h })
+		if (offScreen || this.editor.getZoomLevel() < MIN_READABLE_ZOOM) this.reveal(area)
 	}
 
 	/**
@@ -296,6 +334,7 @@ export class CanvasExecutor {
 		const targetId = toShapeId(action.target)
 		const target = this.editor.getShape(targetId)
 		if (!target) return
+		if (target.type === MATERIAL) this.focusArea ??= this.bounds(action.target) ?? null
 		const id = toShapeId(action.id!)
 		const style = action.style ?? 'marker'
 		const color = action.color ?? (style === 'marker' ? 'yellow' : 'pink')
