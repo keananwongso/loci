@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { distance, overlaps, placeNear, placeRelative, type Rect } from './placement'
+import { blocks, clearSpot, distance, overlaps, placeNear, placeRelative, type Rect } from './placement'
 
 const page = { x: 0, y: 0, w: 600, h: 800 }
 
@@ -81,5 +81,28 @@ describe('placeNear', () => {
 		expect(free(pos, obstacles)).toBe(true)
 		expect(distance({ ...pos, ...size }, pointerPuzzle)).toBeLessThanOrEqual(250)
 		expect(pos.x).toBeGreaterThanOrEqual(pointerPuzzle.x)
+	})
+})
+
+describe('clearSpot', () => {
+	// The "Stack: x, y, p1, p2 live here" box, and a short "points into" label put down on its top border.
+	const box = { x: 700, y: 100, w: 300, h: 120, frame: true }
+	const label = { x: 760, y: 90, w: 110, h: 26 }
+
+	it('lifts a short label off a box border by the smallest slide', () => {
+		const pos = clearSpot(label, [page, box])
+		expect(pos).toEqual({ x: 760, y: box.y - 20 - label.h })
+		expect(blocks({ ...pos, w: label.w, h: label.h }, box)).toBe(false)
+	})
+
+	it('leaves text that sits well inside a drawn box, or on clear board, where it is', () => {
+		expect(clearSpot({ x: 740, y: 150, w: 110, h: 26 }, [page, box])).toEqual({ x: 740, y: 150 })
+		expect(clearSpot({ x: 700, y: 400, w: 110, h: 26 }, [page, box])).toEqual({ x: 700, y: 400 })
+	})
+
+	it('moves text off the page and solid objects, even when fully inside them', () => {
+		const pos = clearSpot({ x: 500, y: 300, w: 80, h: 26 }, [page])
+		expect(overlaps({ ...pos, w: 80, h: 26 }, page)).toBe(false)
+		expect(pos).toEqual({ x: 620, y: 300 })
 	})
 })

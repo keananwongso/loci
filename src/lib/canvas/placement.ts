@@ -186,3 +186,48 @@ export const NORMALIZED_SIDE = {
 	left: { x: 0, y: 0.5 },
 	right: { x: 1, y: 0.5 },
 } as const
+
+/** Something placed text must keep off. A frame (an unfilled box or ring) only blocks its border. */
+export interface Obstacle extends Rect {
+	frame?: boolean
+}
+
+const inside = (r: Rect, o: Rect, margin: number) =>
+	r.x >= o.x + margin && r.y >= o.y + margin && r.x + r.w <= o.x + o.w - margin && r.y + r.h <= o.y + o.h - margin
+
+/** `r` sits on `o`: overlaps it, unless `o` is a frame and `r` is well inside it. */
+export function blocks(r: Rect, o: Obstacle): boolean {
+	return overlaps(r, o, CLEARANCE / 2) && !(o.frame && inside(r, o, CLEARANCE / 2))
+}
+
+/**
+ * Nudge something put down at a fixed spot (absolute coordinates, an arrow's label) off anything
+ * it would sit on, by the smallest slide up, down, right or left. Text inside a drawn box is fine;
+ * text across its border is not. Ties go to the earlier direction in `order`.
+ */
+export function clearSpot(
+	rect: Rect,
+	obstacles: Obstacle[],
+	order: Exclude<Placement, 'center'>[] = ['above', 'below', 'right', 'left']
+): { x: number; y: number } {
+	if (!obstacles.some((o) => blocks(rect, o))) return { x: rect.x, y: rect.y }
+	let best: { x: number; y: number } | null = null
+	let bestDist = Infinity
+	for (const dir of order) {
+		let pos = { x: rect.x, y: rect.y }
+		for (let i = 0; i < 60; i++) {
+			const hit = obstacles.find((o) => blocks({ ...pos, w: rect.w, h: rect.h }, o))
+			if (!hit) break
+			if (dir === 'right') pos = { x: hit.x + hit.w + CLEARANCE, y: pos.y }
+			else if (dir === 'left') pos = { x: hit.x - CLEARANCE - rect.w, y: pos.y }
+			else if (dir === 'below') pos = { x: pos.x, y: hit.y + hit.h + CLEARANCE }
+			else pos = { x: pos.x, y: hit.y - CLEARANCE - rect.h }
+		}
+		const dist = Math.abs(pos.x - rect.x) + Math.abs(pos.y - rect.y)
+		if (dist < bestDist) {
+			best = pos
+			bestDist = dist
+		}
+	}
+	return best!
+}

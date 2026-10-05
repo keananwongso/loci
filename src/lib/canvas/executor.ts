@@ -6,6 +6,7 @@
  * to anything it drew in earlier turns. Every created shape carries meta.author = 'assistant'.
  */
 import {
+	Group2d,
 	createShapeId,
 	toRichText,
 	type Editor,
@@ -29,7 +30,7 @@ import {
 	type HighlightShape,
 	type LociMeta,
 } from './shape-types'
-import { DEFAULT_GAP, NORMALIZED_SIDE, distance, overlaps, placeNear, sidePoint, union, type Rect } from './placement'
+import { DEFAULT_GAP, NORMALIZED_SIDE, blocks, clearSpot, distance, overlaps, placeNear, sidePoint, union, type Obstacle, type Rect } from './placement'
 import { EQUATION_FONT_SIZE, latexToPlain, measureLatex } from './katex'
 import { handFontReady, writeIn, writingTime } from './hand'
 import { TL_COLOR } from './palette'
@@ -74,15 +75,32 @@ export class CanvasExecutor {
 		return b ? { x: b.x, y: b.y, w: b.w, h: b.h } : undefined
 	}
 
-	/** Bounds of everything a new object should avoid. Connectors and marks are ignored. */
-	private obstacles(exclude: Set<TLShapeId> = new Set()): Rect[] {
+	/**
+	 * Bounds of everything a new object should avoid. Connectors and marks are ignored. Unfilled
+	 * boxes and rings are frames: text may go inside one, just not across its border.
+	 */
+	private obstacles(exclude: Set<TLShapeId> = new Set()): Obstacle[] {
 		const ignored = new Set(['arrow', 'line', HIGHLIGHT, REGION, 'highlight'])
 		return this.editor
 			.getCurrentPageShapes()
 			.filter((s) => !ignored.has(s.type) && !exclude.has(s.id) && this.editor.getShapeParent(s)?.type !== MATERIAL)
-			.map((s) => this.editor.getShapePageBounds(s))
-			.filter((b): b is NonNullable<typeof b> => Boolean(b))
-			.map((b) => ({ x: b.x, y: b.y, w: b.w, h: b.h }))
+			.flatMap((s) => {
+				const b = this.editor.getShapePageBounds(s)
+				if (!b) return []
+				const frame = s.type === 'geo' && (s as TLGeoShape).props.fill === 'none'
+				return [{ x: b.x, y: b.y, w: b.w, h: b.h, ...(frame ? { frame } : {}) }]
+			})
+	}
+
+	/** Slide a just-created shape off anything it sits on, using its real measured size. */
+	private clear(id: TLShapeId) {
+		const b = this.editor.getShapePageBounds(id)
+		const shape = this.editor.getShape(id)
+		if (!b || !shape) return
+		const next = clearSpot({ x: b.x, y: b.y, w: b.w, h: b.h }, this.obstacles(new Set([id])))
+		if (Math.abs(next.x - b.x) > 1 || Math.abs(next.y - b.y) > 1) {
+			this.editor.updateShape({ id, type: shape.type, x: shape.x + (next.x - b.x), y: shape.y + (next.y - b.y) })
+		}
 	}
 
 	private graphPoint(graphId: string, at: readonly [number, number]) {
@@ -278,7 +296,9 @@ export class CanvasExecutor {
 		const longest = Math.max(...action.text.split('\n').map((l) => l.length))
 		const estW = Math.min(maxW ?? 1e9, longest * px * 0.56 + 16)
 		const estH = Math.ceil((longest * px * 0.56) / (maxW ?? 1e9) + action.text.split('\n').length) * px * 1.35
-		const pos = this.resolvePosition(action.position, { w: estW, h: estH })
+		const free = 'x' in action.position
+		let pos = this.resolvePosition(action.position, { w: estW, h: estH })
+		if (free) pos = clearSpot({ ...pos, w: estW, h: estH }, this.obstacles())
 		await this.beforeDraw({ ...pos, w: estW, h: estH })
 		const id = toShapeId(action.id!)
 		this.editor.createShape<TLTextShape>({
@@ -297,7 +317,8 @@ export class CanvasExecutor {
 				...(maxW ? { w: maxW } : {}),
 			},
 		})
-		this.settle(id, action.position)
+		if (free) this.clear(id)
+		else this.settle(id, action.position)
 		this.done(id)
 		await this.write(id, action.text.length)
 	}
@@ -315,7 +336,8 @@ export class CanvasExecutor {
 		const size = action.size ?? 'm'
 		await handFontReady()
 		const m = measureLatex(action.latex, EQUATION_FONT_SIZE[size])
-		const pos = this.resolvePosition(action.position, m)
+		let pos = this.resolvePosition(action.position, m)
+		if ('x' in action.position) pos = clearSpot({ ...pos, w: m.w, h: m.h }, this.obstacles())
 		await this.beforeDraw({ ...pos, ...m })
 		const id = toShapeId(action.id!)
 		this.editor.createShape<EquationShape>({
@@ -445,7 +467,34 @@ export class CanvasExecutor {
 				props: { terminal, normalizedAnchor: b!.normalizedAnchor, isPrecise: b!.isPrecise, isExact: b!.isExact, snap: 'none' as const },
 			}))
 		if (bindings.length) this.editor.createBindings<TLArrowBinding>(bindings)
+		if (action.label) this.liftLabel(id, action.label, action.color, [from.point, to.point])
 		this.done(id)
+	}
+
+	/**
+	 * An arrow's label sits on its middle; on a short arrow it spills over the shapes at either end
+	 * (a "points into" label across a box's border). Then write it as its own text beside the arrow,
+	 * slid clear. Shapes holding both ends (a graph, a page) are where the arrow lives, not in its way.
+	 */
+	private liftLabel(id: TLShapeId, label: string, color: ActionOf<'draw_arrow'>['color'], ends: { x: number; y: number }[]) {
+		const shape = this.editor.getShape(id)
+		const geom = this.editor.getShapeGeometry(id)
+		const box = shape && geom instanceof Group2d ? geom.children.find((g) => g.isLabel)?.bounds : undefined
+		if (!shape || !box) return
+		const rect = { x: shape.x + box.x, y: shape.y + box.y, w: box.w, h: box.h }
+		const holds = (o: Rect) => ends.every((p) => p.x >= o.x && p.x <= o.x + o.w && p.y >= o.y && p.y <= o.y + o.h)
+		if (!this.obstacles().some((o) => !holds(o) && blocks(rect, o))) return
+		this.editor.updateShape<TLArrowShape>({ id, type: 'arrow', props: { richText: toRichText('') } })
+		const labelId = createShapeId(`${toModelId(id)}-label`)
+		this.editor.createShape<TLTextShape>({
+			id: labelId,
+			type: 'text',
+			x: rect.x,
+			y: rect.y,
+			meta: this.meta(),
+			props: { richText: toRichText(label), color: TL_COLOR[color ?? 'blue'], size: 's', font: 'draw', autoSize: true },
+		})
+		this.clear(labelId)
 	}
 
 	private async geo(action: ActionOf<'draw_rectangle'> | ActionOf<'draw_circle'>) {
@@ -490,6 +539,7 @@ export class CanvasExecutor {
 				meta: this.meta(),
 				props: { richText: toRichText(action.label), color: TL_COLOR[action.color ?? 'blue'], size: 's', font: 'draw', autoSize: true },
 			})
+			this.clear(createShapeId(`${toModelId(id)}-label`))
 		}
 		this.done(id)
 	}
