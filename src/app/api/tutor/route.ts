@@ -9,7 +9,7 @@ import { getToolDefinitions } from '@/lib/actions/tools'
 import { getProvider, providerForUserKey } from '@/lib/providers'
 import type { TutorModelProvider } from '@/lib/providers/types'
 import { deviceFor, ipHashFor } from '@/lib/server/device'
-import { limitConfigFromEnv, readQuota, takeQuestion, type Quota } from '@/lib/server/limits'
+import { VISIT_LIMITS, limitConfigFromEnv, readQuota, takeQuestion, takeUsage, type Quota } from '@/lib/server/limits'
 import { countryOf, recordStats } from '@/lib/server/stats'
 import { buildTurnText, SYSTEM_PROMPT, GUIDED_DEMO_PROMPT } from '@/lib/tutor/prompt'
 import { ActionSession } from '@/lib/tutor/session'
@@ -27,8 +27,14 @@ export async function GET(req: Request) {
 	const device = deviceFor(req)
 	let quota: Quota | undefined
 	if (limits.enabled) quota = await Promise.resolve().then(() => readQuota(limits, device.id, ipHashFor(req))).catch(() => undefined)
-	// The board asks for this once when it opens, so it doubles as the visitor count.
-	await recordStats({ visits: 1 }, { id: device.id, country: countryOf(req), unique: 'visitors' })
+	// The board asks for this once when it opens, so it doubles as the visitor count. On a hosted
+	// demo the count is capped per network, since anyone can call this in a loop.
+	const counted =
+		!limits.enabled ||
+		(await Promise.resolve()
+			.then(() => takeUsage('visit', VISIT_LIMITS, device.id, ipHashFor(req)))
+			.then((d) => d.ok, () => false))
+	if (counted) await recordStats({ visits: 1 }, { id: device.id, country: countryOf(req), unique: 'visitors' })
 	try {
 		const provider = getProvider()
 		return withCookie(
@@ -95,7 +101,8 @@ async function chooseProvider(
 			device.setCookie,
 		)
 	if (!decision.ok) {
-		await recordStats({ refused: 1 }, { id: device.id, country: countryOf(req) })
+		// Only a returning browser is attributed, so cookie-less retries can't mint visitors.
+		await recordStats({ refused: 1 }, device.setCookie ? undefined : { id: device.id, country: countryOf(req) })
 		return withCookie(
 			Response.json({ error: LIMIT_MESSAGES[decision.reason], limitReached: decision.reason, quota: decision.quota }, { status: 429 }),
 			device.setCookie,
