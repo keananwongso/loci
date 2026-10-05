@@ -62,7 +62,7 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft, pro, 
 		if (!el) return
 		el.style.height = 'auto'
 		el.style.height = `${Math.min(el.scrollHeight, 160)}px`
-	}, [text, typing])
+	}, [text, typing, talkDisabled])
 
 	const submit = () => {
 		if (!text.trim() || busy || disabledReason) return
@@ -85,7 +85,7 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft, pro, 
 				)}
 			</div>
 			<div className="loci-prompt__controls">
-				{typing ? (
+				{typing || talkDisabled ? (
 					<>
 						<textarea
 							ref={inputRef}
@@ -93,7 +93,7 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft, pro, 
 							aria-label="Your question"
 							rows={1}
 							value={text}
-							placeholder={disabledReason ?? (hasSelection ? 'Ask about your selection…' : 'Type your question…')}
+							placeholder={disabledReason ?? (talkDisabled ? 'Ask a new question…' : hasSelection ? 'Ask about your selection…' : 'Type your question…')}
 							disabled={Boolean(disabledReason)}
 							onChange={(e) => setText(e.target.value)}
 							onKeyDown={(e) => {
@@ -102,7 +102,7 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft, pro, 
 								if (e.key === 'Escape') { e.preventDefault(); setTyping(false) }
 							}}
 						/>
-						<button className="loci-prompt__switch" onClick={() => setTyping(false)}>Use voice</button>
+						{!talkDisabled && <button className="loci-prompt__switch" onClick={() => setTyping(false)}>Use voice</button>}
 						{!busy && <button className="loci-send" onClick={submit} disabled={!text.trim() || Boolean(disabledReason)} title="Ask (Enter)" aria-label="Ask"><SendIcon /></button>}
 					</>
 				) : (

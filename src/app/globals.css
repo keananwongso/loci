@@ -151,6 +151,7 @@ button {
 	align-items: center;
 	gap: 4px;
 	height: 46px;
+	max-width: calc(100% - 24px);
 	padding: 0 6px 0 18px;
 	border-radius: var(--radius-pill);
 	background: var(--loci-surface);
@@ -2086,7 +2087,7 @@ button {
 
 /* Saved board library */
 .loci-loading { display: grid; min-height: 100dvh; place-items: center; color: var(--loci-muted); }
-.loci-board-library { position: relative; max-width: 220px; }
+.loci-board-library { position: relative; max-width: 220px; min-width: 0; }
 .loci-board-library > button { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .loci-board-library__list { position: absolute; top: calc(100% + 14px); left: 0; width: 260px; max-height: 70dvh; overflow: auto; padding: 12px; border: 1px solid var(--loci-border); border-radius: 14px; background: #fff; box-shadow: 0 12px 40px #0001; }
 .loci-board-library__list > p { margin: 3px 8px 12px; color: #777; font-size: 12px; }
@@ -2095,6 +2096,7 @@ button {
 .loci-board-library__list form { border-top: 1px solid #eee; margin-top: 8px; padding: 12px 4px 0; display: grid; gap: 8px; font-size: 12px; }
 .loci-board-library__list input { min-width: 0; border: 1px solid #ddd; padding: 8px; border-radius: 6px; }
 .loci-topbar__account { color: #7445e0; font-size: 12px; white-space: nowrap; text-decoration: none; }
+.loci-topbar__account-short { display: none; }
 .loci-captions { display: grid; gap: 4px; }
 .loci-caption-actions { display: flex; gap: 8px; justify-content: center; }
 .loci-caption-actions button { background: #fff9; }
@@ -2152,4 +2154,11 @@ button {
  .loci-player__controls button, .loci-player__controls select { padding: 5px; font-size: 11px; }
  .loci-player__transcript { max-height: 180px; }
  .loci-account__card { margin-top: 48px; }
+}
+@media (max-width: 480px) {
+ .loci-topbar__account-full { display: none; }
+ .loci-topbar__account-short { display: inline; }
+}
+@media (max-width: 360px) {
+ .loci-player__controls > div { flex-wrap: wrap; }
 }

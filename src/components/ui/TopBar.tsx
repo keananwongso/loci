@@ -34,7 +34,7 @@ export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear
 			<a className="loci-topbar__github" href="https://github.com/keananwongso/loci" target="_blank" rel="noreferrer">★ Star on GitHub</a>
 
 			{library}
-			{status.accounts && <a className="loci-topbar__account" href="/account">{status.pro ? 'Pro · Account' : 'Sign in / Pro'}</a>}
+			{status.accounts && <a className="loci-topbar__account" href="/account" aria-label={status.pro ? 'Pro · Account' : 'Sign in / Pro'}><span className="loci-topbar__account-full">{status.pro ? 'Pro · Account' : 'Sign in / Pro'}</span><span className="loci-topbar__account-short">{status.pro ? 'Pro' : 'Sign in'}</span></a>}
 			<button className="loci-icon-btn" data-active={voiceOut} onClick={onToggleVoice} title={
 					voiceOut
 						? `Loci speaks its answers${voiceProvider === 'fish' ? ' (Fish Audio)' : voiceProvider === 'browser' ? " (your browser's voice)" : ''}. Click to turn off.`
