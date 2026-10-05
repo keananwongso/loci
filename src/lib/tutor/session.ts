@@ -42,12 +42,26 @@ const ID_PREFIX: Partial<Record<ToolName, string>> = {
 	draw_axes: 'graph',
 }
 
+/**
+ * How much one answer may mark up the student's own material. A screenshot of code with four
+ * rings, two boxes and arrows running into it from across the board can't be read any more, so
+ * the tutor gets a small budget and is pointed back at the marks it already has.
+ */
+export const MAX_MATERIAL_MARKS = 2
+/** Arrows and lines per answer: enough for a small pointer or flow diagram, not a web. */
+export const MAX_CONNECTORS = 3
+
 export class ActionSession {
 	/** The model began saying again what it already said; refuse sentences until it draws. */
 	private repeating = false
 	private ids = new Set<string>()
 	private assistantIds = new Set<string>()
-	private materials = new Map<string, { textItems?: TextItem[]; kind: string }>()
+	private materials = new Map<string, { textItems?: TextItem[]; kind: string; bounds: BoardObject['bounds'] }>()
+	/** Marks that sit on a material (highlights, the student's region): mark id -> material id. */
+	private onMaterial = new Map<string, string>()
+	/** Highlights on a material made during this answer, in order. */
+	private turnMarks: string[] = []
+	private turnConnectors = 0
 	private graphs = new Map<string, GraphState>()
 	private region: BoardContext['region']
 	readonly summaries: string[] = []
@@ -74,12 +88,16 @@ export class ActionSession {
 	) {
 		this.region = board.region
 		for (const obj of board.objects) this.register(obj)
+		for (const obj of board.objects) {
+			if (obj.type === 'highlight' && obj.parentId && this.materials.has(obj.parentId)) this.onMaterial.set(obj.id, obj.parentId)
+		}
+		if (board.region?.materialId) this.onMaterial.set(board.region.id, board.region.materialId)
 	}
 
 	private register(obj: BoardObject) {
 		this.ids.add(obj.id)
 		if (obj.author === 'assistant') this.assistantIds.add(obj.id)
-		if (obj.material) this.materials.set(obj.id, { textItems: obj.material.textItems, kind: obj.material.kind })
+		if (obj.material) this.materials.set(obj.id, { textItems: obj.material.textItems, kind: obj.material.kind, bounds: obj.bounds })
 		if (obj.graph) {
 			this.graphs.set(obj.id, {
 				items: new Map(obj.graph.items.map((it) => [it.id, it])),
@@ -165,6 +183,7 @@ export class ActionSession {
 
 			case 'highlight': {
 				const material = this.materials.get(action.target)
+				if (material && this.turnMarks.length >= MAX_MATERIAL_MARKS) return fail(this.markBudgetError())
 				let region = action.region
 				if (action.text) {
 					if (!material?.textItems?.length) {
@@ -188,12 +207,22 @@ export class ActionSession {
 						}
 					}
 				}
-				return this.created({ ...action, region })
+				const made = this.created({ ...action, region })
+				if (material) {
+					const id = (made.action as { id: string }).id
+					this.turnMarks.push(id)
+					this.onMaterial.set(id, action.target)
+				}
+				return made
 			}
 
 			case 'draw_arrow':
-			case 'draw_line':
+			case 'draw_line': {
+				const err = this.connectorError(action.from, action.to)
+				if (err) return fail(err)
+				this.turnConnectors++
 				return this.created(action)
+			}
 
 			case 'draw_rectangle':
 			case 'draw_circle': {
@@ -256,7 +285,10 @@ export class ActionSession {
 						this.ids.delete(id)
 						this.assistantIds.delete(id)
 						this.graphs.delete(id)
+						this.onMaterial.delete(id)
 					}
+					// Taking a mark back frees its place in the budget.
+					this.turnMarks = this.turnMarks.filter((id) => !ids.includes(id))
 				}
 				return { ok: true, action, result: 'Done.' }
 			}
@@ -264,6 +296,49 @@ export class ActionSession {
 			case 'focus':
 				return { ok: true, action, result: 'Done.' }
 		}
+	}
+
+	private markBudgetError(): string {
+		const earlier = [...this.onMaterial.keys()].filter((id) => !this.turnMarks.includes(id)).slice(-4)
+		return (
+			`Not drawn: this answer already marked the material ${MAX_MATERIAL_MARKS} times (${this.turnMarks.join(', ')}), and more marks make the student's page unreadable. ` +
+			`One focal mark per point: talk about a spot that is already marked by giving your \`say\` a look_at, e.g. { "objectId": "${this.turnMarks[0]}" }` +
+			(earlier.length ? ` (marks from before: ${earlier.join(', ')})` : '') +
+			'. If this spot matters more than one you made, delete_objects that one first.'
+		)
+	}
+
+	/** Which material an anchor lands in, if any: the page itself, a mark on it, or a free point over it. */
+	private materialOf(a: Anchor): string | undefined {
+		if ('objectId' in a) return this.materials.has(a.objectId) ? a.objectId : this.onMaterial.get(a.objectId)
+		if ('graphId' in a) return undefined
+		for (const [id, m] of this.materials) {
+			const b = m.bounds
+			if (a.x >= b.x && a.x <= b.x + b.w && a.y >= b.y && a.y <= b.y + b.h) return id
+		}
+		return undefined
+	}
+
+	/**
+	 * Arrows from the tutor's notes into the material cross the page and cover what the student
+	 * is reading. Connectors stay within the tutor's own work (or between two marks on one page).
+	 */
+	private connectorError(from: Anchor, to: Anchor): string | null {
+		const a = this.materialOf(from)
+		const b = this.materialOf(to)
+		if (a !== b) {
+			const mark = (a ? from : to) as Anchor
+			const markId = 'objectId' in mark ? mark.objectId : (a ?? b)
+			return (
+				`Not drawn: an arrow or line from your notes into the student's material (${a ?? b}) runs across the page and hides what they are reading. ` +
+				`Mark the spot with \`highlight\` if it is not marked yet, put your note beside it (position relativeTo that highlight, placement "right"), and point at it while you talk with \`say\`'s look_at: { "objectId": "${markId}" }. ` +
+				'Keep arrows within your own work.'
+			)
+		}
+		if (this.turnConnectors >= MAX_CONNECTORS) {
+			return `Not drawn: this answer already has ${MAX_CONNECTORS} arrows or lines, and more turn the board into a web. Let placement and colour show what belongs together, and point at things with \`say\`'s look_at instead.`
+		}
+		return null
 	}
 
 	private created<A extends CanvasAction & { id?: string }>(action: A) {

@@ -90,9 +90,9 @@ export class MockProvider implements TutorModelProvider {
 					{ kind: 'angle', id: 'theta', between: ['grad', 'u'], label: '\\theta', color: 'violet' },
 				],
 			})
-			await call('draw_arrow', { id: 'arrow-u', from: { objectId: 'hl-u' }, to: { graphId: 'dd-plane', point: [0.34, 0.94] }, color: 'blue', bend: 30 })
 			await call('say', {
 				text: "Since u has length one, the dot product only cares about the angle between them. That's theta.",
+				look_at: { objectId: 'hl-u' },
 			})
 			await call('write_equation', {
 				id: 'eq-cos',

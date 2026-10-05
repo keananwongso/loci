@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ActionSession } from './session'
+import { ActionSession, MAX_CONNECTORS, MAX_MATERIAL_MARKS } from './session'
 import type { BoardContext, TutorEvent } from './types'
 import { compileExpression, sampleFunction } from '@/lib/math/expr'
 import { findTextBox, groupLines } from '@/lib/documents/text'
@@ -280,5 +280,83 @@ describe('graph range', () => {
 	it('accepts items inside the range, with a little slack at the edges', () => {
 		const { s } = session()
 		expect(s.handle('add_to_graph', { graphId: 'graph-1', items: [{ kind: 'vector', id: 'u', to: [3.1, 1] }] }).ok).toBe(true)
+	})
+})
+
+describe('mark budget', () => {
+	const mark = (s: ActionSession, text: string) => s.handle('highlight', { target: 'notes-p1', text, style: 'circle' })
+
+	it(`allows ${MAX_MATERIAL_MARKS} marks on the material per answer, then points back at them`, () => {
+		const { s } = session()
+		expect(mark(s, 'Directional').ok).toBe(true)
+		expect(mark(s, '∇f · u').ok).toBe(true)
+		const r = mark(s, 'derivative')
+		expect(r.ok).toBe(false)
+		expect(r.ok ? '' : r.error).toMatch(/already marked the material 2 times \(hl-1, hl-2\).*look_at.*"hl-1"/)
+	})
+
+	it("does not count failed matches or marks on the tutor's own work", () => {
+		const { s } = session()
+		expect(mark(s, 'not on the page').ok).toBe(false)
+		expect(s.handle('highlight', { target: 'graph-1', style: 'circle' }).ok).toBe(true)
+		expect(mark(s, 'Directional').ok).toBe(true)
+		expect(mark(s, '∇f · u').ok).toBe(true)
+	})
+
+	it("frees a place when the tutor deletes one of this answer's marks", () => {
+		const { s } = session()
+		mark(s, 'Directional')
+		mark(s, '∇f · u')
+		expect(s.handle('delete_objects', { ids: ['hl-1'] }).ok).toBe(true)
+		expect(mark(s, 'derivative').ok).toBe(true)
+	})
+})
+
+describe('connectors', () => {
+	it("refuses an arrow from the tutor's notes into the material or onto a mark on it", () => {
+		const { s } = session()
+		s.handle('highlight', { target: 'notes-p1', text: '∇f · u', style: 'circle' })
+		s.handle('write_text', { id: 'note-far', text: 'points into', position: { relativeTo: 'graph-1', placement: 'below' } })
+		const intoMark = s.handle('draw_arrow', { from: { objectId: 'note-far' }, to: { objectId: 'hl-1' } })
+		expect(intoMark.ok).toBe(false)
+		expect(intoMark.ok ? '' : intoMark.error).toMatch(/across the page.*look_at: \{ "objectId": "hl-1" \}/)
+		expect(s.handle('draw_line', { from: { objectId: 'notes-p1' }, to: { objectId: 'graph-1' } }).ok).toBe(false)
+		// A free point over the page counts as the page.
+		expect(s.handle('draw_arrow', { from: { objectId: 'note-far' }, to: { x: 300, y: 400 } }).ok).toBe(false)
+	})
+
+	it("keeps arrows within the tutor's own work, up to a small cap", () => {
+		const { s } = session()
+		s.handle('write_text', { id: 'p1', text: 'p1', position: { relativeTo: 'graph-1', placement: 'below' } })
+		for (let i = 0; i < MAX_CONNECTORS; i++) {
+			expect(s.handle('draw_arrow', { from: { objectId: 'p1' }, to: { graphId: 'graph-1', point: [i, 0] } }).ok).toBe(true)
+		}
+		const r = s.handle('draw_arrow', { from: { objectId: 'p1' }, to: { objectId: 'graph-1' } })
+		expect(r.ok).toBe(false)
+		expect(r.ok ? '' : r.error).toMatch(/already has 3 arrows/)
+	})
+
+	it('allows a connector between two marks on the same page', () => {
+		const { s } = session()
+		s.handle('highlight', { target: 'notes-p1', text: 'Directional', style: 'circle' })
+		s.handle('highlight', { target: 'notes-p1', text: '∇f · u', style: 'circle' })
+		expect(s.handle('draw_arrow', { from: { objectId: 'hl-1' }, to: { objectId: 'hl-2' } }).ok).toBe(true)
+	})
+
+	it("treats highlights from earlier turns and the student's region as marks on their page", () => {
+		const s = new ActionSession(
+			{
+				...board,
+				region: { id: 'region-1', bounds: { x: 10, y: 10, w: 50, h: 50 }, materialId: 'notes-p1' },
+				objects: [
+					...board.objects,
+					{ id: 'hl-old', type: 'highlight', author: 'assistant', parentId: 'notes-p1', bounds: { x: 60, y: 240, w: 100, h: 30 } },
+					{ id: 'region-1', type: 'region', author: 'user', bounds: { x: 10, y: 10, w: 50, h: 50 } },
+				],
+			},
+			() => {}
+		)
+		expect(s.handle('draw_arrow', { from: { objectId: 'graph-1' }, to: { objectId: 'hl-old' } }).ok).toBe(false)
+		expect(s.handle('draw_arrow', { from: { objectId: 'region-1' }, to: { objectId: 'graph-1' } }).ok).toBe(false)
 	})
 })
