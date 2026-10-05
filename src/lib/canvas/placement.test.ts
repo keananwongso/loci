@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { overlaps, placeRelative } from './placement'
+import { distance, overlaps, placeNear, placeRelative, type Rect } from './placement'
 
 const page = { x: 0, y: 0, w: 600, h: 800 }
 
@@ -27,5 +27,59 @@ describe('placeRelative', () => {
 		const pos = placeRelative(graph, { w: 200, h: 60 }, 'below', [page, graph, eq])
 		expect(pos.x).toBe(650)
 		expect(pos.y).toBeGreaterThanOrEqual(eq.y + eq.h)
+	})
+})
+
+describe('placeNear', () => {
+	const size = { w: 300, h: 120 }
+	const free = (pos: { x: number; y: number }, obstacles: Rect[]) => obstacles.every((o) => !overlaps({ ...pos, ...size }, o))
+
+	it('behaves like placeRelative when the space beside the reference is free', () => {
+		expect(placeNear(page, size, 'right', [page])).toEqual(placeRelative(page, size, 'right', [page]))
+	})
+
+	it('still slides a note past the page a highlight sits on', () => {
+		const highlight = { x: 100, y: 300, w: 80, h: 20 }
+		expect(placeNear(highlight, size, 'right', [page])).toEqual({ x: 620, y: 300 })
+	})
+
+	it('stays beside the question when older notes fill the row to its right', () => {
+		const question = { x: 2000, y: 0, w: 500, h: 400 }
+		// A long row of notes from earlier turns, level with the question's top.
+		const notes = Array.from({ length: 8 }, (_, i) => ({ x: 2548 + i * 420, y: 0, w: 400, h: 150 }))
+		const obstacles = [page, question, ...notes]
+		const pos = placeNear(question, size, 'right', obstacles)
+		expect(free(pos, obstacles)).toBe(true)
+		// Right of the question, under the first old note, not past the end of the row.
+		expect(pos.x).toBe(2548)
+		expect(distance({ ...pos, ...size }, question)).toBeLessThanOrEqual(100)
+	})
+
+	it('goes below the question when its right side is walled off', () => {
+		const question = { x: 2000, y: 0, w: 500, h: 400 }
+		const wall = Array.from({ length: 8 }, (_, i) => ({ x: 2548 + i * 420, y: -400, w: 400, h: 1400 }))
+		const obstacles = [question, ...wall]
+		const pos = placeNear(question, size, 'right', obstacles)
+		expect(free(pos, obstacles)).toBe(true)
+		expect(pos.y).toBeGreaterThanOrEqual(question.y + question.h)
+		expect(pos.x).toBeLessThan(2548)
+	})
+
+	it('anchors at the material it is about, not at other questions on the board', () => {
+		const loopInvariant = { x: 0, y: 0, w: 600, h: 500 }
+		const markScheme = { x: 700, y: 0, w: 600, h: 800 }
+		const pointerPuzzle = { x: 1400, y: 0, w: 500, h: 300 }
+		// Notes from earlier turns crowd the space right of and below the pointer puzzle.
+		const old = [
+			{ x: 1948, y: 0, w: 600, h: 300 },
+			{ x: 2600, y: 0, w: 600, h: 300 },
+			{ x: 3250, y: 0, w: 600, h: 300 },
+			{ x: 1400, y: 348, w: 500, h: 120 },
+		]
+		const obstacles = [loopInvariant, markScheme, pointerPuzzle, ...old]
+		const pos = placeNear(pointerPuzzle, size, 'right', obstacles)
+		expect(free(pos, obstacles)).toBe(true)
+		expect(distance({ ...pos, ...size }, pointerPuzzle)).toBeLessThanOrEqual(250)
+		expect(pos.x).toBeGreaterThanOrEqual(pointerPuzzle.x)
 	})
 })
