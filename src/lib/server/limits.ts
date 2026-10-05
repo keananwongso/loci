@@ -159,7 +159,7 @@ export function getStore(env: NodeJS.ProcessEnv = process.env): CounterStore {
 }
 
 const day = () => new Date().toISOString().slice(0, 10)
-export type UsageKind = 'question' | 'speech' | 'transcribe' | 'visit'
+export type UsageKind = 'question' | 'speech' | 'transcribe' | 'visit' | 'auth'
 
 /**
  * Board opens recorded in the stats. Not a spend limit: each one is a stats write, so this keeps a
