@@ -21,7 +21,8 @@ import { compileExpression } from '@/lib/math/expr'
 import { toSpoken } from '@/lib/voice/spoken'
 import { equalAspectHeight } from '@/lib/math/graph'
 import { findTextBox, groupLines } from '@/lib/documents/text'
-import type { BoardContext, BoardObject, TextItem, TutorEvent } from './types'
+import { findCell, toCells } from '@/lib/canvas/table'
+import type { BoardContext, BoardObject, TableCell, TextItem, TutorEvent } from './types'
 
 export type ToolCallResult = { ok: true; result: string } | { ok: false; error: string }
 
@@ -29,6 +30,11 @@ interface GraphState {
 	items: Map<string, GraphItem>
 	xRange: [number, number]
 	yRange: [number, number]
+}
+
+interface TableState {
+	columns: string[]
+	cells: TableCell[][]
 }
 
 const ID_PREFIX: Partial<Record<ToolName, string>> = {
@@ -40,6 +46,7 @@ const ID_PREFIX: Partial<Record<ToolName, string>> = {
 	draw_rectangle: 'box',
 	draw_circle: 'ring',
 	draw_axes: 'graph',
+	draw_table: 'table',
 }
 
 /**
@@ -63,6 +70,7 @@ export class ActionSession {
 	private turnMarks: string[] = []
 	private turnConnectors = 0
 	private graphs = new Map<string, GraphState>()
+	private tables = new Map<string, TableState>()
 	private region: BoardContext['region']
 	readonly summaries: string[] = []
 	readonly spoken: string[] = []
@@ -105,6 +113,7 @@ export class ActionSession {
 				yRange: obj.graph.yRange,
 			})
 		}
+		if (obj.table) this.tables.set(obj.id, { columns: obj.table.columns, cells: obj.table.rows })
 	}
 
 	/** Handle one tool call. Never throws for bad model input. */
@@ -182,6 +191,9 @@ export class ActionSession {
 				return this.created(action)
 
 			case 'highlight': {
+				const table = this.tables.get(action.target)
+				if (table) return this.highlightCell(action, table)
+				if (action.cell) return fail(`"${action.target}" is not a table; \`cell\` only applies to tables.`)
 				const material = this.materials.get(action.target)
 				if (material && this.turnMarks.length >= MAX_MATERIAL_MARKS) return fail(this.markBudgetError())
 				let region = action.region
@@ -257,6 +269,31 @@ export class ActionSession {
 				return { ok: true, action: { ...action, id }, result: `Created graph "${id}".` }
 			}
 
+			case 'draw_table': {
+				const n = action.columns.length
+				const bad = action.rows.findIndex((row) => row.length !== n)
+				if (bad >= 0) return fail(`Row ${bad} has ${action.rows[bad].length} cells but there are ${n} columns. Give every row exactly one entry per column (null for a blank).`)
+				if (action.widths && action.widths.length !== n) return fail(`\`widths\` has ${action.widths.length} entries for ${n} columns. Give one per column, or leave it out to fit the text.`)
+				const id = this.claimId(action)
+				const cells = toCells(action.rows)
+				this.tables.set(id, { columns: action.columns, cells })
+				const blanks = cells.flat().filter((c) => c.by === 'student').length
+				return { ok: true, action: { ...action, id }, result: `Created table "${id}" (${action.rows.length} rows${blanks ? `, ${blanks} blank for the student` : ''}).` }
+			}
+
+			case 'update_table': {
+				const table = this.tables.get(action.tableId)
+				if (!table) return fail(`"${action.tableId}" is not a table. Table ids on the board: ${[...this.tables.keys()].join(', ') || 'none'}.`)
+				const rows = table.cells.length
+				const cols = table.columns.length
+				const out = action.cells.find((c) => c.row >= rows || c.col >= cols)
+				if (out) return fail(`Cell (row ${out.row}, col ${out.col}) is outside ${action.tableId}, which has rows 0..${rows - 1} and columns 0..${cols - 1}.`)
+				const cells = table.cells.map((row) => [...row])
+				for (const c of action.cells) cells[c.row][c.col] = c.text ? { text: c.text, by: 'tutor' } : { text: '', by: 'student' }
+				this.tables.set(action.tableId, { ...table, cells })
+				return { ok: true, action, result: `Updated ${action.cells.length} cell(s) of ${action.tableId}.` }
+			}
+
 			case 'add_to_graph': {
 				const state = this.graphs.get(action.graphId)
 				if (!state) return fail(`"${action.graphId}" is not a graph. Graph ids on the board: ${[...this.graphs.keys()].join(', ') || 'none'}.`)
@@ -286,6 +323,7 @@ export class ActionSession {
 						this.assistantIds.delete(id)
 						this.graphs.delete(id)
 						this.onMaterial.delete(id)
+						this.tables.delete(id)
 					}
 					// Taking a mark back frees its place in the budget.
 					this.turnMarks = this.turnMarks.filter((id) => !ids.includes(id))
@@ -341,6 +379,25 @@ export class ActionSession {
 		return null
 	}
 
+	/** A highlight on a table marks one cell, found by \`cell\` or by the text in it. */
+	private highlightCell(action: Extract<CanvasAction, { type: 'highlight' }>, table: TableState) {
+		let cell = action.cell
+		if (!cell && action.text) {
+			const found = findCell(table.columns, table.cells, action.text)
+			if (!found) {
+				return {
+					ok: false as const,
+					error: `Could not find "${action.text}" in table ${action.target}. Quote a cell's text exactly, or give \`cell\` (row, col). Header: ${JSON.stringify(table.columns)}; rows: ${JSON.stringify(table.cells.map((r) => r.map((c) => c.text))).slice(0, 1500)}`,
+				}
+			}
+			cell = { row: found[0], col: found[1] }
+		}
+		if (cell && (cell.row >= table.cells.length || cell.col >= table.columns.length)) {
+			return { ok: false as const, error: `Cell (row ${cell.row}, col ${cell.col}) is outside ${action.target}, which has rows 0..${table.cells.length - 1} and columns 0..${table.columns.length - 1}.` }
+		}
+		return this.created({ ...action, ...(cell ? { cell } : {}), region: cell ? undefined : action.region })
+	}
+
 	private created<A extends CanvasAction & { id?: string }>(action: A) {
 		const id = this.claimId(action)
 		return { ok: true as const, action: { ...action, id } as CanvasAction, result: `Created "${id}".` }
@@ -379,7 +436,11 @@ export class ActionSession {
 			case 'write_text':
 			case 'write_equation':
 			case 'draw_axes':
+			case 'draw_table':
 				pos(action.position)
+				break
+			case 'update_table':
+				refs.push(action.tableId)
 				break
 			case 'move_object':
 				refs.push(action.id)
@@ -483,7 +544,7 @@ export function summarize(action: CanvasAction): string {
 		case 'write_equation':
 			return `write_equation${id}: ${action.latex.slice(0, 120)}`
 		case 'highlight':
-			return `highlight${id} on ${action.target}${action.text ? `: "${action.text}"` : ''} (${action.style ?? 'marker'})`
+			return `highlight${id} on ${action.target}${action.cell ? ` cell (${action.cell.row},${action.cell.col})` : ''}${action.text ? `: "${action.text}"` : ''} (${action.style ?? 'marker'})`
 		case 'draw_arrow':
 		case 'draw_line':
 			return `${action.type}${id}${action.label ? ` "${action.label}"` : ''}`
@@ -493,6 +554,10 @@ export function summarize(action: CanvasAction): string {
 			return `add_to_graph ${action.graphId}: ${action.items.map((i) => `${i.kind} ${i.id}${'label' in i && i.label ? ` (${i.label})` : ''}`).join(', ')}`
 		case 'remove_from_graph':
 			return `remove_from_graph ${action.graphId}: ${action.itemIds.join(', ')}`
+		case 'draw_table':
+			return `draw_table${id}: ${action.columns.join(' | ')} × ${action.rows.length} rows${action.rows.flat().some((t) => !t) ? ' (with blanks for the student)' : ''}`
+		case 'update_table':
+			return `update_table ${action.tableId}: ${action.cells.map((c) => `(${c.row},${c.col})=${c.text ? JSON.stringify(c.text) : 'blank'}`).join(', ').slice(0, 300)}`
 		case 'move_object':
 			return `move_object ${action.id}`
 		case 'delete_objects':

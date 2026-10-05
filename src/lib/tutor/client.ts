@@ -62,7 +62,7 @@ export interface TurnOptions {
 	take?: Take
 }
 
-const WRITES = new Set(['write_text', 'write_equation'])
+const WRITES = new Set(['write_text', 'write_equation', 'draw_table'])
 
 /** About how long a sentence takes to say, from its word count. */
 const speakingTime = (text: string) => 300 + text.split(/\s+/).filter(Boolean).length * 400

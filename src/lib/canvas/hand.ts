@@ -36,14 +36,17 @@ export function writingTime(chars: number) {
 	return Math.max(380, Math.min(1800, chars * 55))
 }
 
-/** Measure actual wrapped rows after layout, rather than treating a paragraph as one stroke. */
+/**
+ * Measure actual wrapped rows after layout, rather than treating a paragraph as one stroke.
+ * Shapes that lay out their own lines (a table's rows) mark them with `data-write-line`.
+ */
 function textLines(shape: HTMLElement): WritingLine[] {
 	const text = shape.querySelector('.tl-rich-text')
 	const bounds = shape.getBoundingClientRect()
-	if (!text || !bounds.width || !bounds.height) return []
-	const walker = document.createTreeWalker(text, NodeFilter.SHOW_TEXT)
-	const rects: DOMRect[] = []
-	while (walker.nextNode()) {
+	if (!bounds.width || !bounds.height) return []
+	const rects: DOMRect[] = Array.from(shape.querySelectorAll('[data-write-line]'), (el) => el.getBoundingClientRect())
+	const walker = text && !rects.length ? document.createTreeWalker(text, NodeFilter.SHOW_TEXT) : null
+	while (walker?.nextNode()) {
 		const range = document.createRange()
 		range.selectNodeContents(walker.currentNode)
 		rects.push(...Array.from(range.getClientRects()).filter((r) => r.width > 0 && r.height > 0))

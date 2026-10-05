@@ -14,12 +14,17 @@ export type Box = z.infer<typeof BoxSchema>
 export const TextItemSchema = z.object({ t: z.string().max(2000), b: z.tuple([num, num, num, num]) })
 export type TextItem = z.infer<typeof TextItemSchema>
 
+/** One table cell. `student` cells were left blank by the tutor; the student types into them. */
+export const TableCellSchema = z.object({ text: z.string().max(200), by: z.enum(['tutor', 'student']) })
+export type TableCell = z.infer<typeof TableCellSchema>
+
 export const ObjectTypeSchema = z.enum([
 	'pdf',
 	'image',
 	'text',
 	'equation',
 	'graph',
+	'table',
 	'highlight',
 	'arrow',
 	'line',
@@ -65,6 +70,12 @@ export const BoardObjectSchema = z.object({
 			yRange: z.tuple([num, num]),
 			title: z.string().max(200).optional(),
 			items: z.array(GraphItem).max(200),
+		})
+		.optional(),
+	table: z
+		.object({
+			columns: z.array(z.string().max(200)).max(8),
+			rows: z.array(z.array(TableCellSchema).max(8)).max(16),
 		})
 		.optional(),
 	highlight: z.object({ style: z.string().max(20), region: BoxSchema.optional() }).optional(),

@@ -4,13 +4,14 @@
  */
 import type { TLShape } from 'tldraw'
 import type { GraphItem, HighlightColor } from '@/lib/actions/schema'
-import type { TextItem } from '@/lib/tutor/types'
+import type { TableCell, TextItem } from '@/lib/tutor/types'
 
 export const MATERIAL = 'loci-material'
 export const EQUATION = 'loci-equation'
 export const GRAPH = 'loci-graph'
 export const HIGHLIGHT = 'loci-highlight'
 export const REGION = 'loci-region'
+export const TABLE = 'loci-table'
 
 declare module 'tldraw' {
 	export interface TLGlobalShapePropsMap {
@@ -46,6 +47,8 @@ declare module 'tldraw' {
 		[HIGHLIGHT]: { w: number; h: number; style: 'marker' | 'box' | 'circle' | 'underline'; color: HighlightColor }
 		/** A box the student drags around part of the board to ask about it. */
 		[REGION]: { w: number; h: number }
+		/** A ruled table; `colW` is the laid-out width of each column, `minW` the requested minimums. */
+		[TABLE]: { w: number; h: number; columns: string[]; cells: TableCell[][]; color: string; minW: number[]; colW: number[] }
 	}
 }
 
@@ -54,6 +57,7 @@ export type EquationShape = TLShape<typeof EQUATION>
 export type GraphShape = TLShape<typeof GRAPH>
 export type HighlightShape = TLShape<typeof HIGHLIGHT>
 export type RegionShape = TLShape<typeof REGION>
+export type TableShape = TLShape<typeof TABLE>
 
 /** Shape meta Loci writes on everything the tutor creates. */
 export type LociMeta = {

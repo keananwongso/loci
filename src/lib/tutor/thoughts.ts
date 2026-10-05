@@ -97,6 +97,10 @@ export function thoughtFor(tool: string, args: string): Thought | null {
 		case 'draw_rectangle':
 		case 'draw_circle':
 			return { text: 'framing the key part' }
+		case 'draw_table':
+			return { text: 'ruling a table' }
+		case 'update_table':
+			return { text: 'filling in the table' }
 		case 'move_object':
 			return { text: 'making room' }
 		case 'delete_objects':

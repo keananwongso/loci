@@ -102,6 +102,13 @@ const NormalizedRegion = z
 	.describe('Region inside the target, normalised 0..1 from its top-left corner.')
 
 const Label = z.string().max(200)
+
+export const TABLE_MAX_COLS = 8
+export const TABLE_MAX_ROWS = 16
+export const CELL_MAX = 60
+const CellText = z.string().max(CELL_MAX)
+const Row = z.number().int().min(0).max(TABLE_MAX_ROWS - 1).describe('Body row, from 0 (the header is not counted).')
+const Col = z.number().int().min(0).max(TABLE_MAX_COLS - 1).describe('Column, from 0.')
 const LatexLabel = z
 	.string()
 	.max(200)
@@ -260,6 +267,11 @@ export const toolInputSchemas = {
 			region: NormalizedRegion.optional().describe(
 				'Top-left x/y and width/height in 0..1 coordinates of the FULL target, never the viewport or a close-up crop. For images without extracted text, tightly enclose the visible target. With text, this is a location hint for repeated matches.'
 			),
+			cell: z
+				.object({ row: z.number().int().min(-1).max(TABLE_MAX_ROWS - 1).describe('Body row from 0, or -1 for the header.'), col: Col })
+				.strict()
+				.optional()
+				.describe('When the target is a table: mark this one cell. `text` on a table also finds the cell holding it.'),
 			style: z
 				.enum(['marker', 'box', 'circle', 'underline'])
 				.optional()
@@ -351,6 +363,37 @@ export const toolInputSchemas = {
 		})
 		.strict(),
 
+	draw_table: z
+		.object({
+			id: NewId.optional(),
+			position: Position,
+			columns: z.array(CellText).min(1).max(TABLE_MAX_COLS).describe('Header row.'),
+			rows: z
+				.array(z.array(CellText.nullable()).min(1).max(TABLE_MAX_COLS))
+				.min(1)
+				.max(TABLE_MAX_ROWS)
+				.describe('Body rows, each with one entry per column. null (or "") leaves the cell blank for the student to fill in.'),
+			color: InkColor.optional(),
+			widths: z
+				.array(z.number().min(30).max(600))
+				.min(1)
+				.max(TABLE_MAX_COLS)
+				.optional()
+				.describe('Minimum width of each column in canvas units; columns always grow to fit their text. Default: fit the text.'),
+		})
+		.strict()
+		.describe('A ruled table: header row plus body rows of short plain-text cells (one line each; use unicode for math).'),
+
+	update_table: z
+		.object({
+			tableId: ObjectId,
+			cells: z
+				.array(z.object({ row: Row, col: Col, text: CellText.nullable().describe('null (or "") clears the cell for the student.') }).strict())
+				.min(1)
+				.max(64),
+		})
+		.strict(),
+
 	move_object: z
 		.object({
 			id: ObjectId,
@@ -395,6 +438,7 @@ export const CREATING_TOOLS = [
 	'draw_rectangle',
 	'draw_circle',
 	'draw_axes',
+	'draw_table',
 ] as const satisfies readonly ToolName[]
 
 export type Position = z.infer<typeof Position>

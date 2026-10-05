@@ -8,7 +8,7 @@ import { renderPlaintextFromRichText, type Editor, type TLShape } from 'tldraw'
 import { groupLines, textInRegion } from '@/lib/documents/text'
 import type { BoardContext, BoardObject, BoardObjectType, ContextImage } from '@/lib/tutor/types'
 import { getBlob } from '@/lib/storage/blobs'
-import { EQUATION, GRAPH, HIGHLIGHT, MATERIAL, REGION, type GraphShape, type MaterialShape } from './shape-types'
+import { EQUATION, GRAPH, HIGHLIGHT, MATERIAL, REGION, TABLE, type GraphShape, type MaterialShape, type TableShape } from './shape-types'
 import { toModelId } from './executor'
 import { overlaps, type Rect } from './placement'
 import { isReference, roleOf } from '@/lib/documents/roles'
@@ -183,6 +183,10 @@ function describeShape(editor: Editor, s: TLShape, inFocus: boolean): Partial<Bo
 		case GRAPH: {
 			const p = (s as GraphShape).props
 			return { type: 'graph', graph: { xRange: [p.xMin, p.xMax], yRange: [p.yMin, p.yMax], title: p.title || undefined, items: p.items } }
+		}
+		case TABLE: {
+			const p = (s as TableShape).props
+			return { type: 'table', table: { columns: p.columns, rows: p.cells } }
 		}
 		case HIGHLIGHT:
 			return { type: 'highlight', highlight: { style: (s as Extract<TLShape, { type: typeof HIGHLIGHT }>).props.style } }

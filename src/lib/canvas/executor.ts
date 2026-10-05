@@ -25,11 +25,14 @@ import {
 	HIGHLIGHT,
 	MATERIAL,
 	REGION,
+	TABLE,
 	type EquationShape,
 	type GraphShape,
 	type HighlightShape,
 	type LociMeta,
+	type TableShape,
 } from './shape-types'
+import { cellRect, columnWidths, tableSize, toCells } from './table'
 import { DEFAULT_GAP, NORMALIZED_SIDE, blocks, clearSpot, distance, overlaps, placeNear, sidePoint, union, type Obstacle, type Rect } from './placement'
 import { EQUATION_FONT_SIZE, latexToPlain, measureLatex } from './katex'
 import { handFontReady, writeIn, writingTime } from './hand'
@@ -254,6 +257,10 @@ export class CanvasExecutor {
 				return this.axes(action)
 			case 'add_to_graph':
 				return this.addToGraph(action)
+			case 'draw_table':
+				return this.table(action)
+			case 'update_table':
+				return this.updateTable(action)
 			case 'remove_from_graph': {
 				const g = this.editor.getShape<GraphShape>(toShapeId(action.graphId))
 				if (!g) return
@@ -381,9 +388,12 @@ export class CanvasExecutor {
 			const b = this.bounds(action.target)
 			if (!b) return
 			const r = action.region
-			const area = r
-				? { x: b.x + r.x * b.w, y: b.y + r.y * b.h, w: r.w * b.w, h: r.h * b.h }
-				: { x: b.x - 8, y: b.y - 6, w: b.w + 16, h: b.h + 12 }
+			const cell = action.cell && target.type === TABLE ? cellRect((target as TableShape).props.colW, action.cell.row, action.cell.col) : null
+			const area = cell
+				? { x: b.x + cell.x - 3, y: b.y + cell.y - 2, w: cell.w + 6, h: cell.h + 4 }
+				: r
+					? { x: b.x + r.x * b.w, y: b.y + r.y * b.h, w: r.w * b.w, h: r.h * b.h }
+					: { x: b.x - 8, y: b.y - 6, w: b.w + 16, h: b.h + 12 }
 			await this.beforeDraw(area)
 			this.editor.createShape<HighlightShape>({
 				id,
@@ -589,6 +599,46 @@ export class CanvasExecutor {
 		const byId = new Map(g.props.items.map((it) => [it.id, it]))
 		for (const it of action.items) byId.set(it.id, it)
 		this.editor.updateShape<GraphShape>({ id, type: GRAPH, props: { items: [...byId.values()] } })
+		this.done(id)
+	}
+
+	private async table(action: ActionOf<'draw_table'>) {
+		await handFontReady()
+		const cells = toCells(action.rows)
+		const minW = action.widths ?? []
+		const colW = columnWidths(action.columns, cells, minW)
+		const size = tableSize(colW, cells.length)
+		const pos = this.resolvePosition(action.position, size)
+		await this.beforeDraw({ ...pos, ...size })
+		const id = toShapeId(action.id!)
+		this.editor.createShape<TableShape>({
+			id,
+			type: TABLE,
+			x: pos.x,
+			y: pos.y,
+			meta: this.meta(),
+			props: { ...size, columns: action.columns, cells, color: action.color ?? 'blue', minW, colW },
+		})
+		this.done(id)
+		const chars = [...action.columns, ...cells.flat().map((c) => c.text)].join('').length
+		await this.write(id, chars)
+	}
+
+	private async updateTable(action: ActionOf<'update_table'>) {
+		const id = toShapeId(action.tableId)
+		const t = this.editor.getShape<TableShape>(id)
+		if (!t || t.type !== TABLE) return
+		const cells = t.props.cells.map((row) => [...row])
+		for (const c of action.cells) {
+			if (!cells[c.row]?.[c.col]) continue
+			cells[c.row][c.col] = c.text ? { text: c.text, by: 'tutor' } : { text: '', by: 'student' }
+			markFresh(`${id}:${c.row}:${c.col}`)
+		}
+		const colW = columnWidths(t.props.columns, cells, t.props.minW)
+		const first = action.cells[0]
+		const at = cellRect(colW, first.row, first.col)
+		await this.beforeDraw({ x: t.x + at.x, y: t.y + at.y, w: at.w, h: at.h })
+		this.editor.updateShape<TableShape>({ id, type: TABLE, props: { cells, colW, ...tableSize(colW, cells.length) } })
 		this.done(id)
 	}
 

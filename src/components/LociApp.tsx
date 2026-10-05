@@ -7,6 +7,7 @@ import { EquationShapeUtil } from './shapes/EquationShapeUtil'
 import { GraphShapeUtil } from './shapes/GraphShapeUtil'
 import { HighlightShapeUtil } from './shapes/HighlightShapeUtil'
 import { RegionShapeUtil, RegionTool } from './shapes/RegionShapeUtil'
+import { TableShapeUtil } from './shapes/TableShapeUtil'
 import { Buddy } from './ui/Buddy'
 import { Emphasis } from './ui/Emphasis'
 import { Toolbar } from './ui/Toolbar'
@@ -30,7 +31,7 @@ import { loadHandFont } from '@/lib/canvas/hand'
 import { installDragToPan } from '@/lib/canvas/pan'
 import { loadPack, loadPackVoice, placePack } from '@/lib/demo/client'
 
-const shapeUtils = [MaterialShapeUtil, EquationShapeUtil, GraphShapeUtil, HighlightShapeUtil, RegionShapeUtil]
+const shapeUtils = [MaterialShapeUtil, EquationShapeUtil, GraphShapeUtil, HighlightShapeUtil, RegionShapeUtil, TableShapeUtil]
 const tools = [RegionTool]
 
 // Self-hosted fonts and icons: the app makes no requests to third-party CDNs.

@@ -25,6 +25,9 @@ const DESCRIPTIONS: Record<ToolName, string> = {
 		'Create a coordinate plane (a graph object) with equal x/y scale. Put vectors, points, functions, angles and projections in it with math coordinates.',
 	add_to_graph: 'Add items to an existing graph, or replace items by reusing their ids. Prefer extending an existing graph over drawing a new one.',
 	remove_from_graph: 'Remove items from a graph by item id.',
+	draw_table:
+		'Draw a ruled table (traces, truth tables, value tables, T-accounts). Fill the cells you give; leave cells null for the student to fill in by typing. Never fake a table with lines of text.',
+	update_table: 'Write into (or clear) cells of a table you drew, by row and column. Cells the student typed in are theirs: mark a wrong one with highlight rather than overwriting it.',
 	move_object: 'Move an object (usually one you created) to a new position.',
 	delete_objects: 'Delete objects you created earlier, e.g. to replace a messy diagram. Never delete the student\'s material.',
 	focus: 'Pan/zoom the student\'s view to show the given objects.',

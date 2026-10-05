@@ -162,6 +162,19 @@ async function selfTest(call: Call, materialId: string) {
 	await step('write_equation', { id: 'st-work-1', latex: '(x+1)^2 = (x+1)(x+1)', position: { relativeTo: 'st-graph', placement: 'below', gap: 40 } })
 	await step('write_equation', { id: 'st-work-2', latex: '= x^2 + x + x + 1', position: { nextLineOf: 'st-work-1' } })
 	await step('write_equation', { id: 'st-work-3', latex: '= x^2 + 2x + 1', position: { nextLineOf: 'st-work-2' }, color: 'green' })
+	await step('draw_table', {
+		id: 'st-table',
+		position: { relativeTo: 'st-work-3', placement: 'below', gap: 40 },
+		columns: ['statement', 'x', 'y', 'p1', 'p2'],
+		rows: [
+			['(1) p1 = &x;', '1', '2', '&x', null],
+			['(2) *p1 = 5;', null, '2', null, null],
+			['(3) p2 = p1;', null, null, null, null],
+		],
+		color: 'violet',
+	})
+	await step('update_table', { tableId: 'st-table', cells: [{ row: 1, col: 1, text: '5' }] })
+	await step('highlight', { id: 'st-hl-cell', target: 'st-table', text: '&x', style: 'circle', color: 'green' })
 	await step('draw_rectangle', { id: 'st-box', around: ['st-eq'], label: 'result', color: 'green' })
 	await step('draw_circle', { id: 'st-ring', position: { relativeTo: 'st-eq', placement: 'below', gap: 60 }, width: 120, height: 70, label: 'ring', color: 'red', dashed: true })
 	await step('draw_line', { id: 'st-line', from: { objectId: 'st-ring', side: 'left' }, to: { graphId: 'st-graph', point: [1, 0] }, color: 'grey', dashed: true })

@@ -1266,6 +1266,71 @@ button {
 	white-space: nowrap;
 }
 
+/* a table the tutor rules: its own cells in the tutor's hand, blanks are inputs the student types into */
+
+.loci-table {
+	overflow: visible !important;
+	font: 20px/1 'loci-hand', var(--loci-sans);
+}
+
+.loci-table__lines {
+	position: absolute;
+	inset: 0;
+	overflow: visible;
+}
+
+.loci-table__row {
+	position: relative;
+	display: flex;
+}
+
+.loci-table__cell,
+.loci-table__input {
+	flex: none;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	white-space: nowrap;
+	text-align: center;
+}
+
+.loci-table__input {
+	margin: 0;
+	border: 0;
+	outline: none;
+	background: transparent;
+	font: 500 17px/1 var(--loci-sans);
+	pointer-events: all;
+	cursor: text;
+	border-radius: 4px;
+	transition: background 0.15s;
+}
+
+/* a blank waiting for the student: a faint dashed line to write on */
+.loci-table__input:placeholder-shown {
+	background-color: rgba(0, 0, 0, 0.025);
+	background-image: linear-gradient(90deg, var(--loci-ink-4) 50%, transparent 0);
+	background-size: 8px 1px;
+	background-repeat: repeat-x;
+	background-position: 0 calc(100% - 9px);
+	background-origin: content-box;
+	background-clip: content-box;
+}
+
+.loci-table__input:hover {
+	background-color: rgba(0, 0, 0, 0.045);
+}
+
+.loci-table__input:focus {
+	background: rgba(36, 87, 230, 0.07);
+	box-shadow: inset 0 0 0 1.5px rgba(36, 87, 230, 0.45);
+}
+
+.loci-table__fresh {
+	animation: loci-write 0.6s linear both;
+}
+
 .loci-region {
 	border: 1.5px dashed var(--loci-ink-3);
 	border-radius: 12px;
@@ -1419,6 +1484,7 @@ button {
 	.loci-fade-late,
 	.loci-wipe,
 	.loci-pop,
+	.loci-table__fresh,
 	.loci-sphere {
 		animation: none !important;
 		opacity: 1;
