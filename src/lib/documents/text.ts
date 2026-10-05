@@ -162,6 +162,46 @@ function pad(b: Box): Box {
 	return { x, y, w: Math.min(1 - x, b.w + px * 2), h: Math.min(1 - y, b.h + py * 2) }
 }
 
+/** A matched stretch of one run of text, in UTF-16 offsets (ready for a DOM Range). */
+export interface RunSpan {
+	run: number
+	start: number
+	end: number
+}
+
+/**
+ * Find `query` across consecutive runs of text (such as a shape's DOM text nodes), matched the
+ * same way as `findTextBox`. Returns the matched part of each run it spans, or null.
+ */
+export function findInRuns(runs: string[], query: string): RunSpan[] | null {
+	for (const loose of [false, true]) {
+		const needle = Array.from(query).flatMap((c) => Array.from(normChar(c, loose)))
+		if (!needle.length) continue
+		const stream: Array<{ c: string; run: number; start: number; end: number }> = []
+		runs.forEach((text, run) => {
+			let off = 0
+			for (const ch of text) {
+				for (const c of Array.from(normChar(ch, loose))) stream.push({ c, run, start: off, end: off + ch.length })
+				off += ch.length
+			}
+		})
+		for (let at = 0; at + needle.length <= stream.length; at++) {
+			if (!needle.every((c, i) => stream[at + i].c === c)) continue
+			const spans: RunSpan[] = []
+			for (const s of stream.slice(at, at + needle.length)) {
+				const last = spans.at(-1)
+				if (last?.run === s.run) last.end = Math.max(last.end, s.end)
+				else spans.push({ run: s.run, start: s.start, end: s.end })
+			}
+			return spans
+		}
+	}
+	return null
+}
+
+/** Whether `text` contains `query`, ignoring whitespace and (failing that) LaTeX punctuation. */
+export const containsText = (text: string, query: string) => findInRuns([text], query) !== null
+
 /** Text items whose centre lies inside a normalised region. */
 export function textInRegion(items: TextItem[], region: Box): string {
 	const inside = items.filter((it) => {

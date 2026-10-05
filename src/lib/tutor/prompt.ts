@@ -46,7 +46,8 @@ Default loop: understand what exactly confuses them, explain one idea, show it v
 
 # How you draw
 - Anchor to the source first: \`highlight\` the exact symbols being discussed in the student's material using \`text\` copied from its text lines (e.g. text: "u" or "∇f · u"). Use style "circle" for a single symbol you want to point at, "marker" for a phrase or equation.
-- Source marks always use \`highlight\` targeting the material, not a free-positioned \`draw_circle\` or \`draw_rectangle\`. When extracted text is available, use exact \`text\`; include \`region\` as a location hint if the text occurs more than once. For images without text, tightly enclose the visible target using \`region\` normalised to the FULL target image: x/y are its top-left, w/h its size, all in 0..1. Such images come with a labelled grid in full-page coordinates; read the target's edges off the nearest grid lines rather than estimating. A close-up is a crop, not a new page: convert crop coordinates using page x = crop.x + local x * crop.w and page y = crop.y + local y * crop.h (likewise scale w/h). Never use viewport or crop coordinates directly as page coordinates. If you cannot confidently locate a symbol, refer to the student's selected region instead of guessing a small circle.
+- Source marks always use \`highlight\` targeting the material, not a free-positioned \`draw_circle\` or \`draw_rectangle\`. When the target has text lines, use exact \`text\` copied from them; include \`region\` as a location hint if the text occurs more than once. Screenshots and photos usually come with text lines read from the image: treat them exactly like a pdf's and highlight words, code or symbols with \`text\`, never a guessed \`region\`. Use \`region\` only for what has no text line (a diagram, a blank, a symbol the text lines missed) or for images listed without text. For those, tightly enclose the visible target using \`region\` normalised to the FULL target image: x/y are its top-left, w/h its size, all in 0..1. Such images come with a labelled grid in full-page coordinates; read the target's edges off the nearest grid lines rather than estimating. A close-up is a crop, not a new page: convert crop coordinates using page x = crop.x + local x * crop.w and page y = crop.y + local y * crop.h (likewise scale w/h). Never use viewport or crop coordinates directly as page coordinates. If you cannot confidently locate a symbol, refer to the student's selected region instead of guessing a small circle.
+- To mark part of something already on the board (your own notes, labels or equations, or the student's typed text), \`highlight\` that object with \`text\` set to the exact words or symbols to mark; Loci finds them where they are drawn. Never estimate a \`region\` for these.
 - Build beside the material, not on top of it: position new objects with \`relativeTo\` the material (placement "right") or relative to objects you already drew. Loci computes exact coordinates and avoids collisions. Only use raw x/y when you must.
 - Several questions or pages on the board: build beside the one the question is about (the board lists which material is in focus). Position your first object \`relativeTo\` that material or your highlight on it, and chain the rest off what you draw this turn. Never anchor to notes from earlier turns that sit beside a different question, and never use raw x/y to reach empty space elsewhere; if the space beside it is taken, Loci finds the nearest free spot.
 - Compose a tidy column or row: e.g. graph to the right of the page, the key equation below the graph, a one-line takeaway below that. Align with "start". Keep related things close.
@@ -110,7 +111,11 @@ function describeObject(o: BoardObject, selected: boolean): string {
 		for (const it of g.items) lines.push(`    • ${JSON.stringify(it)}`)
 	}
 	if (o.material?.textItems?.length) {
-		lines.push('    text lines ([x, y, w, h] normalised to the page):')
+		lines.push(
+			o.material.kind === 'image'
+				? '    text lines read from the image ([x, y, w, h] normalised to the image; quote them exactly as listed, misreadings included):'
+				: '    text lines ([x, y, w, h] normalised to the page):'
+		)
 		for (const line of groupLines(o.material.textItems).slice(0, 160)) {
 			lines.push(`      [${r3(line.box.x)}, ${r3(line.box.y)}, ${r3(line.box.w)}, ${r3(line.box.h)}] ${line.text}`)
 		}

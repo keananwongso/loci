@@ -38,6 +38,7 @@ import { EQUATION_FONT_SIZE, latexToPlain, measureLatex } from './katex'
 import { handFontReady, writeIn, writingTime } from './hand'
 import { TL_COLOR } from './palette'
 import { markFresh } from './fresh'
+import { textRectInShape } from './text-rect'
 import { MIN_READABLE_ZOOM, fitZoom, frameArea, isFramed } from './camera'
 
 export const toShapeId = (id: string) => (id.startsWith('shape:') ? (id as TLShapeId) : createShapeId(id))
@@ -369,41 +370,36 @@ export class CanvasExecutor {
 		const color = action.color ?? (style === 'marker' ? 'yellow' : 'pink')
 		markFresh(id)
 
+		// In the target's own coordinates, and parented to it, so the mark moves with it.
+		let local: Rect
 		if (target.type === MATERIAL) {
 			const { w, h } = (target as Extract<TLShape, { type: typeof MATERIAL }>).props
 			const r = action.region ?? { x: 0, y: 0, w: 1, h: 1 }
-			const local = { x: r.x * w, y: r.y * h, w: Math.max(6, r.w * w), h: Math.max(6, r.h * h) }
-			const page = this.editor.getShapePageTransform(targetId).applyToPoint({ x: local.x, y: local.y })
-			await this.beforeDraw({ x: page.x, y: page.y, w: local.w, h: local.h })
-			this.editor.createShape<HighlightShape>({
-				id,
-				type: HIGHLIGHT,
-				parentId: targetId,
-				x: local.x,
-				y: local.y,
-				meta: this.meta(),
-				props: { w: local.w, h: local.h, style, color },
-			})
+			local = { x: r.x * w, y: r.y * h, w: Math.max(6, r.w * w), h: Math.max(6, r.h * h) }
 		} else {
-			const b = this.bounds(action.target)
-			if (!b) return
+			const b = this.editor.getShapeGeometry(target).bounds
+			const found = action.text ? textRectInShape(targetId, action.text) : null
 			const r = action.region
 			const cell = action.cell && target.type === TABLE ? cellRect((target as TableShape).props.colW, action.cell.row, action.cell.col) : null
-			const area = cell
+			local = cell
 				? { x: b.x + cell.x - 3, y: b.y + cell.y - 2, w: cell.w + 6, h: cell.h + 4 }
-				: r
-					? { x: b.x + r.x * b.w, y: b.y + r.y * b.h, w: r.w * b.w, h: r.h * b.h }
-					: { x: b.x - 8, y: b.y - 6, w: b.w + 16, h: b.h + 12 }
-			await this.beforeDraw(area)
-			this.editor.createShape<HighlightShape>({
-				id,
-				type: HIGHLIGHT,
-				x: area.x,
-				y: area.y,
-				meta: this.meta(),
-				props: { w: area.w, h: area.h, style, color },
-			})
+				: found
+					? { x: found.x - 4, y: found.y - 2, w: found.w + 8, h: found.h + 4 }
+					: r
+						? { x: b.x + r.x * b.w, y: b.y + r.y * b.h, w: Math.max(6, r.w * b.w), h: Math.max(6, r.h * b.h) }
+						: { x: b.x - 8, y: b.y - 6, w: b.w + 16, h: b.h + 12 }
 		}
+		const page = this.editor.getShapePageTransform(targetId).applyToPoint({ x: local.x, y: local.y })
+		await this.beforeDraw({ x: page.x, y: page.y, w: local.w, h: local.h })
+		this.editor.createShape<HighlightShape>({
+			id,
+			type: HIGHLIGHT,
+			parentId: targetId,
+			x: local.x,
+			y: local.y,
+			meta: this.meta(),
+			props: { w: local.w, h: local.h, style, color },
+		})
 		this.done(id)
 	}
 

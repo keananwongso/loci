@@ -126,6 +126,47 @@ describe('ActionSession', () => {
 		expect(ev?.type === 'action' && ev.action.type === 'highlight' && ev.action.region?.y).toBeCloseTo(0.694)
 	})
 
+	it('highlights text inside the tutor\'s own writing by text, dropping any guessed region', () => {
+		const { s, events } = session()
+		s.handle('write_text', { id: 'plan', text: "Assets = Loan (L) + Owner's stake (E)", position: { x: 0, y: 0 } })
+		const r = s.handle('highlight', { target: 'plan', text: "Loan (L) + Owner's stake (E)", region: { x: 0, y: 0, w: 0.5, h: 0.5 } })
+		expect(r.ok).toBe(true)
+		const ev = events.filter((e) => e.type === 'action').at(-1)
+		expect(ev?.type === 'action' && ev.action.type === 'highlight' && [ev.action.text, ev.action.region]).toEqual(["Loan (L) + Owner's stake (E)", undefined])
+	})
+
+	it('fails a highlight on board text that does not contain the quote, showing the text', () => {
+		const events: TutorEvent[] = []
+		const withNote: BoardContext = {
+			...board,
+			objects: [...board.objects, { id: 'note-1', type: 'text', author: 'assistant', bounds: { x: 0, y: 900, w: 300, h: 40 }, text: 'Loan (L) | Owner’s stake (E)' }],
+		}
+		const s = new ActionSession(withNote, (e) => events.push(e))
+		expect(s.handle('highlight', { target: 'note-1', text: "owner's stake" }).ok).toBe(true)
+		const r = s.handle('highlight', { target: 'note-1', text: 'Equity' })
+		expect(r.ok).toBe(false)
+		if (!r.ok) expect(r.error).toMatch(/Loan \(L\)/)
+	})
+
+	it('leaves finding text in an equation to the rendered glyphs', () => {
+		const { s } = session()
+		s.handle('write_equation', { id: 'eq', latex: '\\nabla f \\cdot u', position: { x: 0, y: 0 } })
+		expect(s.handle('highlight', { target: 'eq', text: '∇f' }).ok).toBe(true)
+		expect(s.handle('highlight', { target: 'graph-1', text: 'x' }).ok).toBe(false)
+	})
+
+	it('asks for text read from an image to be quoted as read', () => {
+		const ocr: BoardContext = {
+			...board,
+			objects: [{ id: 'code', type: 'image', author: 'user', bounds: { x: 0, y: 0, w: 600, h: 300 }, material: { kind: 'image', name: 'code.png', textItems: [{ t: 'sum', b: [0.1, 0.2, 0.05, 0.05] }, { t: '+=', b: [0.16, 0.2, 0.03, 0.05] }] } }],
+		}
+		const s = new ActionSession(ocr, () => {})
+		expect(s.handle('highlight', { target: 'code', text: 'sum +=' }).ok).toBe(true)
+		const r = s.handle('highlight', { target: 'code', text: 'total' })
+		expect(r.ok).toBe(false)
+		if (!r.ok) expect(r.error).toMatch(/read from the image/)
+	})
+
 	it('validates graph items: angles need vectors, functions must parse', () => {
 		const { s } = session()
 		expect(s.handle('add_to_graph', { graphId: 'graph-1', items: [{ kind: 'angle', id: 'a', between: ['g', 'zzz'] }] }).ok).toBe(false)

@@ -182,6 +182,8 @@ async function selfTest(call: Call, materialId: string) {
 	await step('highlight', { id: 'st-hl-box', target: materialId, text: 'Definition', style: 'box', color: 'blue' })
 	await step('highlight', { id: 'st-hl-under', target: materialId, text: 'unit vector', style: 'underline', color: 'pink' })
 	await step('highlight', { id: 'st-hl-eq', target: 'st-eq', style: 'circle' })
+	await step('highlight', { id: 'st-hl-note', target: 'st-note', text: 'every tool', style: 'marker' })
+	await step('highlight', { id: 'st-hl-term', target: 'st-work-3', text: '2x', style: 'box', color: 'pink' })
 	await step('move_object', { id: 'st-ring', position: { relativeTo: 'st-box', placement: 'below', gap: 30, align: 'center' } })
 	await step('write_text', { id: 'st-temp', text: 'temporary', position: { x: 0, y: -200 } })
 	await step('delete_objects', { ids: ['st-temp'] })

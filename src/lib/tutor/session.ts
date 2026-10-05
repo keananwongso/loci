@@ -20,7 +20,7 @@ import {
 import { compileExpression } from '@/lib/math/expr'
 import { toSpoken } from '@/lib/voice/spoken'
 import { equalAspectHeight } from '@/lib/math/graph'
-import { findTextBox, groupLines } from '@/lib/documents/text'
+import { containsText, findTextBox, groupLines } from '@/lib/documents/text'
 import { findCell, toCells } from '@/lib/canvas/table'
 import type { BoardContext, BoardObject, TableCell, TextItem, TutorEvent } from './types'
 
@@ -69,6 +69,8 @@ export class ActionSession {
 	/** Highlights on a material made during this answer, in order. */
 	private turnMarks: string[] = []
 	private turnConnectors = 0
+	/** What other objects say (text, labels, LaTeX), for highlighting part of them. */
+	private texts = new Map<string, { text: string; latex: boolean }>()
 	private graphs = new Map<string, GraphState>()
 	private tables = new Map<string, TableState>()
 	private region: BoardContext['region']
@@ -106,6 +108,7 @@ export class ActionSession {
 		this.ids.add(obj.id)
 		if (obj.author === 'assistant') this.assistantIds.add(obj.id)
 		if (obj.material) this.materials.set(obj.id, { textItems: obj.material.textItems, kind: obj.material.kind, bounds: obj.bounds })
+		else if (obj.text || obj.label || obj.latex) this.texts.set(obj.id, { text: obj.latex ?? obj.text ?? obj.label!, latex: Boolean(obj.latex) })
 		if (obj.graph) {
 			this.graphs.set(obj.id, {
 				items: new Map(obj.graph.items.map((it) => [it.id, it])),
@@ -184,11 +187,11 @@ export class ActionSession {
 			case 'write_equation': {
 				const err = latexError(action.latex)
 				if (err) return fail(`LaTeX did not compile: ${err}. Fix the LaTeX and call write_equation again.`)
-				return this.created(action)
+				return this.withText(this.created(action), action.latex, true)
 			}
 
 			case 'write_text':
-				return this.created(action)
+				return this.withText(this.created(action), action.text, false)
 
 			case 'highlight': {
 				const table = this.tables.get(action.target)
@@ -197,11 +200,23 @@ export class ActionSession {
 				const material = this.materials.get(action.target)
 				if (material && this.turnMarks.length >= MAX_MATERIAL_MARKS) return fail(this.markBudgetError())
 				let region = action.region
+				const shapeText = material ? undefined : this.texts.get(action.target)
+				if (action.text && shapeText) {
+					// Found on the drawn text in the browser; a guessed region would only be off.
+					if (!shapeText.latex && !containsText(shapeText.text, action.text)) {
+						return fail(
+							`Could not find "${action.text}" in ${action.target}, which reads ${JSON.stringify(shapeText.text.slice(0, 600))}. Quote an exact part of it, or omit \`text\` to mark the whole object.`
+						)
+					}
+					return this.created({ ...action, region: undefined })
+				}
 				if (action.text) {
 					if (!material?.textItems?.length) {
 						if (!region) {
 							return fail(
-								`"${action.target}" has no extracted text${material ? ' (it is an image or out of focus)' : ''}. Use \`region\` (normalised 0..1 coordinates, judged from the image) instead of \`text\`.`
+								material
+									? `"${action.target}" has no extracted text (it is an image or out of focus). Use \`region\` (normalised 0..1 coordinates, judged from the image) instead of \`text\`.`
+									: `"${action.target}" has no text to search. Omit \`text\` to mark the whole object, or give \`region\`.`
 							)
 						}
 					} else {
@@ -213,8 +228,9 @@ export class ActionSession {
 								.slice(0, 60)
 								.map((l) => l.text)
 								.filter(Boolean)
+							const ocr = material.kind === 'image' ? ' Its text was read from the image, so copy it as it appears in these lines, misreadings included.' : ''
 							return fail(
-								`Could not find "${action.text}" in ${action.target}. Quote a shorter exact substring of one of its lines. A region hint cannot replace a failed text match; omit text only when marking a non-text feature such as a blank or diagram. Lines: ${JSON.stringify(lines).slice(0, 1800)}`
+								`Could not find "${action.text}" in ${action.target}. Quote a shorter exact substring of one of its lines.${ocr} A region hint cannot replace a failed text match; omit text only when marking a non-text feature such as a blank or diagram. Lines: ${JSON.stringify(lines).slice(0, 1800)}`
 							)
 						}
 					}
@@ -396,6 +412,13 @@ export class ActionSession {
 			return { ok: false as const, error: `Cell (row ${cell.row}, col ${cell.col}) is outside ${action.target}, which has rows 0..${table.cells.length - 1} and columns 0..${table.columns.length - 1}.` }
 		}
 		return this.created({ ...action, ...(cell ? { cell } : {}), region: cell ? undefined : action.region })
+	}
+
+	/** Remember what a new object says, so a later highlight can find part of it. */
+	private withText<R extends { ok: true; action: CanvasAction }>(outcome: R, text: string, latex: boolean) {
+		const id = 'id' in outcome.action ? outcome.action.id : undefined
+		if (id) this.texts.set(id, { text, latex })
+		return outcome
 	}
 
 	private created<A extends CanvasAction & { id?: string }>(action: A) {

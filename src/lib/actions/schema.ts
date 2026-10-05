@@ -255,17 +255,17 @@ export const toolInputSchemas = {
 	highlight: z
 		.object({
 			id: NewId.optional(),
-			target: ObjectId.describe('The object to mark up, usually a pdf page or image.'),
+			target: ObjectId.describe('The object to mark up: usually a pdf page or image, or text or an equation on the board.'),
 			text: z
 				.string()
 				.min(1)
 				.max(200)
 				.optional()
 				.describe(
-					'Exact text to find in the target\'s extracted text (copy it from the text lines). Loci locates it precisely.'
+					'Exact text to find in the target: copied from a page\'s or image\'s text lines, or part of the text, label or LaTeX of an object on the board. Loci locates it precisely.'
 				),
 			region: NormalizedRegion.optional().describe(
-				'Top-left x/y and width/height in 0..1 coordinates of the FULL target, never the viewport or a close-up crop. For images without extracted text, tightly enclose the visible target. With text, this is a location hint for repeated matches.'
+				'Top-left x/y and width/height in 0..1 coordinates of the FULL target, never the viewport or a close-up crop. Only for what has no text to quote: tightly enclose the visible target. With text, this is a location hint for repeated matches.'
 			),
 			cell: z
 				.object({ row: z.number().int().min(-1).max(TABLE_MAX_ROWS - 1).describe('Body row from 0, or -1 for the header.'), col: Col })
