@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import { UpstashStore } from './limits'
+import { describe, expect, it, vi } from 'vitest'
+import { MemoryStore, UpstashStore } from './limits'
+import { statsLoginAttempt } from './stats-login'
 import { MemoryStats, UpstashStats, costOf, lastDays, pricesFromEnv, sumDays } from './stats'
 import { statsAuthorized } from './stats-auth'
 
@@ -85,5 +86,23 @@ describe('per-visitor stats', () => {
 			new UpstashStore('https://test.upstash.io', 't', (async () => Response.json(replies[call++])) as unknown as typeof fetch)
 		)
 		expect(await reader.visitors(10)).toEqual([expect.objectContaining({ id: 'a', questions: 2, first: 100, last: 5000, country: 'CA' })])
+	})
+})
+
+describe('stats sign-in limit', () => {
+	const limits = { perIp: 3, global: 5 }
+	it('allows a few wrong guesses per network, without counting right ones', async () => {
+		const s = new MemoryStore()
+		for (let i = 0; i < 5; i++) expect(await statsLoginAttempt('home', () => true, limits, s)).toEqual({ allowed: true, ok: true })
+		for (let i = 0; i < 3; i++) expect((await statsLoginAttempt('attacker', () => false, limits, s)).allowed).toBe(true)
+		expect((await statsLoginAttempt('attacker', () => true, limits, s)).allowed).toBe(false)
+		expect((await statsLoginAttempt('home', () => true, limits, s)).ok).toBe(true)
+	})
+
+	it('caps guesses across networks, even in a parallel burst', async () => {
+		const s = new MemoryStore()
+		const checked = vi.fn(() => false)
+		await Promise.all(Array.from({ length: 20 }, (_, i) => statsLoginAttempt(`net${i}`, checked, limits, s)))
+		expect(checked).toHaveBeenCalledTimes(5)
 	})
 })

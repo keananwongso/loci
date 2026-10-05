@@ -5,9 +5,9 @@ import 'server-only'
  * a 429 once a cap is reached. The client treats a refusal as "use the browser's voice instead".
  */
 import { deviceFor, ipHashFor } from './device'
-import { limitConfigFromEnv, takeUsage, type UsageKind } from './limits'
+import { limitConfigFromEnv, takeUsage } from './limits'
 
-export async function guardUsage(req: Request, kind: Exclude<UsageKind, 'question'>, amount: number): Promise<{ refused?: Response; cookie?: string }> {
+export async function guardUsage(req: Request, kind: 'speech' | 'transcribe', amount: number): Promise<{ refused?: Response; cookie?: string }> {
 	const config = limitConfigFromEnv()
 	if (!config.enabled) return {}
 	const device = deviceFor(req)
