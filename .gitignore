@@ -31,3 +31,6 @@ output/playwright/
 
 # generated screenshots and artifacts
 output/
+
+# tesseract assets, copied from node_modules by scripts/ocr-assets.mjs
+/public/ocr/

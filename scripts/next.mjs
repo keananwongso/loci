@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
+if (['dev', 'build'].includes(process.argv[2])) await import('./ocr-assets.mjs')
 const bin = require.resolve('next/dist/bin/next')
 const child = spawn(process.execPath, [bin, ...process.argv.slice(2)], {
 	stdio: 'inherit',

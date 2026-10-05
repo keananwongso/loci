@@ -36,7 +36,7 @@ Loci picks the provider from whichever key you set. Anthropic uses its own API; 
 
 The model must support tool calling, since that is how it draws. Bigger models are noticeably better at composing clean diagrams.
 
-**Models without vision work too.** Loci always sends a structured text description of the board: every object's id and position, graph contents, and the extracted text of your pdf with the position of each line. Images (the page, a region crop, a view screenshot) are extra. With `LOCI_VISION=auto` (the default) Loci sends images, and if the provider rejects them it retries without them and tells the model it is working from text only. A text-only model can still read your notes, highlight exact text and draw diagrams; it cannot read uploaded photos or screenshots, which have no text layer.
+**Models without vision work too.** Loci always sends a structured text description of the board: every object's id and position, graph contents, and the extracted text of your pdf with the position of each line. Images (the page, a region crop, a view screenshot) are extra. With `LOCI_VISION=auto` (the default) Loci sends images, and if the provider rejects them it retries without them and tells the model it is working from text only. A text-only model can still read your notes, highlight exact text and draw diagrams. Photos and screenshots have their text read in your browser (with tesseract.js) a few seconds after you add them, so their words can be read and highlighted too; anything that isn't text in them is invisible to a text-only model.
 
 Optional settings:
 
@@ -145,7 +145,7 @@ native canvas objects (meta.author = assistant)
 | `src/lib/canvas/executor.ts` | Turns validated actions into tldraw shapes |
 | `src/lib/canvas/placement.ts` | Semantic placement and collision avoidance |
 | `src/lib/canvas/serialize.ts` | Builds the structured board context and captures images |
-| `src/lib/documents/` | pdf.js rendering, text extraction, phrase matching |
+| `src/lib/documents/` | pdf.js rendering, text extraction, OCR for images, phrase matching |
 | `src/components/shapes/` | Custom shapes: material page, equation, graph, highlight, region |
 | `src/lib/demo/` | The demo pack format (`pack.ts`) and loading it in the browser: placing its materials, finding what a step points at, loading takes |
 | `src/app/admin/`, `src/app/api/admin/` | The local demo editor and its API (development server only) |
@@ -161,7 +161,6 @@ tldraw is free to use in development and on localhost. Deploying Loci publicly i
 
 * Better graphing: level curves and contour plots, 3D surfaces, parametric curves
 * A text protocol fallback for models without tool calling
-* OCR for photos and screenshots, so text-only models can read them
 * Realtime voice conversation
 * iPad and Apple Pencil: a shared canvas where the tutor can see handwritten work and circle the term that went wrong
 

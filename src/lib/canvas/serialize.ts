@@ -230,7 +230,8 @@ async function loadBitmap(material: MaterialShape) {
 	return blob ? createImageBitmap(blob) : null
 }
 
-const hasText = (m: MaterialShape) => m.props.textItems.length > 0
+/** Images keep the grid even once their text is read, for marking what isn't text. */
+const gridded = (m: MaterialShape) => m.props.kind === 'image' || m.props.textItems.length === 0
 
 function encode(canvas: HTMLCanvasElement, label: string): ContextImage {
 	const url = canvas.toDataURL('image/jpeg', 0.85)
@@ -312,8 +313,8 @@ export async function captureImages(editor: Editor, focus: FocusInfo): Promise<C
 			const bmp = await loadBitmap(material)
 			if (bmp) {
 				const label = `${toModelId(material.id)}`
-				// No text layer to highlight by: the model has to locate things in the image itself.
-				const grid = !hasText(material)
+				// Without a text layer to highlight by, the model has to locate things in the image itself.
+				const grid = gridded(material)
 				const crop = drawScaled(bmp, n.x * bmp.width, n.y * bmp.height, n.w * bmp.width, n.h * bmp.height, 1400, 900)
 				images.push(
 					encode(
@@ -333,7 +334,7 @@ export async function captureImages(editor: Editor, focus: FocusInfo): Promise<C
 				if (!bmp) continue
 				const what = m.props.kind === 'pdf' ? `Page ${m.props.page} of "${m.props.name}"` : `Image "${m.props.name}"`
 				const page = drawScaled(bmp, 0, 0, bmp.width, bmp.height, 1400)
-				const grid = !hasText(m)
+				const grid = gridded(m)
 				images.push(encode(grid ? drawGrid(page) : page, `${what} (object ${toModelId(m.id)})${grid ? `. ${GRID_NOTE}` : ''}`))
 				bmp.close()
 			}

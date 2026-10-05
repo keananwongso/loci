@@ -5,6 +5,7 @@
  */
 import { createShapeId, type Editor, type TLShapeId } from 'tldraw'
 import { renderPdf } from '@/lib/documents/pdf'
+import { recognizeImage } from '@/lib/documents/ocr'
 import { putBlob, randomKey } from '@/lib/storage/blobs'
 import { MATERIAL, type MaterialShape } from './shape-types'
 import { union, type Rect } from './placement'
@@ -163,7 +164,22 @@ async function ingestImage(editor: Editor, file: File, role: MaterialRole) {
 		props: { w, h, blobKey, kind: 'image', name: file.name || 'pasted image', page: 1, pageCount: 1, pixelW, pixelH, textItems: [] },
 	})
 	frame(editor, { x: origin.x, y: origin.y, w, h })
+	readImageText(editor, id, blob)
 	return id
+}
+
+/**
+ * Read the image's text in the background and add it to the material once done, so its words can
+ * be quoted and highlighted like a pdf's. Questions asked before then see the image without text.
+ */
+function readImageText(editor: Editor, id: TLShapeId, blob: Blob) {
+	recognizeImage(blob)
+		.then((textItems) => {
+			const shape = editor.getShape<MaterialShape>(id)
+			if (!shape || !textItems.length || shape.props.textItems.length) return
+			editor.run(() => editor.updateShape<MaterialShape>({ id, type: MATERIAL, props: { textItems } }), { history: 'ignore' })
+		})
+		.catch((err) => console.warn('[loci] could not read text in the image', err))
 }
 
 /** Set the role of a material and every other page of the same file. Undoable. */
