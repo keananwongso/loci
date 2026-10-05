@@ -159,7 +159,13 @@ export function getStore(env: NodeJS.ProcessEnv = process.env): CounterStore {
 }
 
 const day = () => new Date().toISOString().slice(0, 10)
-export type UsageKind = 'question' | 'speech' | 'transcribe'
+export type UsageKind = 'question' | 'speech' | 'transcribe' | 'visit'
+
+/**
+ * Board opens recorded in the stats. Not a spend limit: each one is a stats write, so this keeps a
+ * script from flooding the store with made-up visitors. Past it, visits just aren't counted.
+ */
+export const VISIT_LIMITS: UsageLimits = { perDevice: 50, perIp: 100, global: 20000 }
 const keysFor = (kind: UsageKind, deviceId: string, ipHash: string) => {
 	// Questions keep their original keys, so counts survive this change mid-day.
 	const k = `loci:${day()}:${kind === 'question' ? '' : `${kind}:`}`

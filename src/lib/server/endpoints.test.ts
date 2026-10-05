@@ -22,10 +22,11 @@ vi.mock('@/lib/voice/fish', async (original) => ({
 	fishTranscribe: state.transcribe,
 }))
 
-import { POST as tutor } from '@/app/api/tutor/route'
+import { GET as tutorInfo, POST as tutor } from '@/app/api/tutor/route'
 import { POST as speech } from '@/app/api/speech/route'
 import { POST as transcribe } from '@/app/api/transcribe/route'
 import { adminRefusal } from './admin'
+import { getStats, today } from './stats'
 
 const question = { question: 'Explain the gradient', board: { viewport: { x: 0, y: 0, w: 800, h: 600 }, selectedIds: [], objects: [] }, images: [], history: [], turn: 0 }
 const req = (path: string, body: string, headers: Record<string, string> = {}) => new Request(`https://loci.example/api/${path}`, {
@@ -52,6 +53,12 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs())
 
 describe('paid public endpoints', () => {
+	it('stops counting cookie-less board opens from one network past the visit cap', async () => {
+		for (let i = 0; i < 120; i++) await tutorInfo(new Request('https://loci.example/api/tutor', { headers: { 'x-forwarded-for': '198.51.100.4' } }))
+		const [day] = await getStats().read([today()])
+		expect(day.visitors).toBe(100)
+	})
+
 	it('limits concurrent tutor requests per device before calling the provider', async () => {
 		const first = await tutor(req('tutor', JSON.stringify(question)))
 		expect(first.status).toBe(200)
