@@ -11,11 +11,13 @@ interface Props {
 	onStop: () => void
 	disabledReason?: string
 	freeLeft?: number
+	pro?: boolean
+	talkDisabled?: boolean
 }
 
 const talk = (action: 'start' | 'end') => window.dispatchEvent(new Event(`loci:talk-${action}`))
 
-export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft }: Props) {
+export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft, pro, talkDisabled }: Props) {
 	const editor = useEditor()
 	const [text, setText] = useState('')
 	const [typing, setTyping] = useState(false)
@@ -78,7 +80,7 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft }: Pro
 				</div>
 				{freeLeft !== undefined && (
 					<span className="loci-prompt__quota" data-empty={freeLeft === 0}>
-						{freeLeft === 0 ? 'No free questions left today' : `${freeLeft} free question${freeLeft === 1 ? '' : 's'} left today`}
+						{pro ? `${freeLeft} question${freeLeft === 1 ? '' : 's'} left this month` : freeLeft === 0 ? 'No free questions left today' : `${freeLeft} free question${freeLeft === 1 ? '' : 's'} left today`}
 					</span>
 				)}
 			</div>
@@ -111,7 +113,7 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft }: Pro
 							aria-label="Hold to talk"
 							aria-keyshortcuts="Control+Alt Space Enter"
 							data-active={listening}
-							disabled={Boolean(disabledReason) || transcribing}
+							disabled={Boolean(disabledReason) || transcribing || talkDisabled}
 							onPointerDown={(e) => { if (e.button !== 0) return; e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); talk('start') }}
 							onPointerUp={() => talk('end')}
 							onPointerCancel={() => talk('end')}
@@ -123,7 +125,7 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft }: Pro
 							<span>{listening ? 'Listening…' : transcribing ? 'Transcribing…' : <>Hold <kbd title={keys === '⌃ + ⌥' ? 'Control + Option' : keys}>{keys}</kbd> to talk</>}</span>
 						</button>
 						<div className="loci-prompt__voice-hint" role="status" aria-live="polite">
-							{listening || transcribing ? <><span className="loci-prompt__heard">{transcript || (listening ? 'Ask about your notes' : 'Finishing your question')}</span><small>{listening ? 'Release to send' : 'Sending when ready'}</small></> : <span>{disabledReason ?? 'Point at your notes while you talk'}</span>}
+							{listening || transcribing ? <><span className="loci-prompt__heard">{transcript || (listening ? 'Ask about your notes' : 'Finishing your question')}</span><small>{listening ? 'Release to send' : 'Sending when ready'}</small></> : <span>{disabledReason ?? (talkDisabled ? 'Type a new question to leave replay' : 'Point at your notes while you talk')}</span>}
 						</div>
 						<button className="loci-prompt__switch" onClick={() => setTyping(true)}>Type instead</button>
 					</>

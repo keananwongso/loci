@@ -11,6 +11,8 @@ import { ackKindFor, describeSelection, firstThought } from './selection'
 import { loadUserKey, type UserKey } from '@/lib/storage/userKey'
 import { REGION } from '@/lib/canvas/shape-types'
 import type { TurnResult } from '@/lib/tutor/client'
+import { recordLesson } from '@/lib/tutor/recording'
+import { saveLesson } from '@/lib/storage/lesson'
 import type { Take } from '@/lib/demo/pack'
 
 export interface AskOptions {
@@ -28,17 +30,21 @@ export interface TutorStatus {
 	checked: boolean
 	/** Running as a public demo with free-question limits. */
 	hosted?: boolean
+	accounts?: boolean
+	pro?: boolean
 	/** Free questions left today on this device (hosted demo). */
 	quota?: { limit: number; remaining: number }
 }
 
-export function useTutor(editor: Editor | null, voiceOut: boolean) {
+export function useTutor(editor: Editor | null, voiceOut: boolean, boardId = 'default') {
 	const [turns, setTurns] = useState<Turn[]>([])
+	const [saving, setSaving] = useState(false)
 	const [status, setStatus] = useState<TutorStatus>({ configured: true, checked: false })
 	const abortRef = useRef<AbortController | null>(null)
 	const voiceRef = useRef(voiceOut)
 	voiceRef.current = voiceOut
 	const loaded = useRef(false)
+	const [ready, setReady] = useState(false)
 	const [userKey, setUserKey] = useState<UserKey | null>(null)
 
 	useEffect(() => {
@@ -51,11 +57,13 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 	const resets = useRef(0)
 	useEffect(() => {
 		const at = resets.current
-		loadConversation().then((t) => {
+		lastMark.clear()
+		loadConversation(boardId).then((t) => {
 			// A reset that happened while loading wins.
 			if (resets.current === at) setTurns(t)
 			loaded.current = true
-		})
+			setReady(true)
+		}).catch(() => { loaded.current = true; setReady(true); setStatus((s) => ({ ...s, setupHint: 'Browser storage is unavailable; your conversation cannot be restored.' })) })
 		fetch('/api/tutor')
 			.then((r) => r.json())
 			.then((s) => setStatus({ ...s, checked: true }))
@@ -63,10 +71,12 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 	}, [])
 
 	useEffect(() => {
-		if (loaded.current) saveConversation(turns).catch(() => {})
+		if (loaded.current) saveConversation(turns, boardId).catch(() => {})
 	}, [turns])
 
-	const busy = turns.some((t) => ['looking', 'thinking', 'teaching'].includes(t.status))
+	useEffect(() => () => { abortRef.current?.abort(); stopAllSpeech() }, [])
+
+	const busy = !ready || saving || turns.some((t) => ['looking', 'thinking', 'teaching'].includes(t.status))
 
 	const ask = useCallback(
 		async (question: string, opts: AskOptions = {}): Promise<TurnResult | null> => {
@@ -90,13 +100,14 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 						said: [],
 						actions: [],
 						status: 'error',
-						error: "You've used today's free questions on this device.",
-						limitReached: 'device',
+						error: status.pro ? 'Your questions for this billing month are used up.' : "You've used today's free questions on this device.",
+						limitReached: status.pro ? 'subscription' : 'device',
 					},
 				])
-				window.dispatchEvent(new CustomEvent('loci:open-key-dialog'))
+				if (!status.accounts && !status.pro) window.dispatchEvent(new CustomEvent('loci:open-key-dialog'))
 				return null
 			}
+			setSaving(true)
 			if (!opts.spoken) startTimeline('asked')
 			// Instant feedback, before any model has answered: fly to what they pointed at, show what
 			// was heard and what it is looking at, and in voice mode acknowledge out loud.
@@ -140,6 +151,7 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 			const controller = new AbortController()
 			abortRef.current = controller
 			let outcome: TurnResult | null = null
+			const recording = recordLesson(editor, id)
 			try {
 				const result = await runTutorTurn(
 					editor,
@@ -155,11 +167,15 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 						onSay: (text, prepared) => {
 							patch((t) => ({ ...t, said: [...t.said, text] }))
 							if (!prepared) {
+								recording.cue(text)
 								answerStarted()
 								return undefined
 							}
 							const playback = playSpeech(prepared as PreparedSpeech)
 							playback.started.then(() => {
+								const cue = recording.cue(text, true)
+								recording.audio(cue, (prepared as PreparedSpeech).recording)
+								playback.done.then(() => recording.endCue(cue))
 								answerStarted()
 								mark('first sentence audible')
 							})
@@ -179,7 +195,7 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 				)
 				outcome = result
 				patch((t) => ({ ...t, status: result.error ? 'error' : 'done', error: result.error, limitReached: result.limitReached }))
-				if (result.limitReached && result.limitReached !== 'store') window.dispatchEvent(new CustomEvent('loci:open-key-dialog'))
+				if (result.limitReached && result.limitReached !== 'store' && !status.accounts && !status.pro) window.dispatchEvent(new CustomEvent('loci:open-key-dialog'))
 				if (result.quotaRemaining !== undefined) {
 					setStatus((st) => ({ ...st, quota: { limit: st.quota?.limit ?? result.quotaRemaining!, remaining: result.quotaRemaining! } }))
 				}
@@ -187,7 +203,15 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 				const aborted = controller.signal.aborted
 				patch((t) => ({ ...t, status: aborted ? 'stopped' : 'error', error: aborted ? undefined : (err as Error).message }))
 			} finally {
+				try {
+					const lesson = await recording.finish()
+					if (lesson.cues.length || lesson.frames.length) {
+						await saveLesson(id, lesson)
+						patch((t) => ({ ...t, lessonId: id }))
+					}
+				} catch { patch((t) => ({ ...t, notices: [...(t.notices ?? []), 'Could not save this replay. Browser storage may be full.'] })) }
 				abortRef.current = null
+				setSaving(false)
 				setBuddyStatus('')
 				endTutorTurn()
 				endTimeline()
@@ -245,11 +269,11 @@ export function useTutor(editor: Editor | null, voiceOut: boolean) {
 		resets.current++
 		stop()
 		setTurns([])
-		await clearConversation()
-	}, [stop])
+		await clearConversation(boardId)
+	}, [stop, boardId])
 
 	// A visitor's own key counts as configured even when the server has none.
 	const effective: TutorStatus = userKey ? { ...status, configured: true, provider: userKey.provider, model: userKey.model || `${userKey.provider} (your key)` } : status
 
-	return { turns, busy, status: effective, userKey, ask, stop, undoLastTurn, eraseDrawings, reset }
+	return { turns, busy, ready, status: effective, userKey, ask, stop, undoLastTurn, eraseDrawings, reset }
 }
