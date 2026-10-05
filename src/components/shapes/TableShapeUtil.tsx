@@ -1,6 +1,6 @@
 'use client'
 import { useRef } from 'react'
-import { HTMLContainer, Rectangle2d, ShapeUtil, T, stopEventPropagation, useEditor, type RecordProps } from 'tldraw'
+import { HTMLContainer, Rectangle2d, ShapeUtil, T, stopEventPropagation, useEditor, useValue, type RecordProps } from 'tldraw'
 import { TABLE, type TableShape } from '@/lib/canvas/shape-types'
 import { CELL_MAX } from '@/lib/actions/schema'
 import { INK, inkHex } from '@/lib/canvas/palette'
@@ -23,6 +23,7 @@ function Ruling({ shape }: { shape: TableShape }) {
 function TableView({ shape }: { shape: TableShape }) {
 	const editor = useEditor()
 	const { columns, cells, colW, minW, color, w, h } = shape.props
+	const readonly = useValue('table-readonly', () => editor.getIsReadonly(), [editor])
 	const inputs = useRef(new Map<string, HTMLInputElement>())
 
 	const type = (r: number, c: number, text: string) => {
@@ -48,7 +49,7 @@ function TableView({ shape }: { shape: TableShape }) {
 					{row.map((cell, c) => {
 						const r = i - 1
 						const style = { width: colW[c], padding: `0 ${CELL_PAD}px` }
-						if (cell.by === 'tutor') {
+						if (cell.by === 'tutor' || readonly) {
 							const fresh = r >= 0 && consumeFresh(`${shape.id}:${r}:${c}`)
 							return (
 								<div key={c} className={fresh ? 'loci-table__cell loci-table__fresh' : 'loci-table__cell'} style={style}>
