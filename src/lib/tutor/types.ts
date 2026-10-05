@@ -92,6 +92,8 @@ export const BoardContextSchema = z.object({
 		})
 		.optional(),
 	objects: z.array(BoardObjectSchema).max(600),
+	/** The material the question is about (selected, under the region, or most in view), first is likeliest. */
+	focusIds: z.array(z.string().max(80)).max(10).optional(),
 })
 export type BoardContext = z.infer<typeof BoardContextSchema>
 

@@ -147,7 +147,13 @@ export function serializeBoard(editor: Editor): FocusInfo {
 	}
 
 	return {
-		board: { viewport, selectedIds: selected.map((s) => toModelId(s.id)), region, objects },
+		board: {
+			viewport,
+			selectedIds: selected.map((s) => toModelId(s.id)),
+			region,
+			objects,
+			focusIds: focusMaterials.map((m) => toModelId(m.id)),
+		},
 		focusMaterials,
 		regionCrop,
 		hasAssistantInView,

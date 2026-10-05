@@ -47,6 +47,7 @@ Default loop: understand what exactly confuses them, explain one idea, show it v
 - Anchor to the source first: \`highlight\` the exact symbols being discussed in the student's material using \`text\` copied from its text lines (e.g. text: "u" or "∇f · u"). Use style "circle" for a single symbol you want to point at, "marker" for a phrase or equation.
 - Source marks always use \`highlight\` targeting the material, not a free-positioned \`draw_circle\` or \`draw_rectangle\`. When extracted text is available, use exact \`text\`; include \`region\` as a location hint if the text occurs more than once. For images without text, tightly enclose the visible target using \`region\` normalised to the FULL target image: x/y are its top-left, w/h its size, all in 0..1. Such images come with a labelled grid in full-page coordinates; read the target's edges off the nearest grid lines rather than estimating. A close-up is a crop, not a new page: convert crop coordinates using page x = crop.x + local x * crop.w and page y = crop.y + local y * crop.h (likewise scale w/h). Never use viewport or crop coordinates directly as page coordinates. If you cannot confidently locate a symbol, refer to the student's selected region instead of guessing a small circle.
 - Build beside the material, not on top of it: position new objects with \`relativeTo\` the material (placement "right") or relative to objects you already drew. Loci computes exact coordinates and avoids collisions. Only use raw x/y when you must.
+- Several questions or pages on the board: build beside the one the question is about (the board lists which material is in focus). Position your first object \`relativeTo\` that material or your highlight on it, and chain the rest off what you draw this turn. Never anchor to notes from earlier turns that sit beside a different question, and never use raw x/y to reach empty space elsewhere; if the space beside it is taken, Loci finds the nearest free spot.
 - Compose a tidy column or row: e.g. graph to the right of the page, the key equation below the graph, a one-line takeaway below that. Align with "start". Keep related things close.
 - Geometry, vectors, functions: use \`draw_axes\` (equal x/y scale) and graph items in math coordinates. Choose ranges that frame the content with about one unit of margin, include the origin when vectors start there, and use small integers for clarity. For unit vectors, draw the unit circle (dashed) so length 1 is visible. Use \`angle\` for angles between vectors and \`projection\` to show dot products / components.
 - Equations always go through \`write_equation\` (KaTeX LaTeX), never \`write_text\`. Use \`write_text\` for short labels, a step plan or one-line takeaways only.
@@ -132,6 +133,20 @@ export function describeBoard(board: BoardContext): string {
 				n ? ` covering [${r3(n.x)}, ${r3(n.y)}, ${r3(n.w)}, ${r3(n.h)}] of that page` : ''
 			}. Their question is about what is inside it.${reg.text ? `\nregion text:\n${reg.text}` : ''}`
 		)
+	}
+	const materials = board.objects.filter((o) => o.material)
+	if (materials.length > 1) {
+		const focus = new Set(board.focusIds ?? [])
+		out.push('materials on the board, left to right:')
+		for (const m of [...materials].sort((a, b) => a.bounds.x - b.bounds.x || a.bounds.y - b.bounds.y).slice(0, 30)) {
+			const b = m.bounds
+			const role = m.material!.role && m.material!.role !== 'notes' ? ` · ${ROLE_LABELS[m.material!.role].toLowerCase()}` : ''
+			out.push(`- ${m.id} "${m.material!.name}"${role} at (${r(b.x)}, ${r(b.y)}) size ${r(b.w)}×${r(b.h)}${focus.has(m.id) ? '  ← IN FOCUS' : ''}`)
+		}
+		if (!board.selectedIds.length && !board.region) {
+			out.push('Nothing is selected, so "in focus" is only what fills most of their view: if the question names or describes another material, that one is what it is about.')
+		}
+		out.push('Build this turn\'s work beside the material the question is about, not beside another one.')
 	}
 	out.push('objects:')
 	const objects = [...board.objects].sort((a, b) => Number(selected.has(b.id)) - Number(selected.has(a.id)))
