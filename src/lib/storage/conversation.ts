@@ -17,21 +17,23 @@ export interface Turn {
 	undone?: boolean
 	/** Hosted demo: which free-question limit refused this turn. */
 	limitReached?: string
+	/** A locally saved, seekable explanation with the original audio and canvas. */
+	lessonId?: string
 }
 
 const store = typeof indexedDB !== 'undefined' ? createStore('loci-conversation', 'turns') : undefined
-const KEY = 'board-default'
+import { conversationKey } from './workspaces'
 
-export async function loadConversation(): Promise<Turn[]> {
-	const turns = (await get<Turn[]>(KEY, store)) ?? []
+export async function loadConversation(boardId = 'default'): Promise<Turn[]> {
+	const turns = (await get<Turn[]>(conversationKey(boardId), store)) ?? []
 	// A turn interrupted by a reload is finished as far as we're concerned.
 	return turns.map((t) => (['looking', 'thinking', 'teaching'].includes(t.status) ? { ...t, status: 'stopped' } : t))
 }
 
-export async function saveConversation(turns: Turn[]) {
-	await set(KEY, turns, store)
+export async function saveConversation(turns: Turn[], boardId = 'default') {
+	await set(conversationKey(boardId), turns, store)
 }
 
-export async function clearConversation() {
-	await del(KEY, store)
+export async function clearConversation(boardId = 'default') {
+	await del(conversationKey(boardId), store)
 }
