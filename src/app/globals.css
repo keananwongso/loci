@@ -2195,3 +2195,11 @@ button {
 .loci-player__skip b { position: absolute; inset: 0; display: grid; place-items: center; padding-top: 2px; font-size: 9px; line-height: 1; font-weight: 600; }
 .loci-player__controls .loci-player__play { display: grid; place-items: center; flex: none; }
 .loci-player__controls button:focus-visible { outline: 2px solid #7445e0; outline-offset: 2px; }
+
+/* Choosing what uploaded files are. */
+.loci-add { max-width: 560px; }
+.loci-add__files { list-style: none; padding: 0; margin: 4px 0 18px; display: grid; gap: 14px; max-height: 46vh; overflow-y: auto; }
+.loci-add__files li { display: grid; gap: 6px; }
+.loci-add__name { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.loci-add__files .loci-role-switch { position: static; flex-wrap: wrap; width: fit-content; }
+.loci-add__hint { font-size: 12px; color: #8a8290; }
