@@ -10,7 +10,8 @@ export type MaterialRole = (typeof ROLES)[number]
 export const ROLE_LABELS: Record<MaterialRole, string> = {
 	notes: 'Notes',
 	syllabus: 'Syllabus',
-	questions: 'Questions',
+	// Problem sets, past papers and worksheets; stored as 'questions' so older boards keep loading.
+	questions: 'Exercises',
 	'mark-scheme': 'Mark scheme',
 }
 

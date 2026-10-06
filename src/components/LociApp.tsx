@@ -15,6 +15,7 @@ import { StylePanel } from './ui/StylePanel'
 import { HoldToTalk } from './ui/HoldToTalk'
 import { KeyDialog } from './ui/KeyDialog'
 import { OwnProblem } from './ui/OwnProblem'
+import { AddMaterial } from './ui/AddMaterial'
 import { TourCoach, TourEnd, TourRecord, TourStart } from './ui/Tour'
 import { useTutor } from './useTutor'
 import { useTour, tourDone } from './useTour'
@@ -79,6 +80,7 @@ function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onL
 	const [keyDialog, setKeyDialog] = useState(false)
 	const [replay, setReplay] = useState<Turn | null>(null)
 	const [ownNotes, setOwnNotes] = useState(false)
+	const [adding, setAdding] = useState<File[] | null>(null)
 	const voiceMode = useValue('tour-voice-mode', () => tutorPresence.get().mode, [])
 
 	useEffect(() => {
@@ -333,9 +335,13 @@ function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onL
 				onChange={(e) => {
 					const files = Array.from(e.currentTarget.files ?? [])
 					e.currentTarget.value = ''
-					if (files.length) ingest(files)
+					if (files.length) setAdding(files)
 				}}
 			/>
+			{adding && <AddMaterial files={adding} onClose={() => setAdding(null)} onAdd={(items) => {
+				setAdding(null)
+				void (async () => { for (const { file, role } of items) await ingestFiles(editor, [file], setLoading, { role }) })()
+			}} />}
 		</div>
 	)
 }

@@ -1,9 +1,14 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
+import type { ImportSummary } from '@/components/DeviceImport'
 import { CloudError, createBoard, deleteBoard, listBoards, updateBoard, type CloudBoard, type CloudPlan } from '@/lib/storage/cloud'
 
-interface Account { configured: boolean; user: { email?: string } | null; pro: boolean; quota: { remaining: number; limit: number } | null }
+// The canvas is browser-only.
+const DeviceImport = dynamic(() => import('@/components/DeviceImport').then((m) => m.DeviceImport), { ssr: false })
+
+interface Account { configured: boolean; user: { id: string; email?: string } | null; pro: boolean; quota: { remaining: number; limit: number } | null }
 
 const MB = 1024 * 1024
 const size = (bytes: number) => bytes >= 1024 * MB ? `${+(bytes / (1024 * MB)).toFixed(1)} GB` : bytes < MB ? `${Math.max(0, Math.round(bytes / 1024))} KB` : `${(bytes / MB).toFixed(bytes < 10 * MB ? 1 : 0)} MB`
@@ -24,6 +29,8 @@ export default function HomePage() {
 	const [pending, setPending] = useState(false)
 	const [renaming, setRenaming] = useState<string | null>(null)
 	const [confirming, setConfirming] = useState<string | null>(null)
+	const [importing, setImporting] = useState('')
+	const [imported, setImported] = useState('')
 
 	const refresh = useCallback(() => listBoards().then((r) => { setBoards(r.boards); setPlan(r.plan) }), [])
 	useEffect(() => {
@@ -60,6 +67,17 @@ export default function HomePage() {
 			</div>
 		</header>
 		{error && <p role="alert" className="loci-account__error">{error}</p>}
+		{(importing || imported) && <p role="status" className="loci-home__notice">{importing || imported}</p>}
+		{account?.user && boards && <DeviceImport userId={account.user.id} onProgress={setImporting} onDone={(s: ImportSummary) => {
+			setImporting('')
+			const parts = [
+				s.imported ? `Saved ${s.imported === 1 ? 'your board' : `${s.imported} boards`} from this browser to your account.` : '',
+				s.limitReached ? 'Some boards stayed on this browser: free accounts keep 3. Upgrade to Loci Pro to save them all.' : '',
+				s.failed ? `${s.failed === 1 ? 'One board' : `${s.failed} boards`} couldn't be saved; it's still on this browser.` : '',
+			].filter(Boolean)
+			setImported(parts.join(' '))
+			if (s.imported) void refresh()
+		}} />}
 		{!boards && !error && <p>Opening your boards…</p>}
 		{boards?.length === 0 && <section className="loci-home__empty">
 			<h2>Start your first board.</h2>
