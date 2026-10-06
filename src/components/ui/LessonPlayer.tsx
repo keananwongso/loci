@@ -1,14 +1,17 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Tldraw, useEditor, type Editor } from 'tldraw'
+import { Tldraw, useEditor } from 'tldraw'
 import { shapeUtils, assetUrls } from '../canvasConfig'
-import { loadLesson, lessonAt, writingClip, type LessonRecording } from '@/lib/storage/lesson'
+import { loadLesson, createLessonPlayback, writingClip, type LessonRecording } from '@/lib/storage/lesson'
 import { getBlobUrl } from '@/lib/storage/blobs'
 import { renderRich } from '@/lib/canvas/richtext'
 import { speak, stopSpeaking } from '@/lib/voice/speech'
 import { stopAllSpeech } from '@/lib/voice/player'
-import { CloseIcon } from './icons'
+import { CloseIcon, SkipIcon, PlayIcon, PauseIcon } from './icons'
+
+// A brief silent clip unlocks this element when playback begins before the first spoken cue.
+const SILENT_AUDIO = 'data:audio/wav;base64,UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA=='
 
 const clock = (ms: number) => `${Math.floor(ms / 60000)}:${Math.floor(ms / 1000 % 60).toString().padStart(2, '0')}`
 
@@ -20,7 +23,8 @@ export function LessonPlayer({ id, question, onClose }: { id: string; question: 
 	const [playing, setPlaying] = useState(false)
 	const [rate, setRate] = useState(1)
 	const [transcript, setTranscript] = useState(false)
-	const editorRef = useRef<Editor | null>(null)
+	const draw = useRef<ReturnType<typeof createLessonPlayback> | null>(null)
+	const audioAttempt = useRef(0)
 	const audioRef = useRef<HTMLAudioElement | null>(null)
 	const urls = useRef(new Map<string, string>())
 	const position = useRef(0)
@@ -40,80 +44,102 @@ export function LessonPlayer({ id, question, onClose }: { id: string; question: 
 			if (!recording) throw new Error('This replay is no longer in browser storage.')
 			await Promise.all(recording.cues.map(async (cue) => {
 				if (!cue.audioKey) return
-				const url = await getBlobUrl(cue.audioKey)
+				const url = await getBlobUrl(cue.audioKey).catch(() => undefined)
 				if (url) urls.current.set(cue.audioKey, url)
 			}))
 			if (!cancelled) setLesson(recording)
 		}).catch(() => { if (!cancelled) setError('Could not open this replay from browser storage.') })
-		return () => { cancelled = true; audioRef.current?.pause(); stopSpeaking() }
+		return () => { cancelled = true; audioAttempt.current++; audioRef.current?.pause(); stopSpeaking() }
 	}, [id])
 
-	const render = useCallback((at: number) => {
-		const editor = editorRef.current
-		if (!editor || !lesson) return
-		const state = lessonAt(lesson, at)
-		editor.loadSnapshot(state.snapshot)
-		editor.setCamera(state.camera)
-		editor.updateInstanceState({ isReadonly: true })
-	}, [lesson])
+	const render = useCallback((at: number, seek = false) => {
+		draw.current?.(at, seek)
+	}, [])
+
+	const startCue = useCallback((at: number) => {
+		const audio = audioRef.current
+		if (!audio || !lesson) return
+		const index = lesson.cues.findIndex((cue) => at >= cue.start && at < cue.end)
+		const cue = lesson.cues[index]
+		const attempt = ++audioAttempt.current
+		audio.pause()
+		stopSpeaking()
+		activeCue.current = index
+		seeking.current = false
+		if (!cue) {
+			audio.src = SILENT_AUDIO
+			void audio.play().catch(() => {})
+			return
+		}
+		const url = cue.audioKey && urls.current.get(cue.audioKey)
+		if (url) {
+			// Start in the Play/seek gesture, preserving browser permission to play audible media.
+			if (audio.src !== url) audio.src = url
+			audio.currentTime = Math.max(0, (at - cue.start) / 1000)
+			audio.playbackRate = rate
+			void audio.play().catch((err: unknown) => {
+				if (attempt !== audioAttempt.current) return
+				if ((err as DOMException).name === 'NotAllowedError') {
+					setPlaying(false)
+					setError('Your browser blocked replay audio. Press play to try again.')
+				} else if (cue.voiced) {
+					// Missing or damaged saved clips can still use the local browser voice.
+					speak(cue.text, undefined, undefined, rate)
+				}
+			})
+		} else if (cue.voiced) speak(cue.text, undefined, undefined, rate)
+	}, [lesson, rate])
 
 	const seek = useCallback((at: number) => {
 		if (!lesson) return
 		position.current = Math.max(0, Math.min(lesson.duration, at))
 		seeking.current = true
+		audioAttempt.current++
 		audioRef.current?.pause()
 		stopSpeaking()
 		activeCue.current = -1
 		setTime(position.current)
-		render(position.current)
-	}, [lesson, render])
+		render(position.current, true)
+		if (playing) startCue(position.current)
+	}, [lesson, render, playing, startCue])
 
 	useEffect(() => {
-		if (!playing || !lesson) { audioRef.current?.pause(); stopSpeaking(); return }
+		if (!playing || !lesson) { audioAttempt.current++; audioRef.current?.pause(); stopSpeaking(); return }
 		let frame = 0
 		let last = performance.now()
-		let lastRendered = -Infinity
+		let lastUi = -Infinity
 		const tick = (now: number) => {
-			position.current = Math.min(lesson.duration, position.current + (now - last) * rate)
+			const audio = audioRef.current
+			const active = lesson.cues[activeCue.current]
+			const hasClip = active?.audioKey && urls.current.has(active.audioKey)
+			if (hasClip && audio && !audio.paused && !audio.ended) {
+				// Buffering holds the playhead at the audible position instead of repeatedly jumping back.
+				position.current = Math.min(lesson.duration, active.start + audio.currentTime * 1000)
+			} else {
+				position.current = Math.min(lesson.duration, position.current + (now - last) * rate)
+			}
 			last = now
 			const at = position.current
-			setTime(at)
-			if (seeking.current || at - lastRendered >= 100) { render(at); lastRendered = at }
 			const index = lesson.cues.findIndex((cue) => at >= cue.start && at < cue.end)
-			const cue = lesson.cues[index]
-			const audio = audioRef.current
-			if (audio && cue) {
-				const url = cue.audioKey && urls.current.get(cue.audioKey)
-				if (index !== activeCue.current || seeking.current) {
-					audio.pause()
-					stopSpeaking()
-					if (url) {
-						audio.src = url
-						audio.currentTime = Math.max(0, (at - cue.start) / 1000)
-						audio.playbackRate = rate
-						audio.play().catch(() => { setPlaying(false); setError('Press play to enable audio in your browser.') })
-					} else if (cue.voiced) speak(cue.text, undefined, undefined, rate)
-					activeCue.current = index
-				} else if (url) {
-					audio.playbackRate = rate
-					if (audio.paused && !audio.ended) void audio.play().catch(() => {})
-					// Use the original clip as the clock, including any browser buffering.
-					if (!audio.paused && Math.abs(at - cue.start - audio.currentTime * 1000) > 200) position.current = cue.start + audio.currentTime * 1000
-				}
-			} else if (index === -1 && activeCue.current !== -1) { audio?.pause(); stopSpeaking(); activeCue.current = -1 }
-			seeking.current = false
+			if (index !== activeCue.current || seeking.current) startCue(at)
+			if (now - lastUi >= 33 || at >= lesson.duration) { setTime(at); lastUi = now }
+			render(at)
 			if (at >= lesson.duration) { setPlaying(false); return }
 			frame = requestAnimationFrame(tick)
 		}
 		frame = requestAnimationFrame(tick)
 		return () => cancelAnimationFrame(frame)
-	}, [playing, lesson, rate, render])
+	}, [playing, lesson, rate, render, startCue])
 
 	const togglePlay = () => {
-		if (lesson && time >= lesson.duration) seek(0)
-		seeking.current = true
-		setPlaying((p) => !p)
+		if (!lesson) return
+		if (playing) { audioAttempt.current++; audioRef.current?.pause(); stopSpeaking(); setPlaying(false); return }
+		if (position.current >= lesson.duration) seek(0)
+		setError('')
+		startCue(position.current)
+		setPlaying(true)
 	}
+
 	const cue = lesson?.cues.find((cue) => time >= cue.start && time < cue.end)
 	return <section className="loci-player" aria-label="Explanation replay" onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()} onKeyDown={(e) => {
 		if (e.key === 'Escape') { e.preventDefault(); onClose(); return }
@@ -122,7 +148,7 @@ export function LessonPlayer({ id, question, onClose }: { id: string; question: 
 		if (e.code === 'ArrowLeft') { e.preventDefault(); seek(position.current - 10000) }
 		if (e.code === 'ArrowRight') { e.preventDefault(); seek(position.current + 10000) }
 	}}>
-		{lesson && createPortal(<div className="loci-replay-canvas" aria-label="Replaying explanation on the board"><style>{lesson.writing?.map((w) => { const clip = writingClip(w, time); return clip ? `.loci-replay-canvas .tl-shape[data-shape-id="${CSS.escape(w.shapeId)}"] { clip-path: ${clip}; }` : '' }).join('\n')}</style><Tldraw shapeUtils={shapeUtils} assetUrls={assetUrls} snapshot={lesson.baseline} hideUi licenseKey={process.env.NEXT_PUBLIC_TLDRAW_LICENSE_KEY || undefined} onMount={(editor) => { editorRef.current = editor; editor.updateInstanceState({ isReadonly: true }); editor.user.updateUserPreferences({ colorScheme: 'light' }); const state = lessonAt(lesson, position.current); editor.loadSnapshot(state.snapshot); editor.setCamera(state.camera) }} /></div>, liveEditor.getContainer())}
+		{lesson && createPortal(<div className="loci-replay-canvas" aria-label="Replaying explanation on the board"><style>{lesson.writing?.map((w) => { const clip = writingClip(w, time); return clip ? `.loci-replay-canvas .tl-shape[data-shape-id="${CSS.escape(w.shapeId)}"] { clip-path: ${clip}; }` : '' }).join('\n')}</style><Tldraw shapeUtils={shapeUtils} assetUrls={assetUrls} snapshot={lesson.baseline} hideUi licenseKey={process.env.NEXT_PUBLIC_TLDRAW_LICENSE_KEY || undefined} onMount={(editor) => { editor.updateInstanceState({ isReadonly: true }); editor.user.updateUserPreferences({ colorScheme: 'light' }); draw.current = createLessonPlayback(editor, lesson); draw.current(position.current, true) }} /></div>, liveEditor.getContainer())}
 		<header><span title={question}>Replay · {question}</span><button className="loci-icon-btn loci-icon-btn--sm" onClick={onClose} aria-label="Finish replay" title="Return to your board"><CloseIcon /></button></header>
 		{error && <p className="loci-player__error" role="alert">{error}</p>}
 		{lesson ? <>
@@ -133,7 +159,7 @@ export function LessonPlayer({ id, question, onClose }: { id: string; question: 
 			{!transcript && cue && <p className="loci-player__caption" dangerouslySetInnerHTML={{ __html: renderRich(cue.text) }} />}
 			<div className="loci-player__controls">
 				<input aria-label="Explanation timeline" type="range" min="0" max={lesson.duration} step="100" value={time} onChange={(e) => seek(Number(e.target.value))} />
-				<div><button onClick={() => seek(position.current - 10000)} aria-label="Rewind 10 seconds">↶ 10s</button><button className="loci-player__play" onClick={togglePlay} aria-label={playing ? 'Pause replay' : 'Play replay'}>{playing ? 'Ⅱ' : '▶'}</button><button onClick={() => seek(position.current + 10000)} aria-label="Forward 10 seconds">10s ↷</button><span>{clock(time)} / {clock(lesson.duration)}</span><select aria-label="Playback speed" value={rate} onChange={(e) => { seeking.current = true; setRate(Number(e.target.value)) }}>{[0.5, 0.75, 1, 1.25, 1.5, 2].map((r) => <option key={r} value={r}>{r}×</option>)}</select><button aria-pressed={transcript} onClick={() => setTranscript(!transcript)}>Transcript</button></div>
+				<div><button onClick={() => seek(position.current - 10000)} className="loci-player__skip" aria-label="Rewind 10 seconds" title="Back 10 seconds"><SkipIcon /><b>10</b></button><button className="loci-player__play" onClick={togglePlay} aria-label={playing ? 'Pause replay' : 'Play replay'}>{playing ? <PauseIcon /> : <PlayIcon />}</button><button onClick={() => seek(position.current + 10000)} className="loci-player__skip" aria-label="Forward 10 seconds" title="Forward 10 seconds"><SkipIcon forward /><b>10</b></button><span>{clock(time)} / {clock(lesson.duration)}</span><select aria-label="Playback speed" value={rate} onChange={(e) => { const next = Number(e.target.value); if (audioRef.current) audioRef.current.playbackRate = next; seeking.current = true; setRate(next) }}>{[0.5, 0.75, 1, 1.25, 1.5, 2].map((r) => <option key={r} value={r}>{r}×</option>)}</select><button aria-pressed={transcript} onClick={() => setTranscript(!transcript)}>Transcript</button></div>
 			</div>
 		</> : !error && <p>Opening the saved explanation…</p>}
 		<audio ref={audioRef} preload="auto" />
