@@ -38,14 +38,12 @@ export function MobilePreview({ children }: { children: ReactNode }) {
 		<a className="loci-brand" href="/" aria-label="Loci home"><BrandLogo /></a>
 		{mobile !== null && <>
 			<section className="loci-mobile-preview__intro">
-				<div className="loci-sphere" aria-hidden />
-				<p className="loci-mobile-preview__eyebrow">A spatial canvas for learning</p>
 				<h1>Intelligence,<br />given a place.</h1>
-				<p>Bring your notes. Loci draws, writes and explains beside them, so every answer stays where you asked it.</p>
+				<p>Loci draws and explains beside your notes, so understanding stays in place.</p>
 			</section>
 			<section className="loci-mobile-preview__notice" aria-labelledby="loci-mobile-heading">
 				<h2 id="loci-mobile-heading">Try Loci on your computer.</h2>
-				<p>Mobile isn’t supported yet. Open learnwithloci.com on your laptop or desktop to get started.</p>
+				<p>Mobile isn’t supported yet. Open Loci on your laptop or desktop.</p>
 				<button className="loci-primary" onClick={copy}>Copy link</button>
 				<p className="loci-mobile-preview__status" role="status">{copied ? 'Link copied. Open it on your computer.' : fallbackLink ? 'Copy the link below to open it on your computer.' : ''}</p>
 				{fallbackLink && <input className="loci-mobile-preview__link" aria-label="Link to open on your computer" readOnly value={fallbackLink} onFocus={e => e.currentTarget.select()} />}
