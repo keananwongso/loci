@@ -34,7 +34,7 @@ describe('subscription ownership and checkout', () => {
 	it('uses verified identity, the configured price and canonical redirect URLs', async () => {
 		expect((await checkout(request('checkout'))).status).toBe(200)
 		expect(mock.customer).toHaveBeenCalledWith({ id: 'owner', email: 'owner@example.com' })
-		expect(mock.checkout).toHaveBeenCalledWith(expect.objectContaining({ customer: 'cus_owner', client_reference_id: 'owner', line_items: [{ price: 'price_monthly', quantity: 1 }], success_url: 'https://loci.example/account?checkout=success' }), { idempotencyKey: expect.stringMatching(/^loci-checkout-owner-/) })
+		expect(mock.checkout).toHaveBeenCalledWith(expect.objectContaining({ customer: 'cus_owner', client_reference_id: 'owner', line_items: [{ price: 'price_monthly', quantity: 1 }], success_url: 'https://loci.example/account?checkout=success', managed_payments: { enabled: false } }), { idempotencyKey: expect.stringMatching(/^loci-checkout-owner-/) })
 		await portal(request('portal'))
 		expect(mock.read).toHaveBeenCalledWith('owner')
 		expect(mock.portal).toHaveBeenCalledWith({ customer: 'cus_owner', return_url: 'https://loci.example/account' })

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { appOrigin, currentUser } from '@/lib/server/auth'
 import { billingConfigured, customerFor, stripeClient, syncCustomer } from '@/lib/server/billing'
 import { refuseCrossOrigin } from '@/lib/server/request'
@@ -24,12 +25,17 @@ export async function POST(req: Request) {
 		const sessions = await stripe.checkout.sessions.list({ customer, status: 'open', limit: 10 })
 		const open = sessions.data.find((s) => s.mode === 'subscription' && s.metadata?.loci_user_id === user.id && s.metadata?.loci_price_id === price.id)
 		if (open?.url) return Response.json({ url: open.url })
-		const session = await stripe.checkout.sessions.create({
-			mode: 'subscription', customer, line_items: [{ price: price.id, quantity: 1 }],
+		const params = {
+			mode: 'subscription' as const, customer, line_items: [{ price: price.id, quantity: 1 }],
 			client_reference_id: user.id, metadata: { loci_user_id: user.id, loci_price_id: price.id }, subscription_data: { metadata: { loci_user_id: user.id } },
 			success_url: `${appOrigin(req)}/account?checkout=success`, cancel_url: `${appOrigin(req)}/account?checkout=cancelled`,
 			allow_promotion_codes: false,
-		}, { idempotencyKey: `loci-checkout-${user.id}-${Math.floor(Date.now() / 1800000)}` })
+			// Loci is the seller of record; don't inherit an account default that switches on Managed Payments.
+			managed_payments: { enabled: false },
+		}
+		// Double clicks share a key; changed parameters get a new one, since Stripe rejects a reused key with different parameters.
+		const fingerprint = createHash('sha256').update(JSON.stringify(params)).digest('hex').slice(0, 16)
+		const session = await stripe.checkout.sessions.create(params, { idempotencyKey: `loci-checkout-${user.id}-${Math.floor(Date.now() / 1800000)}-${fingerprint}` })
 		if (!session.url) throw new Error('Checkout did not return a URL.')
 		return Response.json({ url: session.url })
 	} catch (err) {
