@@ -9,6 +9,22 @@ import {
 } from './model'
 
 describe('owned canvas document', () => {
+	it('stops shape ancestry at page records restored from a saved board', () => {
+		const e = new Editor()
+		e.store.put([{ id: e.pageId, typeName: 'page' }])
+		e.createShape({ id: 'shape:parent', type: 'group' })
+		e.createShape({ id: 'shape:child', type: 'geo', parentId: 'shape:parent' })
+		const parent = e.getShape('shape:parent')!
+		const child = e.getShape('shape:child')!
+		expect(e.getShape(e.pageId)).toBeUndefined()
+		expect(e.getShapeParent(parent)).toBeUndefined()
+		expect(e.getShapeAncestors(parent)).toEqual([])
+		expect(e.getShapeAncestors(child)).toEqual([parent])
+		expect(e.isShapeOrAncestorLocked(child)).toBe(false)
+		expect(e.getCurrentPageShapes()).toEqual([parent, child])
+		e.updateShape({ id: parent.id, isLocked: true })
+		expect(e.isShapeOrAncestorLocked(child)).toBe(true)
+	})
 	it('restores a tutor turn that edits an existing graph and removes a shape', () => {
 		const e = new Editor()
 		e.createShape({

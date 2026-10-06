@@ -576,7 +576,9 @@ export class Editor {
 		) as TLArrowBinding[]
 	}
 	getShape<S extends TLShape = TLShape>(id: string | TLShape): S | undefined {
-		return this.records[typeof id === 'string' ? id : id.id] as S | undefined
+		const record = this.records[typeof id === 'string' ? id : id.id]
+		// Saved boards also contain pages/assets. A page ends shape ancestry.
+		return record?.typeName === 'shape' ? (record as S) : undefined
 	}
 	getShapeParent(shape: TLShape) {
 		return this.getShape(shape.parentId)
