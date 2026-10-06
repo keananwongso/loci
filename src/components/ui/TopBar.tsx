@@ -124,8 +124,8 @@ function AccountCorner({ account, status }: { account?: Props['account']; status
 	)
 	return (
 		<nav className="loci-corner" aria-label="Account" onPointerDown={stop}>
-			<a className="loci-corner__secondary" href="/account">Sign in</a>
-			<a className="loci-corner__cta" href="/account">Create free account</a>
+			{/* Google sign-in signs in or creates the account in one step, so one button covers both. */}
+			<a className="loci-corner__cta" href="/account">Get started</a>
 		</nav>
 	)
 }

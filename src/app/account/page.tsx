@@ -93,13 +93,13 @@ export default function AccountPage() {
 		<nav><Link className="loci-brand" href="/">Loci</Link><Link href={account?.user ? '/home' : '/demo'}>{account?.user ? 'Your boards →' : 'Open workspace →'}</Link></nav>
 		<section className="loci-account__card">
 			<p className="loci-landing__eyebrow">Your Loci account</p>
-			<h1>{account?.user ? 'Keep learning.' : 'Make room for understanding.'}</h1>
+			<h1>{account?.user ? 'Keep learning.' : 'Sign in or create your account.'}</h1>
 			{error && <p role="alert" className="loci-account__error">{error}</p>}
 			{notice && <p role="status" className="loci-account__notice">{notice}</p>}
 			{!account && !error && <p>Opening your account…</p>}
 			{account && !account.configured && <><p>Accounts are not available on this copy of Loci. Your boards still save in this browser.</p><Link className="loci-primary" href="/demo">Open workspace →</Link></>}
 			{account?.configured && !account.user && <>
-				<p>Sign in to subscribe. Your notes and boards stay in this browser.</p>
+				<p>One step with Google, whether you're new or coming back. Your boards save to your account and open on any device, and boards you made here before signing in come with you.</p>
 				{account.google && <GoogleButton onSignedIn={signedIn} onError={setError} />}
 				{account.emailSignIn && <>
 					<div className="loci-account__divider">or use your email</div>

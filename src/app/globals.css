@@ -1974,7 +1974,6 @@ button {
 .loci-landing__account a:hover { background: var(--loci-hover); }
 .loci-landing__account a.loci-landing__cta { background: var(--loci-ink); color: var(--color-eggshell); font-weight: 500; }
 .loci-landing__account a.loci-landing__cta:hover { background: var(--loci-ink); opacity: .88; }
-@media (max-width: 480px) { .loci-landing__account a:not(.loci-landing__cta) { display: none; } }
 .loci-landing__hero { max-width: 900px; margin: 32px auto 70px; text-align: center; }
 .loci-landing__hero .loci-sphere { width: 78px; height: 78px; margin: 0 auto 26px; }
 .loci-landing__eyebrow { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--loci-ink-3); }
@@ -2222,7 +2221,6 @@ button {
 @media (max-width: 720px) {
 	/* Below the top bar, which takes the full width on a phone. */
 	.loci-corner { top: 66px; right: 12px; height: 40px; padding: 0 4px; }
-	.loci-corner__secondary { display: none; }
 }
 /* Device boards open off-screen while they are copied into the account. */
 .loci-device-import { position: fixed; left: -10000px; top: 0; width: 800px; height: 600px; pointer-events: none; visibility: hidden; }
