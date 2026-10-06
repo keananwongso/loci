@@ -13,10 +13,10 @@ export default function Landing({ accounts, billing }: { accounts: boolean; bill
 				<a className="loci-brand" href="/">
 					Loci
 				</a>
-				{accounts && <Link href="/account">Sign in</Link>}
-				<a href={REPO_URL} target="_blank" rel="noreferrer">
-					Open source ↗
-				</a>
+				{accounts && <div className="loci-landing__account">
+					<Link href="/account">Sign in</Link>
+					<Link className="loci-landing__cta" href="/account">Create free account</Link>
+				</div>}
 			</nav>
 			<section className="loci-landing__hero">
 				<div className="loci-sphere" aria-hidden />
@@ -37,7 +37,6 @@ export default function Landing({ accounts, billing }: { accounts: boolean; bill
 						{returning ? 'Continue learning →' : 'Try Loci →'}
 					</Link>
 				</div>
-				<p className="loci-landing__fine">Try the live demo. No account needed.</p>
 				{billing && <p className="loci-landing__fine">Keep learning with <Link href="/account">Loci Pro · US$8/month</Link>.</p>}
 				<div className="loci-landing__board" aria-label="Illustration of Loci drawing a gradient beside calculus notes">
 					<div className="loci-landing__notes">
