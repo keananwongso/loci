@@ -38,7 +38,8 @@ export const deleteBoard = (id: string) => call(`/api/boards/${id}`, { method: '
 /** Opening a file redirects to a short-lived signed URL in storage. */
 export const fileUrl = (key: string) => `/api/files/${encodeURIComponent(key)}`
 
-const uploads = new Map<string, Promise<void>>()
+const uploads = new Set<Promise<void>>()
+let uploadTail: Promise<void> = Promise.resolve()
 /** Upload straight to storage with a one-time URL, then confirm it so the account counts it. */
 export function uploadFile(key: string, blob: Blob, boardId: string | null): Promise<void> {
 	const run = async () => {
@@ -48,14 +49,20 @@ export function uploadFile(key: string, blob: Blob, boardId: string | null): Pro
 		if (!put.ok) throw new CloudError('The upload did not finish. Check your connection.', put.status)
 		await call(`/api/files/${encodeURIComponent(key)}`, { method: 'POST' })
 	}
-	const upload = run()
-	uploads.set(key, upload)
-	upload.catch((err) => reportCloudError(err)).finally(() => uploads.delete(key))
+	// Pages and replay audio can arrive in a burst. Finish the reservation, PUT,
+	// and confirmation before starting the next file, keeping below the server cap.
+	const upload = uploadTail.then(run)
+	uploadTail = upload.catch(() => {})
+	uploads.add(upload)
+	upload.then(
+		() => uploads.delete(upload),
+		(err) => { uploads.delete(upload); reportCloudError(err) }
+	)
 	return upload
 }
 
 /** Files still uploading, so a save can wait for the material it refers to. */
-export const pendingUploads = () => Promise.allSettled([...uploads.values()])
+export const pendingUploads = () => Promise.allSettled([...uploads])
 
 export function reportCloudError(err: unknown) {
 	const message = err instanceof Error ? err.message : 'Could not save to your account.'
