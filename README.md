@@ -1,10 +1,10 @@
 # Loci
 
-An AI tutor that draws beside your notes.
+A spatial canvas for learning: Loci explains by drawing beside your notes.
 
-When you’re stuck on a piece of math, it helps to have someone draw it out with you. That’s the idea behind Loci.
+When you’re stuck, whether it’s a proof, a circuit, a sorting algorithm or a journal entry, it helps to have someone draw it out with you, right next to your notes. That’s the idea behind Loci.
 
-Drop in a PDF or screenshot, point at what confuses you, and ask. Loci highlights your notes, sketches graphs, and writes equations while talking you through the explanation. Everything stays on the whiteboard, so you can keep asking and build on it together.
+Drop in a PDF or screenshot, point at what confuses you, and ask. Loci highlights your notes, sketches graphs and diagrams, builds tables and writes out the working while talking you through it. Everything stays on the whiteboard, so you can keep asking and build on it together.
 
 If you like the idea, a star helps people find it.
 

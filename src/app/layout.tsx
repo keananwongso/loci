@@ -7,7 +7,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
 	title: 'Loci',
-	description: 'A local-first spatial AI tutor that teaches by drawing beside your course material.',
+	description: 'A spatial canvas for learning any course: Loci explains by drawing, writing and talking right beside your own notes.',
 }
 
 export const viewport: Viewport = {
