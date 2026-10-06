@@ -1241,9 +1241,6 @@ button {
 	transform: translate(-50%, -50%);
 	white-space: nowrap;
 	pointer-events: none;
-	padding: 0 3px;
-	border-radius: 4px;
-	background: rgba(253, 252, 252, 0.85);
 }
 
 .loci-graph__title {
