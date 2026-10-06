@@ -735,7 +735,14 @@ export function Whiteboard({
 		y: editor.camera.y * editor.camera.z,
 		zoom: editor.camera.z
 	}
+	const touchPointers = useRef(new Map<number, { x: number; y: number }>())
+	const pinch = useRef<{
+		distance: number
+		zoom: number
+		anchor: { x: number; y: number }
+	} | null>(null)
 	const gesture = useRef<{
+		mark: string
 		id: string
 		start: { x: number; y: number }
 		tool: string
@@ -811,13 +818,38 @@ export function Whiteboard({
 			)
 		)
 			return
+		if (event.pointerType === 'touch') {
+			touchPointers.current.set(event.pointerId, {
+				x: event.clientX,
+				y: event.clientY
+			})
+			if (touchPointers.current.size > 1) {
+				// A second finger turns drawing into a pinch. Restore the document
+				// before this gesture and track a pinch around its page-space anchor.
+				if (gesture.current) editor.bailToMark(gesture.current.mark)
+				gesture.current = null
+				const [a, b] = [...touchPointers.current.values()]
+				pinch.current = {
+					distance: Math.max(1, Math.hypot(b.x - a.x, b.y - a.y)),
+					zoom: editor.camera.z,
+					anchor: editor.screenToPage({
+						x: (a.x + b.x) / 2,
+						y: (a.y + b.y) / 2
+					})
+				}
+				event.stopPropagation()
+				event.preventDefault()
+				root.current?.setPointerCapture(event.pointerId)
+				return
+			}
+		}
 		event.stopPropagation()
 		event.preventDefault()
 		root.current?.setPointerCapture(event.pointerId)
 		const start = editor.screenToPage({ x: event.clientX, y: event.clientY }),
 			tool = editor.tool,
 			id = createShapeId()
-		editor.markHistoryStoppingPoint(tool)
+		const mark = editor.markHistoryStoppingPoint(tool)
 		if (tool === 'eraser') {
 			const target = editor.getShapeAtPoint(start)
 			if (target && !editor.isShapeOrAncestorLocked(target))
@@ -850,6 +882,7 @@ export function Whiteboard({
 			editor.select(id)
 		}
 		gesture.current = {
+			mark,
 			id,
 			start,
 			tool,
@@ -857,6 +890,26 @@ export function Whiteboard({
 		}
 	}
 	const drawMove = (event: React.PointerEvent) => {
+		if (touchPointers.current.has(event.pointerId))
+			touchPointers.current.set(event.pointerId, {
+				x: event.clientX,
+				y: event.clientY
+			})
+		if (pinch.current && touchPointers.current.size >= 2) {
+			const [a, b] = [...touchPointers.current.values()],
+				p = pinch.current,
+				z = Math.max(
+					0.05,
+					Math.min(8, (p.zoom * Math.hypot(b.x - a.x, b.y - a.y)) / p.distance)
+				),
+				rect = root.current!.getBoundingClientRect()
+			editor.setCamera({
+				x: ((a.x + b.x) / 2 - rect.left) / z - p.anchor.x,
+				y: ((a.y + b.y) / 2 - rect.top) / z - p.anchor.y,
+				z
+			})
+			return
+		}
 		const g = gesture.current
 		if (!g) return
 		const point = editor.screenToPage({ x: event.clientX, y: event.clientY }),
@@ -883,11 +936,13 @@ export function Whiteboard({
 			})
 	}
 	const drawUp = (event: React.PointerEvent) => {
+		touchPointers.current.delete(event.pointerId)
+		if (touchPointers.current.size < 2) pinch.current = null
+		if (root.current?.hasPointerCapture(event.pointerId))
+			root.current.releasePointerCapture(event.pointerId)
 		const g = gesture.current
 		if (!g) return
 		gesture.current = null
-		if (root.current?.hasPointerCapture(event.pointerId))
-			root.current.releasePointerCapture(event.pointerId)
 		if (g.tool === 'draw')
 			editor.updateShape({ id: g.id, props: { isComplete: true } })
 		if (g.tool === 'arrow')
@@ -1068,6 +1123,11 @@ export function Whiteboard({
 					onlyRenderVisibleElements={false}
 					nodesConnectable={false}
 					zoomOnDoubleClick={false}
+					zoomOnPinch={
+						!['draw', 'geo', 'arrow', 'text', 'loci-region', 'eraser'].includes(
+							editor.tool
+						)
+					}
 					preventScrolling
 				>
 					{!hideUi && foreground && React.createElement(foreground)}

@@ -2263,3 +2263,14 @@ button {
 
 /* Hit native strokes rather than the empty space in their SVG viewport. */
 .loci-shape svg[data-hit-strokes] > * { pointer-events: visiblePainted; }
+
+/* Keep the opening actions clear of canvas tools and the prompt on narrow screens. */
+@media (max-width: 640px) {
+	.loci-empty { padding: 76px 16px 150px 72px; overflow: auto; }
+	.loci-empty__inner { max-width: 100%; padding: 12px 0; }
+	.loci-empty .loci-sphere { display: none; }
+	.loci-empty__title { font-size: 32px; margin: 12px 0; }
+	.loci-empty__lede { font-size: 14px; }
+	.loci-empty__actions { margin-top: 16px; }
+	.loci-empty .loci-badge { font-size: 10px; padding: 0 8px; }
+}

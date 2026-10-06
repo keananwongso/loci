@@ -36,8 +36,9 @@ snapshot.
   and pen content. A 300-object board supported pan/zoom without console errors;
   this was a smoke test, not a measured performance benchmark.
 
-The change has not been deployed. An authenticated cloud round trip has not been
-tested live. Tablet/Pencil behavior and multiplayer are outside this desktop scope.
+The branch has a Vercel preview deployment; production has not been changed. An
+authenticated cloud round trip has not been tested live. Physical-device Safari,
+Pencil behavior, and multiplayer remain unverified.
 
 ## Follow-up UI testing
 
@@ -62,6 +63,22 @@ mock tutor actions. Replay Home/End seeking matched the live document at complet
 and replay keyboard input left the live board intact. Final Chrome console had no
 errors. Browser screenshots are in the ignored `output/playwright/ui-audit-*.png`
 files in the implementation worktree.
+
+## Pre-merge follow-up
+
+Rebased onto freshly fetched `origin/main` at `d047e0e` and formatted the new
+whiteboard files with tabs, single quotes, and no semicolons to match the repo.
+Chrome phone (393 by 659) and tablet (768 by 1024) touch emulation exercised sample
+PDF loading, pen drawing, one-finger panning, and pinch zoom. A pinch with the pen
+selected originally left unwanted strokes. Drawing tools now cancel the unfinished
+edit when the second finger arrives and zoom around the gesture's page-space
+anchor. Pinching leaves shape counts unchanged, and a subsequent single-finger
+stroke still works. Desktop mouse drawing and undo were checked again.
+
+The phone opening screen now leaves space for the tool rail and prompt dock.
+These checks use Chrome touch emulation, not physical iOS hardware. A real phone
+check and an authenticated save/reload against the preview are still required
+before merging. Preview access follows the project's existing Vercel protection.
 
 ## Dependencies and licensing
 
