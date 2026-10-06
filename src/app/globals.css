@@ -2203,3 +2203,19 @@ button {
 .loci-add__name { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .loci-add__files .loci-role-switch { position: static; flex-wrap: wrap; width: fit-content; }
 .loci-add__hint { font-size: 12px; color: #8a8290; }
+
+/* Account, top right; the top bar keeps to the board itself. */
+.loci-topbar { gap: 6px; }
+.loci-topbar .loci-board-library { margin-left: 4px; }
+.loci-topbar__divider { width: 1px; height: 20px; margin: 0 4px; background: var(--loci-line, #e7e2ea); }
+.loci-corner { position: absolute; top: 12px; right: 12px; z-index: 10; display: flex; align-items: center; gap: 4px; height: 46px; padding: 0 6px 0 16px; border-radius: var(--radius-pill); background: var(--loci-surface); box-shadow: var(--loci-shadow); font-size: 13px; }
+.loci-corner a { color: var(--loci-ink); text-decoration: none; white-space: nowrap; padding: 8px 10px; border-radius: 999px; }
+.loci-corner a:hover { background: var(--loci-hover); }
+.loci-corner a.loci-corner__cta { margin-left: 2px; padding: 9px 16px; background: var(--loci-ink); color: var(--color-eggshell); font-weight: 500; }
+.loci-corner a.loci-corner__cta:hover { background: var(--loci-ink); opacity: .88; }
+.loci-corner__badge { padding: 4px 9px; border-radius: 999px; background: #ece3fb; color: #7445e0; font-size: 11px; font-weight: 500; }
+@media (max-width: 720px) {
+	/* Below the top bar, which takes the full width on a phone. */
+	.loci-corner { top: 66px; right: 12px; height: 40px; padding: 0 4px; }
+	.loci-corner__secondary { display: none; }
+}

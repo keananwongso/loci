@@ -22,7 +22,6 @@ interface Props {
 
 export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear, onSample, onTour, onEraseDrawings, busy, library, account }: Props) {
 	const [menu, setMenu] = useState(false)
-	const accountLabel = status.pro ? 'Pro · Account' : status.signedIn ? 'Account' : 'Sign in'
 	const ref = useRef<HTMLDivElement>(null)
 	useEffect(() => {
 		if (!menu) return
@@ -32,14 +31,13 @@ export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear
 	}, [menu])
 
 	return (
+		<>
 		<div className="loci-topbar" data-menu-open={menu} onPointerDown={(e) => e.stopPropagation()}>
 			<a className="loci-brand" href={account ? '/home' : '/'} title={account ? 'Your boards' : undefined} style={{ textDecoration: 'none', color: 'inherit' }}>Loci</a>
 
 			{library}
 			{account?.saveState}
-			{account
-				? <a className="loci-topbar__account" href="/account"><span className="loci-topbar__account-full">{account.pro ? 'Pro · Account' : 'Account'}</span><span className="loci-topbar__account-short">{account.pro ? 'Pro' : 'Account'}</span></a>
-				: status.accounts && <a className="loci-topbar__account" href="/account" aria-label={accountLabel}><span className="loci-topbar__account-full">{accountLabel}</span><span className="loci-topbar__account-short">{status.pro ? 'Pro' : accountLabel}</span></a>}
+			<span className="loci-topbar__divider" aria-hidden />
 			<button className="loci-icon-btn" data-active={voiceOut} onClick={onToggleVoice} title={
 					voiceOut
 						? `Loci speaks its answers${voiceProvider === 'fish' ? ' (Fish Audio)' : voiceProvider === 'browser' ? " (your browser's voice)" : ''}. Click to turn off.`
@@ -103,5 +101,31 @@ export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear
 				)}
 			</div>
 		</div>
+		<AccountCorner account={account} status={status} />
+		</>
+	)
+}
+
+/** Who you are, top right: an invitation to sign up, a way back to your boards, or your plan. */
+function AccountCorner({ account, status }: { account?: Props['account']; status: TutorStatus }) {
+	const stop = (e: React.PointerEvent) => e.stopPropagation()
+	if (account) return (
+		<nav className="loci-corner" aria-label="Account" onPointerDown={stop}>
+			{account.pro && <span className="loci-corner__badge">Pro</span>}
+			<a href="/account">Account</a>
+		</nav>
+	)
+	if (!status.accounts) return null
+	if (status.signedIn) return (
+		<nav className="loci-corner" aria-label="Account" onPointerDown={stop}>
+			<a href="/home">Your boards</a>
+			<a href="/account">{status.pro ? 'Pro · Account' : 'Account'}</a>
+		</nav>
+	)
+	return (
+		<nav className="loci-corner" aria-label="Account" onPointerDown={stop}>
+			<a className="loci-corner__secondary" href="/account">Sign in</a>
+			<a className="loci-corner__cta" href="/account">Create free account</a>
+		</nav>
 	)
 }
