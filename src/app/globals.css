@@ -2219,3 +2219,6 @@ button {
 	.loci-corner { top: 66px; right: 12px; height: 40px; padding: 0 4px; }
 	.loci-corner__secondary { display: none; }
 }
+/* Device boards open off-screen while they are copied into the account. */
+.loci-device-import { position: fixed; left: -10000px; top: 0; width: 800px; height: 600px; pointer-events: none; visibility: hidden; }
+.loci-home__notice { padding: 12px 16px; border-radius: 12px; background: #f4effb; color: #4b3a6b; font-size: 14px; }
