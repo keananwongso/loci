@@ -2163,3 +2163,27 @@ button {
 @media (max-width: 360px) {
  .loci-player__controls > div { flex-wrap: wrap; }
 }
+
+/* Account boards: a quiet save indicator, and dismissible notices. */
+.loci-sync { position: absolute; left: 16px; bottom: 14px; z-index: 300; margin: 0; padding: 5px 11px; border-radius: var(--radius-pill); background: rgba(253, 252, 252, .92); border: 1px solid #e7e2ea; color: #6f6876; font-size: 12px; pointer-events: none; }
+.loci-sync[data-state='error'], .loci-sync[data-state='signed-out'] { color: #a3302a; border-color: #f0c9c5; }
+.loci-sync[data-state='saved'] { opacity: .7; }
+.loci-toast button { margin-left: 10px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
+
+/* Home: a signed-in student's boards. */
+.loci-home__header { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap; margin: 56px 0 28px; }
+.loci-home__header h1 { margin: 0; }
+.loci-home__plan { margin: 6px 0 0; }
+.loci-home__actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.loci-home__boards { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+.loci-home__board { border: 1px solid #e7e2ea; border-radius: 16px; background: white; padding: 18px; display: flex; flex-direction: column; gap: 14px; min-height: 120px; justify-content: space-between; }
+.loci-home__open { display: flex; flex-direction: column; gap: 6px; color: inherit; text-decoration: none; }
+.loci-home__open strong { font-weight: 500; font-size: 16px; letter-spacing: -.01em; overflow-wrap: anywhere; }
+.loci-home__open span, .loci-home__menu span { color: #8a8290; font-size: 13px; }
+.loci-home__menu { display: flex; gap: 12px; align-items: center; font-size: 13px; }
+.loci-home__menu button, .loci-home__board form button { border: 0; background: none; padding: 0; color: #6f6876; text-decoration: underline; cursor: pointer; font: inherit; font-size: 13px; }
+.loci-home__board form { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.loci-home__board form input { flex: 1 1 140px; padding: 8px 10px; border: 1px solid #ddd5e5; border-radius: 8px; font: inherit; }
+.loci-home__empty { max-width: 480px; margin: 48px auto; text-align: center; }
+.loci-home__empty h2 { font-weight: 500; letter-spacing: -.03em; }
+.loci-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

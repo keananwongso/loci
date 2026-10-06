@@ -73,7 +73,7 @@ export default function AccountPage() {
 		if (params.has('error')) setError('That sign-in link expired or could not be verified. Request another link.')
 		if (params.get('checkout') === 'cancelled') setNotice('Checkout cancelled. You have not started a subscription.')
 		load(params.get('checkout') === 'success').then((data) => {
-			if (params.get('checkout') === 'success') setNotice(data.pro ? 'Your subscription is ready. Open your workspace to start learning.' : 'Your payment is still being confirmed. Refresh your account in a moment.')
+			if (params.get('checkout') === 'success') setNotice(data.pro ? 'Your subscription is ready. Open your boards to start learning.' : 'Your payment is still being confirmed. Refresh your account in a moment.')
 		}).catch((err) => setError(err.message))
 	}, [])
 	const act = async (path: string, body?: object) => {
@@ -90,7 +90,7 @@ export default function AccountPage() {
 	}
 	const signedIn = useCallback(() => { setError(''); return load() }, [])
 	return <main className="loci-account">
-		<nav><Link className="loci-brand" href="/">Loci</Link><Link href="/demo">Open workspace →</Link></nav>
+		<nav><Link className="loci-brand" href="/">Loci</Link><Link href={account?.user ? '/home' : '/demo'}>{account?.user ? 'Your boards →' : 'Open workspace →'}</Link></nav>
 		<section className="loci-account__card">
 			<p className="loci-landing__eyebrow">Your Loci account</p>
 			<h1>{account?.user ? 'Keep learning.' : 'Make room for understanding.'}</h1>

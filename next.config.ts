@@ -1,6 +1,8 @@
 import type { NextConfig } from 'next'
 
 const dev = process.env.NODE_ENV === 'development'
+// Account boards load their files from signed storage URLs, and upload to them directly.
+const storage = process.env.SUPABASE_URL ? ` ${new URL(process.env.SUPABASE_URL).origin}/storage/v1/object/` : ''
 
 /**
  * Same-origin only, apart from tldraw's CDN (license check, fallback assets). The main job is
@@ -11,11 +13,11 @@ const policy = (google = false) => [
 	"default-src 'self'",
 	`script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${dev ? " 'unsafe-eval'" : ''}${google ? ` ${GSI}client` : ''}`,
 	`style-src 'self' 'unsafe-inline'${google ? ` ${GSI}style` : ''}`,
-	"img-src 'self' data: blob: https://cdn.tldraw.com",
+	`img-src 'self' data: blob: https://cdn.tldraw.com${storage}`,
 	"font-src 'self' data: https://cdn.tldraw.com",
-	`connect-src 'self' data: blob: https://cdn.tldraw.com${dev ? ' ws:' : ''}${google ? ` ${GSI}` : ''}`,
+	`connect-src 'self' data: blob: https://cdn.tldraw.com${storage}${dev ? ' ws:' : ''}${google ? ` ${GSI}` : ''}`,
 	...(google ? [`frame-src ${GSI}`] : []),
-	"media-src 'self' data: blob:",
+	`media-src 'self' data: blob:${storage}`,
 	"worker-src 'self' blob:",
 	"object-src 'none'",
 	"base-uri 'self'",

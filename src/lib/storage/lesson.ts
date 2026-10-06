@@ -1,4 +1,5 @@
 import { createStore, get, set } from 'idb-keyval'
+import { cloudBoard, fileUrl, uploadFile } from './cloud'
 import type { TLCamera, TLRecord, TLStoreSnapshot } from 'tldraw'
 import { lineClip, type WritingLine } from '@/lib/canvas/writing-layout'
 
@@ -29,8 +30,22 @@ export function writingClip(writing: LessonWriting, time: number): string | null
 	return null
 }
 const store = typeof indexedDB !== 'undefined' ? createStore('loci-lessons', 'recordings') : undefined
-export async function saveLesson(id: string, lesson: LessonRecording) { await set(id, lesson, store) }
-export async function loadLesson(id: string): Promise<LessonRecording | undefined> { return get(id, store) }
+/** Replays are saved here and, on an account board, uploaded beside its files. */
+export async function saveLesson(id: string, lesson: LessonRecording) {
+	await set(id, lesson, store)
+	const board = cloudBoard()
+	if (board) void uploadFile(lessonKey(id), new Blob([JSON.stringify(lesson)], { type: 'application/json' }), board).catch(() => {})
+}
+export async function loadLesson(id: string): Promise<LessonRecording | undefined> {
+	const local = await get<LessonRecording>(id, store)
+	if (local || !cloudBoard()) return local
+	const res = await fetch(fileUrl(lessonKey(id))).catch(() => null)
+	if (!res?.ok) return undefined
+	const lesson = (await res.json()) as LessonRecording
+	await set(id, lesson, store).catch(() => {})
+	return lesson
+}
+const lessonKey = (id: string) => `lesson-${id}`
 
 /** Rebuild from the baseline on every seek; updates, deletions and backward jumps stay exact. */
 export function lessonAt(lesson: LessonRecording, time: number) {

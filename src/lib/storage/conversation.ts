@@ -32,6 +32,8 @@ export async function loadConversation(boardId = 'default'): Promise<Turn[]> {
 
 export async function saveConversation(turns: Turn[], boardId = 'default') {
 	await set(conversationKey(boardId), turns, store)
+	// Account boards save the conversation with the canvas.
+	window.dispatchEvent(new CustomEvent('loci:conversation', { detail: boardId }))
 }
 
 export async function clearConversation(boardId = 'default') {

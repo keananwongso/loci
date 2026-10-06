@@ -20,13 +20,22 @@ export async function readSubscription(userId: string): Promise<Subscription | n
 	return data
 }
 
-export async function paidAccount(): Promise<Subscription | null> {
-	if (!billingConfigured()) return null
+/** Who is asking: a paying subscription, and the signed-in account whose free allowance applies otherwise. */
+export async function viewer(): Promise<{ paid: Subscription | null; userId: string | null }> {
+	if (!authConfigured()) return { paid: null, userId: null }
 	const user = await currentUser()
-	if (!user) return null
+	if (!user) return { paid: null, userId: null }
+	if (!billingConfigured()) return { paid: null, userId: user.id }
 	const subscription = await readSubscription(user.id)
-	return subscriptionActive(subscription) ? subscription : null
+	return { paid: subscriptionActive(subscription) ? subscription : null, userId: user.id }
 }
+
+export async function paidAccount(): Promise<Subscription | null> {
+	return (await viewer()).paid
+}
+
+/** Free questions count per account once signed in, so a new browser doesn't reset them. */
+export const meterId = (deviceId: string, userId: string | null) => (userId ? `acct-${userId}` : deviceId)
 
 export async function customerFor(user: User) {
 	const existing = await readSubscription(user.id)

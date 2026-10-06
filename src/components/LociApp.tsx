@@ -20,6 +20,8 @@ import { useTutor } from './useTutor'
 import { useTour, tourDone } from './useTour'
 import { canvasKey, readWorkspaces, writeWorkspaces, shouldStartLesson, type WorkspaceLibrary } from '@/lib/storage/workspaces'
 import { BoardLibrary } from './ui/BoardLibrary'
+import { useCloudSync, type SyncState } from './useCloudSync'
+import { CloudError, createBoard, listBoards, updateBoard } from '@/lib/storage/cloud'
 import { ACCEPTED_TYPES, ingestFiles } from '@/lib/canvas/ingest'
 import { tutorPresence } from '@/lib/canvas/presence'
 import { REGION } from '@/lib/canvas/shape-types'
@@ -337,12 +339,58 @@ function Shell({ library, onLibrary }: { library: WorkspaceLibrary; onLibrary: (
 	)
 }
 
-export default function LociApp() {
+const SYNC_LABELS: Record<SyncState, string> = {
+	opening: 'Opening…', saving: 'Saving…', saved: 'Saved to your account', offline: 'Offline · saved on this device',
+	error: 'Not saved', missing: 'Board not found', 'signed-out': 'Signed out · saved on this device',
+}
+
+/** An account board: opens once the account copy is in place, then keeps saving to it. */
+function AccountBoard({ boardId, library, onLibrary }: { boardId: string; library: WorkspaceLibrary; onLibrary: (library: WorkspaceLibrary) => void }) {
+	const editor = useEditor()
+	const sync = useCloudSync(editor, boardId)
+	const [error, setError] = useState('')
+	useEffect(() => {
+		const show = (e: Event) => setError((e as CustomEvent<string>).detail)
+		window.addEventListener('loci:cloud-error', show)
+		return () => window.removeEventListener('loci:cloud-error', show)
+	}, [])
+	if (sync.state === 'missing') return <div className="loci-loading">This board isn't in your account. <a href="/home">Go to your boards</a></div>
+	const message = sync.notice || error || (sync.state === 'signed-out' ? 'Your session ended. Sign in again to keep saving to your account.' : '')
+	return <>
+		<p className="loci-sync" data-state={sync.state} role="status">{SYNC_LABELS[sync.state]}</p>
+		{message && <p className="loci-toast" role="alert">{message} <button onClick={() => { sync.dismissNotice(); setError('') }}>Dismiss</button></p>}
+		{sync.ready ? <Shell library={library} onLibrary={onLibrary} /> : <div className="loci-loading">Opening your board…</div>}
+	</>
+}
+
+/** Boards on this device (the demo), or, with `boardId`, a board saved to the signed-in account. */
+export default function LociApp({ boardId }: { boardId?: string } = {}) {
 	const [library, setLibrary] = useState<WorkspaceLibrary | null>(null)
 	const [storageError, setStorageError] = useState(false)
-	useEffect(() => { setLibrary(readWorkspaces()) }, [])
+	const [accountError, setAccountError] = useState('')
+	useEffect(() => {
+		if (!boardId) { setLibrary(readWorkspaces()); return }
+		const only = { active: boardId, boards: [{ id: boardId, name: 'Board', updatedAt: Date.now() }] }
+		listBoards()
+			.then(({ boards }) => setLibrary({ active: boardId, boards: boards.length ? boards.map((b) => ({ id: b.id, name: b.name, updatedAt: Date.parse(b.updated_at) })) : only.boards }))
+			.catch(() => setLibrary(only))
+	}, [boardId])
 	const changeLibrary = (next: WorkspaceLibrary) => {
-		try { writeWorkspaces(next); setLibrary(next) } catch { setStorageError(true) }
+		if (!boardId) {
+			try { writeWorkspaces(next); setLibrary(next) } catch { setStorageError(true) }
+			return
+		}
+		// Account boards: switching opens that board's page; a new id means a new board in the account.
+		if (next.active !== library?.active) {
+			if (library?.boards.some((b) => b.id === next.active)) { window.location.assign(`/board/${next.active}`); return }
+			const name = next.boards.find((b) => b.id === next.active)?.name ?? 'Untitled board'
+			createBoard(name)
+				.then((board) => window.location.assign(`/board/${board.id}${new URL(window.location.href).search}`))
+				.catch((err) => setAccountError(err instanceof CloudError ? err.message : 'Could not create the board.'))
+			return
+		}
+		const renamed = next.boards.find((b) => b.id === next.active)
+		if (renamed) updateBoard(renamed.id, { name: renamed.name }).then(() => setLibrary(next)).catch(() => setAccountError('Could not rename the board.'))
 	}
 
 	const onMount = useCallback((editor: Editor) => {
@@ -367,6 +415,7 @@ export default function LociApp() {
 	return (
 		<div className="loci-root">
 			{storageError && <p className="loci-toast">Browser storage is unavailable. Allow storage to save and switch boards.</p>}
+			{accountError && <p className="loci-toast" role="alert">{accountError} <button onClick={() => setAccountError('')}>Dismiss</button></p>}
 			<Tldraw
 				key={library.active}
 				persistenceKey={canvasKey(library.active)}
@@ -379,7 +428,7 @@ export default function LociApp() {
 				licenseKey={process.env.NEXT_PUBLIC_TLDRAW_LICENSE_KEY || undefined}
 				onMount={onMount}
 			>
-				<Shell library={library} onLibrary={changeLibrary} />
+				{boardId ? <AccountBoard boardId={boardId} library={library} onLibrary={changeLibrary} /> : <Shell library={library} onLibrary={changeLibrary} />}
 			</Tldraw>
 		</div>
 	)
