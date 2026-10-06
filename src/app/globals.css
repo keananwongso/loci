@@ -2054,7 +2054,7 @@ button {
 
 .loci-ui > .loci-coach-backdrop { position: absolute; inset: 0; background: rgba(35, 33, 31, .24); pointer-events: none; z-index: 11; animation: loci-coach-appear .25s ease-out; }
 .loci-coach--question { z-index: 12; }
-.loci-topbar[data-menu-open='true'], .loci-topbar:has(.loci-board-library__list) { z-index: 15; }
+.loci-topbar[data-menu-open='true'] { z-index: 15; }
 .loci-dock { z-index: 2; }
 .loci-prompt { flex-direction: column; align-items: stretch; padding: 10px 12px 12px; border-radius: 24px; }
 .loci-prompt__meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; padding: 0 4px 5px; }
@@ -2083,12 +2083,36 @@ button {
 .loci-loading { display: grid; min-height: 100dvh; place-items: center; color: var(--loci-muted); }
 .loci-board-library { position: relative; max-width: 220px; min-width: 0; }
 .loci-board-library > button { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.loci-board-library__list { position: absolute; top: calc(100% + 14px); left: 0; width: 260px; max-height: 70dvh; overflow: auto; padding: 12px; border: 1px solid var(--loci-border); border-radius: 14px; background: #fff; box-shadow: 0 12px 40px #0001; }
-.loci-board-library__list > p { margin: 3px 8px 12px; color: #777; font-size: 12px; }
-.loci-board-library__list button { width: 100%; text-align: left; padding: 10px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; color: #262626; overflow-wrap: anywhere; }
-.loci-board-library__list button:hover, .loci-board-library__list button[aria-current] { background: #f4f0fa; }
-.loci-board-library__list form { border-top: 1px solid #eee; margin-top: 8px; padding: 12px 4px 0; display: grid; gap: 8px; font-size: 12px; }
-.loci-board-library__list input { min-width: 0; border: 1px solid #ddd; padding: 8px; border-radius: 6px; }
+/* Edge navigation overlays the canvas without changing its viewport. */
+.loci-sidebar-edge { position: fixed; top: 70px; bottom: 0; left: 0; width: 12px; z-index: 401; }
+.loci-board-sidebar { position: fixed; inset: 8px auto 8px 8px; width: min(304px, calc(100vw - 16px)); z-index: 402; display: flex; flex-direction: column; gap: 14px; padding: 20px 16px 16px; border: 1px solid var(--loci-line); border-radius: 18px; background: var(--loci-surface); box-shadow: var(--loci-shadow-lg); font: 400 13px/1.5 var(--loci-sans); animation: loci-sidebar-enter 160ms ease-out; }
+.loci-board-sidebar header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.loci-board-sidebar header strong { font-size: 16px; font-weight: 600; }
+.loci-board-sidebar header p { margin: 3px 0 0; font-size: 11px; color: var(--loci-ink-3); }
+.loci-board-sidebar input { min-width: 0; width: 100%; padding: 9px 10px; border: 1px solid var(--loci-line); border-radius: 8px; background: transparent; color: var(--loci-ink); font: inherit; }
+.loci-board-sidebar button { font: inherit; cursor: pointer; }
+.loci-board-sidebar button:disabled { opacity: .45; cursor: not-allowed; }
+.loci-sidebar-new { padding: 9px 12px; border: 1px solid var(--loci-line); border-radius: 8px; text-align: left; background: transparent; color: var(--loci-ink); }
+.loci-sidebar-new:hover:not(:disabled) { background: var(--loci-hover); }
+.loci-board-sidebar__groups { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.loci-board-sidebar details { margin-bottom: 14px; }
+.loci-board-sidebar summary { padding: 8px 6px; cursor: pointer; font-size: 12px; font-weight: 500; color: var(--loci-ink-2); overflow-wrap: anywhere; }
+.loci-board-sidebar summary > span { float: right; font-size: 11px; color: var(--loci-ink-3); margin-left: 8px; }
+.loci-board-sidebar details button { width: 100%; display: flex; align-items: center; gap: 9px; padding: 10px; border: 0; border-radius: 8px; background: transparent; color: var(--loci-ink-2); text-align: left; }
+.loci-board-sidebar details button > span:nth-child(2) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.loci-board-sidebar details button:hover:not(:disabled), .loci-board-sidebar details button[aria-current] { background: var(--loci-hover); color: var(--loci-ink); }
+.loci-sidebar-current { font-size: 8px; }
+.loci-sidebar-empty { margin: 8px 10px; color: var(--loci-ink-3); font-size: 12px; }
+.loci-board-sidebar footer { border-top: 1px solid var(--loci-line); padding-top: 14px; }
+.loci-board-sidebar form { display: grid; gap: 6px; }
+.loci-board-sidebar form label { font-size: 11px; color: var(--loci-ink-3); }
+.loci-board-sidebar form > div { display: flex; gap: 6px; }
+.loci-board-sidebar form button { flex-shrink: 0; padding: 0 8px; border: 1px solid var(--loci-line); border-radius: 8px; background: transparent; color: var(--loci-ink-2); }
+.loci-board-sidebar footer a { display: inline-block; margin-top: 12px; color: var(--loci-ink-2); text-decoration: none; }
+@keyframes loci-sidebar-enter { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: translateX(0); } }
+@media (hover: none) { .loci-sidebar-edge { display: none; } }
+@media (prefers-reduced-motion: reduce) { .loci-board-sidebar { animation: none; } }
+
 .loci-topbar__account { color: #7445e0; font-size: 12px; white-space: nowrap; text-decoration: none; }
 .loci-topbar__account-short { display: none; }
 .loci-captions { display: grid; gap: 4px; }
@@ -2276,3 +2300,48 @@ button {
 	.loci-empty__actions { margin-top: 16px; }
 	.loci-empty .loci-badge { font-size: 10px; padding: 0 8px; }
 }
+
+/* Topic teaching lives alongside the canvas and folds away when you want more room. */
+.loci-topic { position: absolute; top: 76px; left: 72px; width: min(320px, calc(100vw - 88px)); border-radius: 14px; background: var(--loci-surface); box-shadow: var(--loci-shadow); font: 400 12px/1.5 var(--loci-sans); }
+.loci-topic__toggle { display: flex; justify-content: space-between; gap: 12px; width: 100%; padding: 11px 14px; border: 0; border-radius: 14px; background: transparent; color: var(--loci-ink-2); text-align: left; cursor: pointer; font: 500 12px/1.5 var(--loci-sans); }
+.loci-topic__panel { padding: 0 14px 16px; max-height: calc(100dvh - 250px); overflow-y: auto; overscroll-behavior: contain; }
+.loci-topic h2 { font-size: 16px; font-weight: 600; margin: 8px 0; }
+.loci-topic h3 { font-size: 13px; margin: 16px 0 8px; }
+.loci-topic p { color: var(--loci-ink-3); margin: 8px 0 12px; }
+.loci-topic button, .loci-topic input, .loci-topic textarea { font: inherit; }
+.loci-topic input:not([type='checkbox']), .loci-topic textarea { width: 100%; min-width: 0; padding: 8px; border: 1px solid var(--loci-line); border-radius: 6px; background: transparent; color: var(--loci-ink); }
+.loci-topic textarea { min-height: 64px; resize: vertical; }
+.loci-topic fieldset { margin: 14px 0; padding: 0; border: 0; max-height: 180px; overflow-y: auto; }
+.loci-topic legend { color: var(--loci-ink-3); margin-bottom: 6px; }
+.loci-topic__source { display: flex; align-items: flex-start; gap: 8px; padding: 5px 0; overflow-wrap: anywhere; }
+.loci-topic__source input { margin-top: 4px; accent-color: var(--loci-ink); }
+.loci-topic__source small { display: block; color: var(--loci-ink-3); font-size: 10px; }
+.loci-topic__panel button:not(.loci-primary) { padding: 7px 9px; border: 1px solid var(--loci-line); border-radius: 7px; background: transparent; color: var(--loci-ink-2); cursor: pointer; margin: 4px 4px 4px 0; }
+.loci-topic button:disabled { opacity: .45; cursor: not-allowed; }
+.loci-topic__draft { padding-left: 20px; }
+.loci-topic__draft li { padding: 5px 0 10px; }
+.loci-topic__draft textarea { margin-top: 5px; }
+.loci-topic__notice { padding: 9px; background: var(--loci-taupe); border-radius: 8px; color: var(--loci-ink-2) !important; font-size: 11px; }
+.loci-topic__notice ul { padding-left: 16px; }
+.loci-topic__cost { display: block; color: var(--loci-ink-3); margin-top: 10px; }
+.loci-topic__outline { list-style: none; padding: 0; margin: 10px 0; }
+.loci-topic__outline button { display: flex; gap: 8px; width: 100%; text-align: left; border: 0 !important; margin: 0 !important; }
+.loci-topic__outline button[aria-current] { background: var(--loci-hover) !important; font-weight: 600; }
+.loci-topic__outline button span { min-width: 16px; color: var(--loci-ink-3); }
+.loci-topic__objective { font-size: 11px; }
+.loci-topic details { margin: 10px 0; }
+.loci-topic summary { cursor: pointer; color: var(--loci-ink-2); }
+.loci-topic__citation { display: block; text-align: left; width: 100%; overflow-wrap: anywhere; }
+.loci-topic__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 12px 0; }
+.loci-material-added { position: absolute; top: 76px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 14px; border-radius: 12px; background: var(--loci-surface); box-shadow: var(--loci-shadow-lg); font-size: 12px; }
+.loci-material-added button { font: inherit; border: 1px solid var(--loci-line); border-radius: 7px; padding: 7px; background: transparent; cursor: pointer; color: var(--loci-ink-2); }
+.loci-add__link { display: grid; gap: 10px; margin-top: 22px; }
+.loci-add__link input, .loci-add__link select { padding: 10px; border: 1px solid var(--loci-line); border-radius: 8px; font: inherit; background: transparent; color: var(--loci-ink); }
+.loci-add__link p { font-size: 12px; margin: 0; }
+@media (max-width: 640px) { .loci-material-added { top: 126px; width: calc(100vw - 32px); } .loci-topic[data-open='true'] { z-index: 16; } }
+.loci-sidebar-space-label { display: block; margin-top: 10px; color: var(--loci-ink-3); font-size: 11px; }
+.loci-board-sidebar select { width: 100%; margin-top: 5px; padding: 7px; border: 1px solid var(--loci-line); border-radius: 8px; background: var(--loci-surface); color: var(--loci-ink-2); font: inherit; }
+.loci-add__modes { display: flex; gap: 8px; margin-top: 20px; }
+.loci-add__modes button { font: inherit; padding: 8px 12px; border: 1px solid var(--loci-line); border-radius: 8px; background: transparent; color: var(--loci-ink-2); cursor: pointer; }
+.loci-add__modes button[aria-pressed='true'] { background: var(--loci-hover); color: var(--loci-ink); }
+.loci-add__link textarea { padding: 10px; border: 1px solid var(--loci-line); border-radius: 8px; font: inherit; resize: vertical; }

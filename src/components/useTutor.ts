@@ -16,6 +16,7 @@ import { saveLesson } from '@/lib/storage/lesson'
 import type { Take } from '@/lib/demo/pack'
 
 export interface AskOptions {
+	lesson?: import('@/lib/topics/schema').LessonContext
 	spoken?: boolean
 	guidedDemo?: boolean
 	/** Replay this recorded answer instead of asking the model. */
@@ -195,7 +196,7 @@ export function useTutor(editor: Editor | null, voiceOut: boolean, boardId = 'de
 					{ ...opts, leadIn }
 				)
 				outcome = result
-				patch((t) => ({ ...t, status: result.error ? 'error' : 'done', error: result.error, limitReached: result.limitReached }))
+				patch((t) => ({ ...t, status: result.stopped ? 'stopped' : result.error ? 'error' : 'done', error: result.error, limitReached: result.limitReached }))
 				if (result.limitReached && result.limitReached !== 'store' && !status.accounts && !status.pro) window.dispatchEvent(new CustomEvent('loci:open-key-dialog'))
 				if (result.quotaRemaining !== undefined) {
 					setStatus((st) => ({ ...st, quota: { limit: st.quota?.limit ?? result.quotaRemaining!, remaining: result.quotaRemaining! } }))
@@ -276,5 +277,6 @@ export function useTutor(editor: Editor | null, voiceOut: boolean, boardId = 'de
 	// A visitor's own key counts as configured even when the server has none.
 	const effective: TutorStatus = userKey ? { ...status, configured: true, provider: userKey.provider, model: userKey.model || `${userKey.provider} (your key)` } : status
 
-	return { turns, busy, ready, status: effective, userKey, ask, stop, undoLastTurn, eraseDrawings, reset }
+	const updateQuota = (remaining: number) => setStatus(st => ({ ...st, quota: { limit: st.quota?.limit ?? remaining, remaining } }))
+	return { turns, busy, ready, updateQuota, status: effective, userKey, ask, stop, undoLastTurn, eraseDrawings, reset }
 }

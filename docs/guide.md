@@ -19,6 +19,20 @@ Open http://localhost:3000. Local copies go straight to your board; hosted deplo
 
 Your key goes in `.env.local`, which git ignores. It is read only by the local server route (`src/app/api/tutor/route.ts`) and is never sent to the browser.
 
+### Learning a topic from multiple materials
+
+Use the existing Upload control to choose PDFs/images, paste notes, or paste a public article or direct PDF URL. Set each material's role. After import, choose **Teach me a topic**, or type “teach me [topic]” in the question bar. Select the materials to use, build an outline, and edit titles, objectives and ordering before starting.
+
+Each section uses the existing streamed whiteboard and voice tools. Ask a question to take a clarification detour; Continue advances the outline, Skip records a skipped section, and Try a problem asks for practice. The outline, current section, coverage and latest teaching checkpoint are saved inside the board snapshot, locally and through existing account sync. Completion tracks coverage, not mastery. Source buttons open the relevant page on the board; linked material also has a shortcut to its original URL.
+
+Changing or removing a selected source invalidates the active plan and requires rebuilding it. Adding unrelated material does not invalidate a lesson using a different source set. PDF import currently includes the first **40 pages** per file. Scanned PDFs may have no extracted text; planning reports source gaps rather than inventing content. Image OCR may require waiting before planning.
+
+The initial implementation uses text extraction and bounded keyword retrieval, with no vector database or new background service. Planning gets up to 120,000 source characters distributed across imported pages; teaching retrieves up to twelve pages under a 24,000-character text budget. Truncated pages are labelled for the model. Outlines support up to 16 sections, 50 materials and 800 imported pages in total.
+
+On deployments with question limits, building an outline and each teaching turn consume one question; replays remain free of model calls. Links have a separate daily import allowance, a 10 MB download limit and a 20-second timeout. Downloads happen on the Next.js server; redirects and DNS addresses are checked to prevent internal-network access. Login-only pages, JavaScript-only sites and blocked downloads need an exported PDF or pasted text instead. Imported link content is saved as a snapshot, not continuously refreshed.
+
+Approach the left edge, or click the board title, to open the sidebar. Create spaces and assign the current board with its Space selector. New boards inherit the current board's space. Local spaces save in this browser; account spaces use the existing Supabase tables and require the boards migration already described in the account setup.
+
 ### Choosing a model
 
 Loci picks the provider from whichever key you set. Anthropic uses its own API; everything else goes through one OpenAI-compatible provider, so any service that speaks that format with tool calling works.

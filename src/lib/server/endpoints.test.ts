@@ -156,3 +156,24 @@ describe('paid public endpoints', () => {
 		expect(state.tutor).toHaveBeenCalledTimes(2)
 	})
 })
+
+
+describe('topic planning endpoint', () => {
+ it('uses the existing allowance and streams a validated plan without canvas tools', async () => {
+  state.tutor.mockImplementationOnce(async (input, session) => {
+   expect(input.tools.map((t: { name: string }) => t.name)).toEqual(['plan_lesson'])
+   session.handle('plan_lesson', { title: 'Eigenvectors', sections: [{ title: 'Intuition', objective: 'Understand direction preservation', pageIds: ['notes-p1'] }], gaps: [] })
+  })
+  const planRequest = { ...question, planning: { topic: 'Eigenvectors', pages: [{ id: 'notes-p1', sourceId: 'notes', name: 'notes.pdf', role: 'notes', page: 1, text: 'Eigenvectors preserve direction.', truncated: false }] } }
+  const response = await tutor(req('tutor', JSON.stringify(planRequest)))
+  expect(response.status).toBe(200)
+  const events = (await response.text()).trim().split('\n').map(line => JSON.parse(line))
+  expect(events).toEqual([{ type: 'plan', plan: { title: 'Eigenvectors', sections: [{ title: 'Intuition', objective: 'Understand direction preservation', pageIds: ['notes-p1'] }], gaps: [] } }, { type: 'done' }])
+  expect(response.headers.get('X-Loci-Quota-Remaining')).not.toBeNull()
+ })
+ it('reports a provider that never returns an outline', async () => {
+  const planRequest = { ...question, planning: { topic: 'Eigenvectors', pages: [{ id: 'notes-p1', sourceId: 'notes', name: 'notes.pdf', role: 'notes', page: 1, text: 'Eigenvectors preserve direction.', truncated: false }] } }
+  const response = await tutor(req('tutor', JSON.stringify(planRequest)))
+  expect(await response.text()).toContain('did not return a lesson outline')
+ })
+})

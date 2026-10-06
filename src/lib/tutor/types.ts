@@ -4,6 +4,7 @@
  */
 import { z } from 'zod'
 import { GraphItem, type Anchor, type CanvasAction } from '@/lib/actions/schema'
+import { LessonContextSchema, SourcePagesSchema, type TopicPlan } from '@/lib/topics/schema'
 import { ROLES } from '@/lib/documents/roles'
 
 const num = z.number().finite()
@@ -127,6 +128,8 @@ export type HistoryTurn = z.infer<typeof HistoryTurnSchema>
 
 export const TutorRequestSchema = z.object({
 	guidedDemo: z.boolean().optional(),
+	planning: z.object({ topic: z.string().trim().min(1).max(400), pages: SourcePagesSchema }).optional(),
+	lesson: LessonContextSchema.optional(),
 	question: z.string().min(1).max(4000),
 	board: BoardContextSchema,
 	images: z.array(ContextImageSchema).max(4),
@@ -137,6 +140,7 @@ export type TutorRequest = z.infer<typeof TutorRequestSchema>
 
 /** Streamed from the server route to the browser as newline-delimited JSON. */
 export type TutorEvent =
+	| { type: 'plan'; plan: TopicPlan }
 	/** `look`: what the sentence is about, so the tutor looks there while it speaks. */
 	| { type: 'say'; text: string; look?: Anchor }
 	/** What the tutor is doing right now, read from the call it is still writing. Shown while it thinks. */

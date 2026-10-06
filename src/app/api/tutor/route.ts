@@ -15,6 +15,7 @@ import { meterId, viewer } from '@/lib/server/billing'
 import { paidQuota, paidUsage } from '@/lib/server/paid-usage'
 import { countryOf, recordStats } from '@/lib/server/stats'
 import { buildTurnText, SYSTEM_PROMPT, GUIDED_DEMO_PROMPT } from '@/lib/tutor/prompt'
+import { PlanSession, PLAN_PROMPT, PLAN_TOOL } from '@/lib/topics/planner'
 import { ActionSession } from '@/lib/tutor/session'
 import { TutorRequestSchema, type TutorEvent, type TutorRequest } from '@/lib/tutor/types'
 
@@ -167,14 +168,14 @@ export async function POST(req: Request) {
 				timing.saw(event)
 				controller.enqueue(encoder.encode(JSON.stringify(event) + '\n'))
 			}
-			const session = new ActionSession(request.board, emit)
+			const session = request.planning ? new PlanSession(request.board, emit, request.planning.pages) : new ActionSession(request.board, emit)
 			// Only turns on the owner's key are counted; a visitor's own key is their spend.
 			const tokens = { inputTokens: 0, cachedTokens: 0, outputTokens: 0 }
 			try {
 				await provider.run(
 					{
-						system: SYSTEM_PROMPT + (request.guidedDemo ? GUIDED_DEMO_PROMPT : ''),
-						tools: getToolDefinitions(),
+						system: request.planning ? PLAN_PROMPT : SYSTEM_PROMPT + (request.guidedDemo ? GUIDED_DEMO_PROMPT : ''),
+						tools: request.planning ? [PLAN_TOOL] : getToolDefinitions(),
 						request,
 						turnText: buildTurnText(request),
 						onUsage: (u) => {
@@ -193,6 +194,7 @@ export async function POST(req: Request) {
 					emit({ type: 'error', message: provider.describeError?.(err) ?? (err instanceof Error ? err.message : String(err)) })
 				}
 			}
+			if (request.planning && !session.isComplete() && !abort.signal.aborted) emit({ type: 'error', message: 'The model did not return a lesson outline. Try again or choose a model that supports tool calling.' })
 			emit({ type: 'done' })
 			if (ownerPays) await recordStats({ questions: 1, ...tokens }, { ...ownerPays, unique: 'askers' })
 			controller.close()

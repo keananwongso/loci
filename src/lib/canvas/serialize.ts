@@ -45,7 +45,7 @@ export interface FocusInfo {
 	hasAssistantInView: boolean
 }
 
-export function serializeBoard(editor: Editor): FocusInfo {
+export function serializeBoard(editor: Editor, lessonPageIds?: string[], preferLesson = false): FocusInfo {
 	const vp = editor.getViewportPageBounds()
 	const viewport = { x: vp.x, y: vp.y, w: vp.w, h: vp.h }
 	const shapes = editor.getCurrentPageShapesSorted()
@@ -99,6 +99,11 @@ export function serializeBoard(editor: Editor): FocusInfo {
 				.map((x) => x.m)
 		}
 	}
+	if (lessonPageIds?.length) {
+		const requested = new Set(lessonPageIds)
+		const lessonMaterials = lessonPageIds.flatMap(id => materials.filter(m => toModelId(m.id) === id))
+		focusMaterials = preferLesson ? [...lessonMaterials, ...focusMaterials.filter(m => !requested.has(toModelId(m.id)))] : [...focusMaterials, ...lessonMaterials.filter(m => !focusMaterials.includes(m))]
+	}
 	focusMaterials = focusMaterials.slice(0, 3)
 	const focusIds = new Set(focusMaterials.map((m) => m.id))
 
@@ -109,8 +114,8 @@ export function serializeBoard(editor: Editor): FocusInfo {
 		.map((s) => ({ s, r: rectOf(editor, s) }))
 		.filter((x): x is { s: TLShape; r: Rect } => x.r !== null)
 		.sort((a, b) => {
-			const sa = selectedIds.has(a.s.id) || focusIds.has(a.s.id) ? -1e12 : 0
-			const sb = selectedIds.has(b.s.id) || focusIds.has(b.s.id) ? -1e12 : 0
+			const sa = selectedIds.has(a.s.id) || focusIds.has(a.s.id) || lessonPageIds?.includes(toModelId(a.s.id)) ? -1e12 : 0
+			const sb = selectedIds.has(b.s.id) || focusIds.has(b.s.id) || lessonPageIds?.includes(toModelId(b.s.id)) ? -1e12 : 0
 			const da = Math.hypot(a.r.x + a.r.w / 2 - cx, a.r.y + a.r.h / 2 - cy)
 			const db = Math.hypot(b.r.x + b.r.w / 2 - cx, b.r.y + b.r.h / 2 - cy)
 			return sa + da - (sb + db)
@@ -132,7 +137,7 @@ export function serializeBoard(editor: Editor): FocusInfo {
 			...(parent ? { parentId: toModelId(parent.id) } : {}),
 			...(typeof meta.turn === 'number' ? { turn: meta.turn } : {}),
 		} as const
-		const obj = describeShape(editor, s, focusIds.has(s.id))
+		const obj = describeShape(editor, s, focusIds.has(s.id) || Boolean(lessonPageIds?.includes(toModelId(s.id))))
 		if (obj?.material && !focusIds.has(s.id) && isReference(roleOf(s.meta)) && referenceLeft > 0) {
 			const full = groupLines((s as MaterialShape).props.textItems)
 				.map((l) => l.text)
@@ -361,8 +366,8 @@ export async function captureImages(editor: Editor, focus: FocusInfo): Promise<C
 				label: `Screenshot of the student's current view (canvas x ${Math.round(vp.x)}..${Math.round(vp.x + vp.w)}, y ${Math.round(vp.y)}..${Math.round(vp.y + vp.h)})`,
 				mediaType: 'image/jpeg',
 				data: url.slice(url.indexOf(',') + 1),
-				width,
-				height,
+				width: Math.max(1, Math.round(width)),
+				height: Math.max(1, Math.round(height)),
 			})
 		}
 	} catch (err) {

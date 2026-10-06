@@ -88,6 +88,8 @@ export class ActionSession {
 	}
 
 	/** The answer has reached its end: the last thing said was a question (the check, or an invitation). */
+	isComplete(): boolean { return false }
+
 	endsOnQuestion(): boolean {
 		return Boolean(this.spoken.at(-1)?.trim().endsWith('?'))
 	}

@@ -139,6 +139,7 @@ export class AnthropicProvider implements TutorModelProvider {
 			// Stop early once the model has only spoken; a final round would add nothing.
 			// The answer is done once a round closes on a question (the check, or an invitation). A round
 			// ending on a lead-in ("let me draw it") or a drawing continues.
+			if (session.isComplete()) return
 			if (toolUses.at(-1)?.name === 'say' && session.endsOnQuestion()) return
 		}
 	}

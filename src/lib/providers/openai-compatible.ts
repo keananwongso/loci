@@ -153,6 +153,7 @@ export class OpenAICompatibleProvider implements TutorModelProvider {
 			for (const t of toolCalls) messages.push({ role: 'tool', tool_call_id: t.call.id, content: t.result })
 			// The answer is done once a round closes on a question (the check, or an invitation). A round
 			// ending on a lead-in ("let me draw it") or a drawing continues.
+			if (session.isComplete()) return
 			if (toolCalls.at(-1)?.call.function.name === 'say' && session.endsOnQuestion()) return
 		}
 	}
