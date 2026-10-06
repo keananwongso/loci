@@ -31,6 +31,8 @@ export function guessRole(fileName: string): MaterialRole {
 
 export interface MaterialMeta {
 	role?: MaterialRole
+	url?: string
+	fetchedAt?: string
 	/** Shared by every page of one uploaded file. */
 	doc?: string
 }

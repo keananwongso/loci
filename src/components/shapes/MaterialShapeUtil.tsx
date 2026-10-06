@@ -13,7 +13,7 @@ import {
 import { blobToDataUrl, getBlob, getBlobUrl } from '@/lib/storage/blobs'
 import { HIGHLIGHT, MATERIAL, type MaterialShape } from '@/lib/canvas/shape-types'
 import { setMaterialRole } from '@/lib/canvas/ingest'
-import { ROLES, ROLE_LABELS, roleOf } from '@/lib/documents/roles'
+import { ROLES, ROLE_LABELS, roleOf, type MaterialMeta } from '@/lib/documents/roles'
 
 function useBlobUrl(key: string) {
 	const [url, setUrl] = useState<string>()
@@ -55,12 +55,14 @@ function RoleLabel({ shape }: { shape: MaterialShape }) {
 function MaterialView({ shape }: { shape: MaterialShape }) {
 	const url = useBlobUrl(shape.props.blobKey)
 	const { kind, name, page, pageCount } = shape.props
+	const sourceUrl = (shape.meta as MaterialMeta).url
 	return (
 		<HTMLContainer className="loci-material" data-kind={kind}>
 			<div className="loci-material__caption">
 				<RoleLabel shape={shape} />
 				{name}
-				{kind === 'pdf' && pageCount > 1 ? ` · p. ${page} of ${pageCount}` : ''}
+				{pageCount > 1 ? ` · p. ${page} of ${pageCount}` : ''}
+				{sourceUrl && /^https?:\/\//.test(sourceUrl) && <a href={sourceUrl} target="_blank" rel="noreferrer" onPointerDown={e => e.stopPropagation()} title="Open original source"> ↗</a>}
 			</div>
 			{url ? (
 				<img src={url} alt={`${name} page ${page}`} draggable={false} className="loci-material__img" />
