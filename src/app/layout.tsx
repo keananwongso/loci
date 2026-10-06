@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Analytics } from '@vercel/analytics/next'
+import { MobilePreview } from '@/components/MobilePreview'
 import '@fontsource-variable/inter'
 import 'katex/dist/katex.min.css'
 import '@xyflow/react/dist/style.css'
@@ -21,7 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 	return (
 		<html lang="en">
 			<body>
-				{children}
+				<MobilePreview>{children}</MobilePreview>
 				{/* Cookie-free page views for a Vercel deployment; local and self-hosted builds load nothing. */}
 				{process.env.VERCEL === '1' && <Analytics />}
 			</body>
