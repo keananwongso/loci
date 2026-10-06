@@ -4,6 +4,10 @@ import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 
 export function authConfigured() { return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) }
+/** Magic links need production SMTP; Supabase's built-in sender only reaches project team members. */
+export const emailSignInEnabled = () => process.env.LOCI_EMAIL_SIGNIN === 'on'
+/** The OAuth client for Google's sign-in button; it is public and must also be listed in Supabase's Google provider. */
+export const googleClientId = () => (authConfigured() && process.env.GOOGLE_CLIENT_ID) || null
 
 /** All auth calls stay on the server, preserving the app's same-origin CSP. */
 export async function authClient() {

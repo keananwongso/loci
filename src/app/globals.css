@@ -2131,7 +2131,8 @@ button {
 .loci-account p { line-height: 1.7; color: #69616d; font-size: 14px; }
 .loci-account button { cursor: pointer; font: inherit; }
 .loci-account button:disabled { opacity: .55; cursor: wait; }
-.loci-account__google { width: 100%; padding: 14px; border: 1px solid #ddd5e5; background: white; border-radius: 10px; color: #2c2732; }
+/* Google renders its own button (in an iframe) inside this box. */
+.loci-account__google { display: flex; justify-content: center; min-height: 44px; }
 .loci-account__divider { font-size: 12px; color: #999; text-align: center; margin: 24px 0; }
 .loci-account form { display: grid; gap: 10px; }
 .loci-account form label { font-size: 12px; }

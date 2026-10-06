@@ -1,12 +1,60 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 
 interface Account {
-	configured: boolean; billing: boolean; user: { id: string; email?: string } | null; pro: boolean; allowance: number; daily: number; speech: number
+	configured: boolean; google: boolean; emailSignIn: boolean; billing: boolean; user: { id: string; email?: string } | null; pro: boolean; allowance: number; daily: number; speech: number
 	subscription: { status: string; periodEnd: number; cancelling: boolean } | null
 	quota: { remaining: number; limit: number } | null
 }
+interface GoogleId {
+	initialize(config: { client_id: string; nonce: string; callback: (response: { credential: string }) => void; ux_mode: 'popup'; context: 'signin'; use_fedcm_for_button: boolean; itp_support: boolean }): void
+	renderButton(parent: HTMLElement, options: { theme: 'outline'; size: 'large'; shape: 'pill'; text: 'continue_with'; width: number }): void
+}
+declare global { interface Window { google?: { accounts: { id: GoogleId } } } }
+
+let gsi: Promise<GoogleId> | undefined
+const loadGoogle = () => gsi ??= new Promise<GoogleId>((resolve, reject) => {
+	const script = document.createElement('script')
+	script.src = 'https://accounts.google.com/gsi/client'
+	script.async = true
+	script.onload = () => window.google ? resolve(window.google.accounts.id) : reject(new Error('Google sign-in did not load.'))
+	script.onerror = () => { gsi = undefined; reject(new Error('Google sign-in did not load. Check your connection or ad blocker.')) }
+	document.head.appendChild(script)
+})
+
+/** Google's own button: the popup names this site, and the token is verified on the server. */
+function GoogleButton({ onSignedIn, onError }: { onSignedIn: () => Promise<unknown>; onError: (message: string) => void }) {
+	const ref = useRef<HTMLDivElement>(null)
+	const [attempt, setAttempt] = useState(0)
+	useEffect(() => {
+		let cancelled = false
+		Promise.all([loadGoogle(), fetch('/api/auth/google', { cache: 'no-store' }).then(async (res) => {
+			const data = await res.json()
+			if (!res.ok) throw new Error(data.error || 'Google sign-in is not available.')
+			return data as { clientId: string; nonce: string }
+		})]).then(([google, { clientId, nonce }]) => {
+			if (cancelled || !ref.current) return
+			google.initialize({ client_id: clientId, nonce, ux_mode: 'popup', context: 'signin', use_fedcm_for_button: true, itp_support: true, callback: async ({ credential }) => {
+				try {
+					const res = await fetch('/api/auth/google', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ credential }) })
+					const data = await res.json()
+					if (!res.ok) throw new Error(data.error || 'Google sign-in failed. Try again.')
+					await onSignedIn()
+				} catch (err) {
+					onError(err instanceof Error ? err.message : 'Google sign-in failed. Try again.')
+					// Each nonce is single-use, so a retry needs a fresh button.
+					setAttempt((n) => n + 1)
+				}
+			} })
+			ref.current.replaceChildren()
+			google.renderButton(ref.current, { theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', width: Math.min(360, ref.current.clientWidth || 360) })
+		}).catch((err) => { if (!cancelled) onError(err.message) })
+		return () => { cancelled = true }
+	}, [attempt, onSignedIn, onError])
+	return <div ref={ref} className="loci-account__google" />
+}
+
 export default function AccountPage() {
 	const [account, setAccount] = useState<Account | null>(null)
 	const [pending, setPending] = useState(false)
@@ -40,6 +88,7 @@ export default function AccountPage() {
 		} catch (err) { setError(err instanceof Error ? err.message : 'Please try again.') }
 		finally { setPending(false) }
 	}
+	const signedIn = useCallback(() => { setError(''); return load() }, [])
 	return <main className="loci-account">
 		<nav><Link className="loci-brand" href="/">Loci</Link><Link href="/demo">Open workspace →</Link></nav>
 		<section className="loci-account__card">
@@ -51,12 +100,14 @@ export default function AccountPage() {
 			{account && !account.configured && <><p>Accounts are not available on this copy of Loci. Your boards still save in this browser.</p><Link className="loci-primary" href="/demo">Open workspace →</Link></>}
 			{account?.configured && !account.user && <>
 				<p>Sign in to subscribe. Your notes and boards stay in this browser.</p>
-				<button className="loci-account__google" disabled={pending} onClick={() => act('/api/auth/login', { method: 'google' })}>Continue with Google</button>
-				<div className="loci-account__divider">or use your email</div>
-				<form onSubmit={(e) => { e.preventDefault(); void act('/api/auth/login', { method: 'email', email }) }}>
-					<label htmlFor="account-email">Email address</label><input id="account-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={254} placeholder="you@example.com" required />
-					<button className="loci-primary" disabled={pending || !email.trim()}>{pending ? 'One moment…' : 'Send sign-in link'}</button>
-				</form>
+				{account.google && <GoogleButton onSignedIn={signedIn} onError={setError} />}
+				{account.emailSignIn && <>
+					<div className="loci-account__divider">or use your email</div>
+					<form onSubmit={(e) => { e.preventDefault(); void act('/api/auth/login', { method: 'email', email }) }}>
+						<label htmlFor="account-email">Email address</label><input id="account-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={254} placeholder="you@example.com" required />
+						<button className="loci-primary" disabled={pending || !email.trim()}>{pending ? 'One moment…' : 'Send sign-in link'}</button>
+					</form>
+				</>}
 			</>}
 			{account?.user && <>
 				<p className="loci-account__email">{account.user.email}</p>

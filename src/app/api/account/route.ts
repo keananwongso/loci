@@ -1,4 +1,4 @@
-import { authConfigured, currentUser } from '@/lib/server/auth'
+import { authConfigured, currentUser, emailSignInEnabled, googleClientId } from '@/lib/server/auth'
 import { billingConfigured, readSubscription, syncCustomer, subscriptionActive } from '@/lib/server/billing'
 import { paidQuota, paidLimits } from '@/lib/server/paid-usage'
 import { refuseCrossOrigin } from '@/lib/server/request'
@@ -8,7 +8,7 @@ export async function GET() {
 	try {
 		const user = await currentUser()
 		const subscription = user && billingConfigured() ? await readSubscription(user.id) : null
-		return Response.json({ configured: authConfigured(), billing: billingConfigured(), user: user ? { id: user.id, email: user.email } : null,
+		return Response.json({ configured: authConfigured(), google: Boolean(googleClientId()), emailSignIn: emailSignInEnabled(), billing: billingConfigured(), user: user ? { id: user.id, email: user.email } : null,
 			pro: subscriptionActive(subscription), subscription: subscription ? { status: subscription.status, periodEnd: subscription.period_end, cancelling: subscription.cancel_at_period_end } : null,
 			quota: subscriptionActive(subscription) ? await paidQuota(subscription!) : null, allowance: paidLimits('question').monthly, daily: paidLimits('question').daily, speech: paidLimits('speech').monthly,
 		}, { headers: { 'Cache-Control': 'no-store' } })
@@ -24,7 +24,8 @@ export async function POST(req: Request) {
 	try {
 		const user = await currentUser()
 		if (!user) return Response.json({ error: 'Sign in first.' }, { status: 401 })
-		if (!billingConfigured()) return Response.json({ error: 'Subscriptions are not available yet.' }, { status: 503 })
+		// Nothing to reconcile before billing is set up; refreshing still shows the account.
+		if (!billingConfigured()) return GET()
 		const subscription = await readSubscription(user.id)
 		if (subscription) await syncCustomer(subscription.stripe_customer_id)
 		return GET()

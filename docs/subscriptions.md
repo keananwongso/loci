@@ -6,13 +6,13 @@ The initial Pro plan is **US$8/month**. Default included usage is 200 questions,
 
 ## Supabase
 
-1. Create a project for Loci, enable email sign-in and Google OAuth, and configure Google credentials using [Supabase's Google guide](https://supabase.com/docs/guides/auth/social-login/auth-google).
+1. Create a project for Loci. In Google Cloud, configure the OAuth consent screen and create a **Web application** OAuth client. Add your app origin (and `http://localhost` plus `http://localhost:3000` for local testing) under Authorized JavaScript origins. In Supabase, enable the Google provider and add the same client ID. Loci uses [Google's sign-in button with ID tokens](https://supabase.com/docs/guides/auth/social-login/auth-google#google-pre-built), so the Google popup names your domain rather than the Supabase project. Set `GOOGLE_CLIENT_ID`.
 2. Run [the billing migration](../supabase/migrations/202610050001_billing.sql) in the SQL editor. The table and sync function are available only to the server's service role. The app does not grant clients write access to subscription status.
-3. Set the Auth Site URL to your deployed Loci origin and allow `https://YOUR_DOMAIN/auth/callback` as a redirect. For local testing, also allow `http://localhost:3000/auth/callback`.
-4. Set the magic-link email template to link to `{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=email`, following [Supabase's passwordless PKCE guide](https://supabase.com/docs/guides/auth/auth-email-passwordless). Configure production SMTP so real users can receive the sign-in emails.
-5. Set `SUPABASE_URL`, `SUPABASE_ANON_KEY` (the anon or publishable key), and `SUPABASE_SERVICE_ROLE_KEY` in the deployment. The service-role key must stay server-only. This implementation also keeps the anon key on the server; all browser auth calls go through same-origin routes.
+3. For email sign-in, set the Auth Site URL to your deployed Loci origin and allow `https://YOUR_DOMAIN/auth/callback` as a redirect. For local testing, also allow `http://localhost:3000/auth/callback`.
+4. Optional email sign-in: Supabase's built-in email sender is rate-limited and only delivers to your project's team members, so it is off by default. To offer it, configure custom SMTP (for example Resend) under Authentication → Emails, set the magic-link email template to link to `{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=email` following [Supabase's passwordless PKCE guide](https://supabase.com/docs/guides/auth/auth-email-passwordless), and set `LOCI_EMAIL_SIGNIN=on`.
+5. Set `SUPABASE_URL`, `SUPABASE_ANON_KEY` (the anon or publishable key), `SUPABASE_SERVICE_ROLE_KEY` and `GOOGLE_CLIENT_ID` in the deployment. The service-role key must stay server-only. This implementation also keeps the anon key on the server; all browser auth calls go through same-origin routes.
 
-Sign-in uses server-side cookie sessions. Every privileged request verifies the user through Supabase Auth; it never trusts a client-supplied user ID. API handlers refresh sessions and return cookie updates. Auth-bearing responses are uncached. HttpOnly cookies are intentional: this application has no browser Supabase client.
+Sign-in uses server-side cookie sessions. Every privileged request verifies the user through Supabase Auth; it never trusts a client-supplied user ID. API handlers refresh sessions and return cookie updates. Auth-bearing responses are uncached. HttpOnly cookies are intentional: this application has no browser Supabase client. Google sign-in binds each ID token to a single-use nonce held in an HttpOnly cookie, and only `/account` allows Google's sign-in script in its Content Security Policy.
 
 ## Stripe
 
@@ -36,7 +36,7 @@ Checkout is server-created using the signed-in account and configured price. Cli
 
 ## Verify before enabling live payments
 
-In Stripe test mode, complete Google/email sign-in, subscribe using a test card, confirm Pro in `/account` and the tutor, and check that paid questions and voice count against account limits. Verify duplicate checkout clicks, cancellation through the portal, payment failures and webhook retries. Sign out and confirm the free allowance applies again; boards must remain saved. These flows require your own configured Supabase project and Stripe sandbox; local unit tests mock the external services.
+In Stripe test mode, complete Google sign-in, subscribe using a test card, confirm Pro in `/account` and the tutor, and check that paid questions and voice count against account limits. Verify duplicate checkout clicks, cancellation through the portal, payment failures and webhook retries. Sign out and confirm the free allowance applies again; boards must remain saved. These flows require your own configured Supabase project and Stripe sandbox; local unit tests mock the external services.
 
 Subscriptions change Loci into a commercial use of the canvas SDK. Confirm an appropriate [tldraw production license](https://tldraw.dev/pricing) before charging users; the hobby license is intended for projects built for fun.
 
