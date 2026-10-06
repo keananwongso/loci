@@ -55,6 +55,31 @@ function GoogleButton({ onSignedIn, onError }: { onSignedIn: () => Promise<unkno
 	return <div ref={ref} className="loci-account__google" />
 }
 
+/** Loci at work on a page that isn't math: the answer is drawn beside the notes it explains. */
+function AuthScene() {
+	return <aside className="loci-auth__scene" aria-hidden>
+		<div className="loci-auth__page">
+			<small>Economics, lecture 6</small>
+			<h2>Where supply meets demand</h2>
+			<p>The market price settles where the quantity buyers want <span className="loci-auth__circled">equals</span> the quantity sellers offer.</p>
+			<p>Above it there's a surplus; below it, a shortage.</p>
+		</div>
+		<svg className="loci-auth__drawing" viewBox="0 0 320 240">
+			<path d="M40 210H300M40 210V20" stroke="#a59f97" fill="none" />
+			<text x="292" y="230" fontSize="12" fill="#8a8290">Q</text>
+			<text x="20" y="28" fontSize="12" fill="#8a8290">P</text>
+			<path d="M60 40L250 180" stroke="#2c2732" strokeWidth="2.5" fill="none" />
+			<path d="M60 190L250 60" stroke="#2c2732" strokeWidth="2.5" fill="none" />
+			<text x="256" y="186" fontSize="13" fill="#44403b">demand</text>
+			<text x="256" y="64" fontSize="13" fill="#44403b">supply</text>
+			<path d="M40 118H165M165 118V210" stroke="#7445e0" strokeDasharray="4 5" fill="none" />
+			<circle cx="165" cy="118" r="6" fill="#7445e0" />
+			<text x="66" y="108" fontSize="14" fill="#7445e0">equilibrium</text>
+		</svg>
+		<div className="loci-sphere loci-auth__orb" />
+	</aside>
+}
+
 export default function AccountPage() {
 	const [account, setAccount] = useState<Account | null>(null)
 	const [pending, setPending] = useState(false)
@@ -89,10 +114,32 @@ export default function AccountPage() {
 		finally { setPending(false) }
 	}
 	const signedIn = useCallback(() => { setError(''); return load() }, [])
+	// Signed out: a sign-in page of its own, with Loci at work beside it.
+	if (account?.configured && !account.user) return <main className="loci-auth">
+		<section className="loci-auth__form">
+			<Link className="loci-brand" href="/">Loci</Link>
+			<div className="loci-auth__body">
+				<h1>Sign in or create your account</h1>
+				<p>Continue with Google. It's the same step whether you're new or coming back.</p>
+				{error && <p role="alert" className="loci-account__error">{error}</p>}
+				{notice && <p role="status" className="loci-account__notice">{notice}</p>}
+				{account.google && <GoogleButton onSignedIn={signedIn} onError={setError} />}
+				{account.emailSignIn && <>
+					<div className="loci-account__divider">or use your email</div>
+					<form onSubmit={(e) => { e.preventDefault(); void act('/api/auth/login', { method: 'email', email }) }}>
+						<label htmlFor="account-email">Email address</label><input id="account-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={254} placeholder="you@example.com" required />
+						<button className="loci-primary" disabled={pending || !email.trim()}>{pending ? 'One moment…' : 'Send sign-in link'}</button>
+					</form>
+				</>}
+				<p className="loci-auth__note">Your boards save to your account and open on any device. Anything you made in the demo comes with you.</p>
+			</div>
+			<Link className="loci-auth__back" href="/demo">Keep using the demo without an account</Link>
+		</section>
+		<AuthScene />
+	</main>
 	return <main className="loci-account">
-		<nav><Link className="loci-brand" href="/">Loci</Link><Link href={account?.user ? '/home' : '/demo'}>{account?.user ? 'Your boards →' : 'Open workspace →'}</Link></nav>
+		<nav><Link className="loci-brand" href="/">Loci</Link><Link href={account?.user ? '/home' : '/demo'}>{account?.user ? 'Your boards' : 'Open the demo'}</Link></nav>
 		<section className="loci-account__card">
-			<p className="loci-landing__eyebrow">Your Loci account</p>
 			<h1>{account?.user ? 'Keep learning.' : 'Sign in or create your account.'}</h1>
 			{error && <p role="alert" className="loci-account__error">{error}</p>}
 			{notice && <p role="status" className="loci-account__notice">{notice}</p>}
@@ -114,7 +161,7 @@ export default function AccountPage() {
 				{account.pro ? <div className="loci-account__plan"><span className="loci-account__badge">Loci Pro</span><h2>{account.quota?.remaining} questions left</h2><p>Of {account.quota?.limit} this billing month. Up to {account.daily} questions per day.</p><p>{account.subscription?.cancelling ? 'Access ends' : 'Renews'} {account.subscription && new Date(account.subscription.periodEnd * 1000).toLocaleDateString()}.</p><button className="loci-secondary" disabled={pending} onClick={() => act('/api/billing/portal')}>Manage subscription</button></div> : account.billing ? <div className="loci-account__plan"><span className="loci-account__badge">Loci Pro</span><h2>US$8 <small>/ month</small></h2><p>{account.allowance} questions per billing month, with natural voice and explanation replay. Cancel any time.</p><p className="loci-account__fine">Up to {account.daily} questions a day. Includes {account.speech.toLocaleString()} voice characters per month; browser voice remains available after that.</p><button className="loci-primary" disabled={pending} onClick={() => act('/api/billing/checkout')}>{pending ? 'Opening checkout…' : 'Subscribe for US$8/month'}</button>{account.subscription && account.subscription.status !== 'none' && <button className="loci-secondary" disabled={pending} onClick={() => act('/api/billing/portal')}>Manage billing</button>}</div> : <p>Subscriptions are coming soon. You can keep using the free demo.</p>}
 				<div className="loci-account__actions"><button disabled={pending} onClick={() => { setPending(true); load(true).catch((err) => setError(err.message)).finally(() => setPending(false)) }}>Refresh account</button><button disabled={pending} onClick={() => act('/api/auth/logout')}>Sign out</button></div>
 			</>}
-			<p className="loci-account__fine">Boards, uploads and replays save on this device. Signing in does not sync them across devices.</p>
+			{account?.user && <p className="loci-account__fine">Your boards, uploads and replays save to your account and open on any device you sign in on.</p>}
 		</section>
 	</main>
 }
