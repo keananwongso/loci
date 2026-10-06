@@ -11,6 +11,7 @@ import type { CanvasAction } from '@/lib/actions/schema'
 import { TutorRequestSchema, type HistoryTurn, type TutorEvent, type TutorRequest } from './types'
 import { userKeyHeaders } from '@/lib/storage/userKey'
 import type { Take, TakeEvent } from '@/lib/demo/pack'
+import type { LessonContext } from '@/lib/topics/schema'
 import { mark } from './timeline'
 
 export interface SayPlayback {
@@ -43,6 +44,7 @@ export interface TurnCallbacks {
 export const lastMark = new Map<number, string>()
 
 export interface TurnResult {
+	stopped?: boolean
 	error?: string
 	/** Set when the hosted demo's free-question limit refused the request. */
 	limitReached?: string
@@ -55,6 +57,7 @@ export interface TurnResult {
 }
 
 export interface TurnOptions {
+	lesson?: LessonContext
 	guidedDemo?: boolean
 	/** Speech already playing (the instant acknowledgement); the first sentence waits for it. */
 	leadIn?: Promise<void>
@@ -84,7 +87,7 @@ async function* replayTake(take: Take, signal: AbortSignal): AsyncGenerator<Take
 }
 
 /** The server's NDJSON stream as events. */
-async function* readStream(body: ReadableStream<Uint8Array>): AsyncGenerator<TutorEvent> {
+export async function* readStream(body: ReadableStream<Uint8Array>): AsyncGenerator<TutorEvent> {
 	const reader = body.getReader()
 	const decoder = new TextDecoder()
 	let buffer = ''
@@ -116,9 +119,9 @@ export async function runTutorTurn(
 	opts: TurnOptions = {}
 ): Promise<TurnResult> {
 	cb.onPhase('looking')
-	const focus = serializeBoard(editor)
+	const focus = serializeBoard(editor, opts.lesson?.pages.map(p => p.id), opts.lesson?.intent === 'teach')
 	const images = await captureImages(editor, focus)
-	const request = fitRequest({ question, board: focus.board, images, history: history.slice(-12), turn, guidedDemo: opts.guidedDemo })
+	const request = fitRequest({ question, board: focus.board, images, history: history.slice(-12), turn, guidedDemo: opts.guidedDemo, lesson: opts.lesson })
 	const regionText = focus.board.region?.text?.replace(/\s+/g, ' ').trim()
 	if (regionText) cb.onThought?.({ text: `reading “${regionText.length > 34 ? `${regionText.slice(0, 33).trimEnd()}…` : regionText}”` })
 
@@ -240,7 +243,7 @@ export async function runTutorTurn(
 	for await (const event of stream) handle(event)
 	await queue
 	await speaking
-	return { error, quotaRemaining, events, model }
+	return { error, quotaRemaining, events, model, ...(signal.aborted ? { stopped: true } : {}) }
 }
 
 /**

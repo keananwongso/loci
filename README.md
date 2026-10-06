@@ -15,6 +15,9 @@ If you like the idea, a star helps people find it.
 - **Teaches on your material.** Explanations are drawn beside the page they’re about, with highlights pointing at the exact words or symbols.
 - **Any course.** Math, physics, chemistry, computer science, economics, accounting, anything where seeing the work helps.
 - **Knows what each file is for.** Mark uploads as notes, exercises, a syllabus or a mark scheme. Loci teaches from notes, works through exercises with you, keeps to the syllabus and marks against the mark scheme, even when they’re off screen.
+- **Learn a whole topic.** Choose several materials and ask “teach me eigenvectors.” Edit the source-linked outline, then learn one section at a time with visual explanations, practice, clarification and saved progress. Coverage and skipped sections are tracked separately.
+- **Bring a link.** The upload button also accepts public articles and direct PDF URLs. Imported articles become readable, highlightable pages on the board.
+- **Move between boards.** Approach the left edge or click the board title to open spaces and boards. Search, create a space, assign the current board, or switch boards.
 - **Talk or type.** Hold **Control + Option** on Mac, or **Ctrl + Alt** elsewhere, to ask out loud. Answers can be spoken back.
 - **Replay any answer.** Every explanation is recorded with its drawing and audio: pause, seek, change speed or jump through a clickable transcript.
 - **Boards that follow you.** On learnwithloci.com, signing in saves your boards, uploads and replays to your account so they open on any device. Boards you made before signing in come with you.

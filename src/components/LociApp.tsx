@@ -1,5 +1,6 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Whiteboard, useEditor, useValue, toRichText, createShapeId } from '@/lib/whiteboard'
 import { Buddy } from './ui/Buddy'
 import { Emphasis } from './ui/Emphasis'
@@ -14,6 +15,9 @@ import { StylePanel } from './ui/StylePanel'
 import { HoldToTalk } from './ui/HoldToTalk'
 import { KeyDialog } from './ui/KeyDialog'
 import { OwnProblem } from './ui/OwnProblem'
+import { TopicLesson } from './ui/TopicLesson'
+import { ingestLink, ingestArticle } from '@/lib/documents/link'
+import { readTopic, lessonContext, sourcePages, sourceFingerprint, saveTopic, teachingCheckpoint } from '@/lib/topics/sources'
 import { AddMaterial } from './ui/AddMaterial'
 import { TourCoach, TourEnd, TourRecord, TourStart } from './ui/Tour'
 import { useTutor } from './useTutor'
@@ -21,7 +25,7 @@ import { useTour, tourDone } from './useTour'
 import { canvasKey, readWorkspaces, writeWorkspaces, shouldStartLesson, type WorkspaceLibrary } from '@/lib/storage/workspaces'
 import { BoardLibrary } from './ui/BoardLibrary'
 import { useCloudSync, type SyncState } from './useCloudSync'
-import { CloudError, createBoard, listBoards, updateBoard } from '@/lib/storage/cloud'
+import { CloudError, createBoard, createSpace, listBoards, updateBoard } from '@/lib/storage/cloud'
 import { ACCEPTED_TYPES, ingestFiles } from '@/lib/canvas/ingest'
 import { tutorPresence } from '@/lib/canvas/presence'
 import { REGION } from '@/lib/canvas/shape-types'
@@ -42,6 +46,10 @@ function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onL
 	const [replay, setReplay] = useState<Turn | null>(null)
 	const [ownNotes, setOwnNotes] = useState(false)
 	const [adding, setAdding] = useState<File[] | null>(null)
+	const [planning, setPlanning] = useState(false)
+	const [requestedTopic, setRequestedTopic] = useState('')
+	const [topicRequest, setTopicRequest] = useState(0)
+	const [materialAdded, setMaterialAdded] = useState(false)
 	const voiceMode = useValue('tour-voice-mode', () => tutorPresence.get().mode, [])
 
 	useEffect(() => {
@@ -78,7 +86,7 @@ function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onL
 		})
 	}
 
-	const ingest = useCallback((files: File[]) => ingestFiles(editor, files, setLoading), [editor])
+	const ingest = useCallback(async (files: File[]) => { const ids = await ingestFiles(editor, files, setLoading); if (ids.length) setMaterialAdded(true); return ids }, [editor])
 
 	// Hosted visitors share the daily demo allowance.
 	const hosted = Boolean(tutor.status.hosted)
@@ -123,6 +131,7 @@ function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onL
 		editor.deleteShapes([...editor.getCurrentPageShapeIds()])
 		editor.clearHistory()
 		editor.setCamera({ x: 0, y: 0, z: 1 })
+		saveTopic(editor, null)
 		await tutor.reset()
 	}, [editor, tutor])
 
@@ -158,6 +167,18 @@ function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onL
 	})
 	const ask = async (question: string, opts?: Parameters<typeof tour.ask>[1]) => {
 		if (replay) { setReplay(null); await new Promise(requestAnimationFrame) }
+		if (planning) return null
+		const start = question.match(/^teach me(?:\s+about)?\s+(.+)/i)
+		if (start) { setRequestedTopic(start[1].slice(0, 400)); setTopicRequest(n => n + 1); return null }
+		const lesson = readTopic(editor)
+		if (lesson && !lesson.complete) {
+			const pages = sourcePages(editor)
+			if (sourceFingerprint(pages.filter(p => lesson.sourceIds.includes(p.sourceId))) === lesson.fingerprint) {
+				const result = await tutor.ask(question, { ...opts, lesson: lessonContext(lesson, pages, 'clarify', question) })
+				if (result && !result.error && !result.stopped) { const current = readTopic(editor); if (current && current.current === lesson.current) saveTopic(editor, teachingCheckpoint(current, result.events, false)) }
+				return result
+			}
+		}
 		return tour.ask(question, opts)
 	}
 
@@ -187,7 +208,7 @@ function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onL
 
 	const newBoard = () => {
 		const id = crypto.randomUUID()
-		onLibrary({ active: id, boards: [...library.boards, { id, name: `Board ${library.boards.length + 1}`, updatedAt: Date.now() }] })
+		onLibrary({ active: id, boards: [...library.boards, { id, name: `Board ${library.boards.length + 1}`, updatedAt: Date.now(), spaceId: library.boards.find(b => b.id === library.active)?.spaceId }] })
 	}
 
 	const disabledReason = tutor.status.checked && !tutor.status.configured ? 'Connect a model to ask questions' : undefined
@@ -222,8 +243,8 @@ function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onL
 				voiceProvider={voiceProvider}
 				onToggleVoice={toggleVoice}
 				onClear={newBoard}
-				busy={tutor.busy || Boolean(loading) || tour.speaking || Boolean(replay)}
-				library={<BoardLibrary library={library} disabled={tutor.busy || Boolean(loading) || tour.speaking || Boolean(replay)} onSelect={(active) => onLibrary({ ...library, active })} onNew={newBoard} onRename={(name) => onLibrary({ ...library, boards: library.boards.map((b) => b.id === library.active ? { ...b, name } : b) })} />}
+				busy={planning || tutor.busy || Boolean(loading) || tour.speaking || Boolean(replay)}
+				library={<BoardLibrary library={library} account={Boolean(account)} disabled={planning || tutor.busy || Boolean(loading) || tour.speaking || Boolean(replay)} onSelect={(active) => onLibrary({ ...library, active })} onNew={newBoard} onNewSpace={(name) => onLibrary({ ...library, spaces: [...(library.spaces ?? []), { id: crypto.randomUUID(), name }] })} onMove={(spaceId) => onLibrary({ ...library, boards: library.boards.map(b => b.id === library.active ? { ...b, spaceId } : b) })} onRename={(name) => onLibrary({ ...library, boards: library.boards.map((b) => b.id === library.active ? { ...b, name } : b) })} />}
 				onSample={loadSample}
 				onTour={tour.pack?.steps.length ? startTour : undefined}
 				onEraseDrawings={() => {
@@ -237,31 +258,33 @@ function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onL
 					setTimeout(() => setLoading(null), 2800)
 				}}
 			/>
-			{!replay && <Toolbar onUpload={() => fileRef.current?.click()} />}
-			{!replay && <HoldToTalk busy={tutor.busy} onAsk={ask} onStop={tutor.stop} disabled={Boolean(disabledReason)} voice={voiceOut} />}
+			{!replay && <Toolbar onUpload={() => setAdding([])} />}
+			{!replay && <HoldToTalk busy={tutor.busy || planning} onAsk={ask} onStop={() => { tutor.stop(); if (planning) window.dispatchEvent(new Event('loci:cancel-topic-plan')) }} disabled={Boolean(disabledReason)} voice={voiceOut} />}
 			{!replay && (tour.phase === 'start' ? (
 				<TourStart tour={tour} overBoard={editor.getCurrentPageShapeIds().size > 0} />
 			) : tour.phase === 'running' ? null : (
-				<EmptyState saved={Boolean(account)} onUpload={() => fileRef.current?.click()} onSample={tour.pack?.steps.length ? startTour : loadSample} loading={loading} />
+				<EmptyState saved={Boolean(account)} onUpload={() => setAdding([])} onSample={tour.pack?.steps.length ? startTour : loadSample} loading={loading} />
 			))}
+			{!replay && tour.phase !== 'running' && <TopicLesson busy={tutor.busy || Boolean(loading) || tour.speaking} requestedTopic={requestedTopic} requestKey={topicRequest} onPlanning={setPlanning} onQuota={tutor.updateQuota} onTeach={(question, lesson) => tutor.ask(question, { lesson })} />}
+			{materialAdded && !replay && <div className="loci-material-added" onPointerDown={e => e.stopPropagation()}><span>Material added</span><button onClick={() => { setMaterialAdded(false); window.dispatchEvent(new Event('loci:focus-prompt')) }}>Ask about this</button><button onClick={() => { setMaterialAdded(false); setRequestedTopic(''); setTopicRequest(n => n + 1) }}>Teach me a topic</button><button aria-label="Dismiss material actions" onClick={() => setMaterialAdded(false)}>×</button></div>}
 			{loading && <div className="loci-toast">{loading}</div>}
 			{!replay && (record ? (
-				<TourRecord tour={tour} busy={tutor.busy} model={tutor.status.model} onRedo={tutor.undoLastTurn} />
+				<TourRecord tour={tour} busy={tutor.busy || planning} model={tutor.status.model} onRedo={tutor.undoLastTurn} />
 			) : (
-				<TourCoach tour={tour} busy={tutor.busy} listening={voiceMode === 'listening'} transcribing={voiceMode === 'transcribing'} sending={voiceMode === 'thinking'} />
+				<TourCoach tour={tour} busy={tutor.busy || planning} listening={voiceMode === 'listening'} transcribing={voiceMode === 'transcribing'} sending={voiceMode === 'thinking'} />
 			))}
 			{!replay && <TourEnd
 				tour={tour}
-				busy={tutor.busy}
+				busy={tutor.busy || planning}
 				onOwnProblem={() => setOwnNotes(true)}
 				freeLeft={tutor.status.hosted && !tutor.status.pro && !tutor.userKey ? tutor.status.quota?.remaining : undefined}
 			/>}
 			<div className="loci-dock">
-				{replay?.lessonId ? <LessonPlayer id={replay.lessonId} question={replay.question} onClose={() => setReplay(null)} /> : <ResponsePanel turns={tutor.turns} busy={tutor.busy} status={tutor.status} onUndo={tutor.undoLastTurn} voice={voiceOut} onReplay={setReplay} />}
+				{replay?.lessonId ? <LessonPlayer id={replay.lessonId} question={replay.question} onClose={() => setReplay(null)} /> : <ResponsePanel turns={tutor.turns} busy={tutor.busy || planning} status={tutor.status} onUndo={tutor.undoLastTurn} voice={voiceOut} onReplay={setReplay} />}
 				<PromptBar
-					busy={tutor.busy}
+					busy={tutor.busy || planning}
 					onAsk={(q, opts) => ask(q, opts)}
-					onStop={tutor.stop}
+					onStop={() => { tutor.stop(); if (planning) window.dispatchEvent(new Event('loci:cancel-topic-plan')) }}
 					disabledReason={disabledReason}
 					pro={tutor.status.pro}
 					talkDisabled={Boolean(replay)}
@@ -274,7 +297,7 @@ function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onL
 					onClose={() => setOwnNotes(false)}
 					onUpload={() => {
 						setOwnNotes(false)
-						fileRef.current?.click()
+						setAdding([])
 					}}
 					onAdd={(text) => {
 						const center = editor.getViewportPageBounds().center
@@ -299,9 +322,9 @@ function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onL
 					if (files.length) setAdding(files)
 				}}
 			/>
-			{adding && <AddMaterial files={adding} onClose={() => setAdding(null)} onAdd={(items) => {
+			{adding && <AddMaterial key={adding.map(f => f.name).join('|')} files={adding} onChoose={() => fileRef.current?.click()} onText={async (text, role) => { const ids = await ingestArticle(editor, 'Pasted notes', text, role); if (ids.length) { setAdding(null); setMaterialAdded(true) } }} onLink={async (url, role, signal) => { const ids = await ingestLink(editor, url, role, signal, setLoading); if (ids.length) { setAdding(null); setMaterialAdded(true) } }} onClose={() => setAdding(null)} onAdd={(items) => {
 				setAdding(null)
-				void (async () => { for (const { file, role } of items) await ingestFiles(editor, [file], setLoading, { role }) })()
+				void (async () => { for (const { file, role } of items) { const ids = await ingestFiles(editor, [file], setLoading, { role }); if (ids.length) setMaterialAdded(true) } })()
 			}} />}
 		</div>
 	)
@@ -336,6 +359,7 @@ function AccountBoard({ boardId, library, onLibrary }: { boardId: string; librar
 
 /** Boards on this device (the demo), or, with `boardId`, a board saved to the signed-in account. */
 export default function LociApp({ boardId }: { boardId?: string } = {}) {
+	const router = useRouter()
 	const [library, setLibrary] = useState<WorkspaceLibrary | null>(null)
 	const [storageError, setStorageError] = useState(false)
 	const [accountError, setAccountError] = useState('')
@@ -343,7 +367,7 @@ export default function LociApp({ boardId }: { boardId?: string } = {}) {
 		if (!boardId) { setLibrary(readWorkspaces()); return }
 		const only = { active: boardId, boards: [{ id: boardId, name: 'Board', updatedAt: Date.now() }] }
 		listBoards()
-			.then(({ boards }) => setLibrary({ active: boardId, boards: boards.length ? boards.map((b) => ({ id: b.id, name: b.name, updatedAt: Date.parse(b.updated_at) })) : only.boards }))
+			.then(({ boards, spaces }) => setLibrary({ active: boardId, spaces, boards: boards.length ? boards.map((b) => ({ id: b.id, name: b.name, spaceId: b.space_id, updatedAt: Date.parse(b.updated_at) })) : only.boards }))
 			.catch(() => setLibrary(only))
 	}, [boardId])
 	const changeLibrary = (next: WorkspaceLibrary) => {
@@ -351,17 +375,19 @@ export default function LociApp({ boardId }: { boardId?: string } = {}) {
 			try { writeWorkspaces(next); setLibrary(next) } catch { setStorageError(true) }
 			return
 		}
+		const addedSpace = next.spaces?.find(s => !library?.spaces?.some(old => old.id === s.id))
+		if (addedSpace) { void createSpace(addedSpace.name).then(space => setLibrary(current => current ? { ...current, spaces: [...(current.spaces ?? []), space] } : current)).catch(err => setAccountError(err instanceof Error ? err.message : 'Could not create the space.')); return }
 		// Account boards: switching opens that board's page; a new id means a new board in the account.
 		if (next.active !== library?.active) {
-			if (library?.boards.some((b) => b.id === next.active)) { window.location.assign(`/board/${next.active}`); return }
+			if (library?.boards.some((b) => b.id === next.active)) { router.push(`/board/${next.active}`); return }
 			const name = next.boards.find((b) => b.id === next.active)?.name ?? 'Untitled board'
-			createBoard(name)
+			createBoard(name, next.boards.find(b => b.id === next.active)?.spaceId)
 				.then((board) => window.location.assign(`/board/${board.id}${new URL(window.location.href).search}`))
 				.catch((err) => setAccountError(err instanceof CloudError ? err.message : 'Could not create the board.'))
 			return
 		}
 		const renamed = next.boards.find((b) => b.id === next.active)
-		if (renamed) updateBoard(renamed.id, { name: renamed.name }).then(() => setLibrary(next)).catch(() => setAccountError('Could not rename the board.'))
+		if (renamed) updateBoard(renamed.id, { name: renamed.name, spaceId: renamed.spaceId ?? null }).then(() => setLibrary(next)).catch(() => setAccountError('Could not rename the board.'))
 	}
 
 

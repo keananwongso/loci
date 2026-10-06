@@ -28,6 +28,15 @@ export class MockProvider implements TutorModelProvider {
 	}
 
 	async run(input: TutorInput, session: ActionSession, emit: (e: TutorEvent) => void, signal: AbortSignal) {
+		if (input.request.planning) {
+			const ids = input.request.planning.pages.filter(p => p.text).map(p => p.id).slice(0, 3)
+			session.handle('plan_lesson', { title: input.request.planning.topic, sections: [
+				{ title: 'Build intuition', objective: 'Understand the central idea using a concrete visual example.', pageIds: ids },
+				{ title: 'Work through an example', objective: 'Apply the idea step by step using the notation in the notes.', pageIds: ids },
+				{ title: 'Try it yourself', objective: 'Practise and explain why the method works.', pageIds: ids },
+			], gaps: ['Mock mode returns a scripted outline and lesson, not an interpretation of your sources.'] })
+			return
+		}
 		const { board } = input.request
 		// Stream each call's arguments in pieces, like a real model, so the thought line updates.
 		const thoughts = new ThoughtStream(emit)

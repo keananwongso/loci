@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { toolInputSchemas, type ToolName } from './schema'
 
 export interface ToolDefinition {
-	name: ToolName
+	name: ToolName | 'plan_lesson'
 	description: string
 	inputSchema: Record<string, unknown>
 }
