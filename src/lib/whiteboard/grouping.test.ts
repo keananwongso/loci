@@ -105,3 +105,40 @@ describe("grouped canvas edits", () => {
     expect(e.getShape("shape:region")).toBeUndefined();
   });
 });
+
+describe("bounded history", () => {
+  it("keeps only the last 100 edit steps and does not extend undo when canceling a mark", () => {
+    const e = new Editor();
+    e.createShape({ id: "shape:a", type: "geo" });
+    e.clearHistory();
+    for (let i = 1; i <= 150; i++) {
+      e.markHistoryStoppingPoint("move");
+      e.updateShape({ id: "shape:a", x: i });
+    }
+    for (let i = 0; i < 150; i++) e.undo();
+    expect(e.getShape("shape:a")?.x).toBe(50);
+    for (let i = 0; i < 150; i++) e.redo();
+    expect(e.getShape("shape:a")?.x).toBe(150);
+    const mark = e.markHistoryStoppingPoint("cancel");
+    e.updateShape({ id: "shape:a", x: 999 });
+    e.bailToMark(mark);
+    expect(e.getShape("shape:a")?.x).toBe(150);
+    e.undo();
+    expect(e.getShape("shape:a")?.x).toBe(149);
+  });
+  it("drops expired marks without restoring old edits or retaining unlimited snapshots", () => {
+    const e = new Editor();
+    e.createShape({ id: "shape:a", type: "geo" });
+    e.clearHistory();
+    const expired = e.markHistoryStoppingPoint("old");
+    for (let i = 1; i <= 150; i++) {
+      e.markHistoryStoppingPoint("move");
+      e.updateShape({ id: "shape:a", x: i });
+    }
+    e.bailToMark(expired);
+    expect(e.getShape("shape:a")?.x).toBe(150);
+    expect(
+      (e as unknown as { marks: Map<string, unknown> }).marks.size,
+    ).toBeLessThanOrEqual(100);
+  });
+});

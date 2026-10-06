@@ -37,6 +37,7 @@ export interface Renderer {
   editable?: boolean;
   resizable?: boolean;
 }
+export const HISTORY_LIMIT = 100;
 export class Editor {
   records: Record<string, TLRecord> = {};
   revision = 0;
@@ -127,9 +128,19 @@ export class Editor {
       ),
     };
   }
+  private pushUndo(snapshot: TLStoreSnapshot) {
+    this.undoStack.push(snapshot);
+    if (this.undoStack.length > HISTORY_LIMIT) {
+      this.undoStack.shift();
+      for (const [id, mark] of this.marks) {
+        mark.undoLength--;
+        if (mark.undoLength < 0) this.marks.delete(id);
+      }
+    }
+  }
   private before() {
     if (!this.ignoreHistory && this.historyBoundary) {
-      this.undoStack.push(this.historySnapshot());
+      this.pushUndo(this.historySnapshot());
       this.redoStack = [];
       this.historyBoundary = false;
     }
@@ -205,6 +216,8 @@ export class Editor {
       snapshot: this.historySnapshot(),
       undoLength: this.undoStack.length,
     });
+    if (this.marks.size > HISTORY_LIMIT)
+      this.marks.delete(this.marks.keys().next().value!);
     this.historyBoundary = true;
     return id;
   }
@@ -212,7 +225,9 @@ export class Editor {
     const mark = this.marks.get(id);
     if (mark) {
       this.records = { ...mark.snapshot.store };
-      this.undoStack.length = mark.undoLength;
+      this.undoStack.length = Math.min(this.undoStack.length, mark.undoLength);
+      for (const [key, value] of this.marks)
+        if (value.undoLength > mark.undoLength) this.marks.delete(key);
       this.redoStack = [];
       this.historyBoundary = true;
       this.emit("document");
@@ -241,7 +256,7 @@ export class Editor {
   redo() {
     const snapshot = this.redoStack.pop();
     if (snapshot) {
-      this.undoStack.push(this.historySnapshot());
+      this.pushUndo(this.historySnapshot());
       this.records = { ...snapshot.store };
       this.historyBoundary = true;
       this.emit("document");
