@@ -29,7 +29,8 @@ export async function GET(req: Request) {
 	const limits = limitConfigFromEnv()
 	const device = deviceFor(req)
 	let quota: Quota | undefined
-	const who = limits.enabled ? await viewer().catch(() => ({ paid: null, userId: null })) : { paid: null, userId: null }
+	// Signed in or not matters even without hosted limits; the top bar shows it.
+	const who = await viewer().catch(() => ({ paid: null, userId: null }))
 	if (limits.enabled) quota = await Promise.resolve().then(() => readQuota(limits, meterId(device.id, who.userId), ipHashFor(req))).catch(() => undefined)
 	// The board asks for this once when it opens, so it doubles as the visitor count. On a hosted
 	// demo the count is capped per network, since anyone can call this in a loop.
@@ -41,7 +42,8 @@ export async function GET(req: Request) {
 	if (counted) await recordStats({ visits: 1 }, { id: device.id, country: countryOf(req), unique: 'visitors' })
 	try {
 		const provider = getProvider()
-		if (who.paid) quota = await paidQuota(who.paid)
+		const account = limits.enabled ? who.paid : null
+		if (account) quota = await paidQuota(account)
 		return withCookie(
 			Response.json({
 				provider: provider.name,
@@ -50,7 +52,8 @@ export async function GET(req: Request) {
 				setupHint: provider.setupHint,
 				hosted: limits.enabled,
 				accounts: authConfigured(),
-				pro: Boolean(who.paid),
+				signedIn: Boolean(who.userId),
+				pro: Boolean(account),
 				quota,
 			}),
 			device.setCookie,
