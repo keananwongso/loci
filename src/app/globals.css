@@ -2206,7 +2206,12 @@ button {
 .loci-add__files li { display: grid; gap: 6px; }
 .loci-add__name { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .loci-add__files .loci-role-switch { position: static; flex-wrap: wrap; width: fit-content; }
-.loci-add__hint { font-size: 12px; color: #8a8290; }
+.loci-add__hint { font-size: 12px; color: var(--loci-ink-3); }
+/* On the graphite card the white pill would swallow the white ink, so it goes translucent. */
+.loci-entry .loci-role-switch { background: rgba(255, 255, 255, .08); box-shadow: inset 0 0 0 1px var(--loci-line); }
+.loci-entry .loci-role-switch .loci-role { color: var(--loci-ink-3); }
+.loci-entry .loci-role-switch .loci-role:hover { background: var(--loci-hover); color: #fff; }
+.loci-entry .loci-role-switch .loci-role[data-active] { background: #f3f1ee; color: #343230; }
 
 /* Account, top right; the top bar keeps to the board itself. */
 .loci-topbar { gap: 6px; }
