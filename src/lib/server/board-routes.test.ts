@@ -28,6 +28,7 @@ vi.mock('./billing', () => ({ billingConfigured: () => true, readSubscription: a
 
 import { GET as listBoards, POST as createBoard } from '@/app/api/boards/route'
 import { PUT as saveBoard, DELETE as deleteBoard } from '@/app/api/boards/[id]/route'
+import { POST as createSpace } from '@/app/api/spaces/route'
 import { POST as reserveUpload } from '@/app/api/files/route'
 import { GET as openFile, POST as commitUpload } from '@/app/api/files/[key]/route'
 
@@ -118,4 +119,27 @@ describe('account files', () => {
 		expect(db.state.storage.createSignedUrl).toHaveBeenCalledWith('owner/material-1', 3600)
 		for (const query of db.state.queries) expect(eqUser(query.ops)).toBe(true)
 	})
+})
+
+
+describe('account spaces', () => {
+ it('requires sign-in and the same-origin mutation boundary', async () => {
+  expect((await createSpace(request('spaces', 'POST', { name: 'Calculus' }, 'https://attacker.example'))).status).toBe(403)
+  auth.user.mockResolvedValue(null)
+  expect((await createSpace(request('spaces', 'POST', { name: 'Calculus' }))).status).toBe(401)
+  expect(db.state.queries).toHaveLength(0)
+ })
+ it('creates spaces for the authenticated owner, ignoring a supplied owner', async () => {
+  db.state.tables.loci_spaces = ops => ops.some(([op]) => op === 'insert') ? { data: { id: BOARD, name: 'Calculus' } } : { count: 0 }
+  const result = await createSpace(request('spaces', 'POST', { name: 'Calculus', user_id: 'someone-else' }))
+  expect(result.status).toBe(201)
+  expect(db.state.queries[0].ops).toContainEqual(['eq', ['user_id', 'owner']])
+  expect(db.state.queries[1].ops).toContainEqual(['insert', [{ user_id: 'owner', name: 'Calculus' }]])
+ })
+ it('validates names and caps empty space accumulation', async () => {
+  expect((await createSpace(request('spaces', 'POST', { name: ' ' }))).status).toBe(400)
+  db.state.tables.loci_spaces = () => ({ count: 100 })
+  expect((await createSpace(request('spaces', 'POST', { name: 'One more' }))).status).toBe(403)
+  expect(db.state.queries.some(q => q.ops.some(([op]) => op === 'insert'))).toBe(false)
+ })
 })

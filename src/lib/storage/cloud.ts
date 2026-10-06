@@ -25,6 +25,7 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const listBoards = () => call<{ boards: CloudBoard[]; spaces: CloudSpace[]; plan: CloudPlan }>('/api/boards')
+export const createSpace = (name: string) => call<{ space: CloudSpace }>('/api/spaces', { method: 'POST', body: JSON.stringify({ name }) }).then(r => r.space)
 export const createBoard = (name: string, spaceId?: string | null) =>
 	call<{ board: CloudBoard }>('/api/boards', { method: 'POST', body: JSON.stringify({ name, spaceId }) }).then((r) => r.board)
 export const loadBoard = (id: string) =>

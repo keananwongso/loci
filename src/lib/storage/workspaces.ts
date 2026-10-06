@@ -1,6 +1,6 @@
 /** The board library is local to this browser. Existing single-board data keeps its keys. */
-export interface Workspace { id: string; name: string; updatedAt: number }
-export interface WorkspaceLibrary { active: string; boards: Workspace[] }
+export interface Workspace { id: string; name: string; updatedAt: number; spaceId?: string | null }
+export interface WorkspaceLibrary { active: string; boards: Workspace[]; spaces?: { id: string; name: string }[] }
 const KEY = 'loci:workspaces:v1'
 const fallback = (): WorkspaceLibrary => ({ active: 'default', boards: [{ id: 'default', name: 'My board', updatedAt: Date.now() }] })
 
