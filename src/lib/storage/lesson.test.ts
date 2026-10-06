@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { Editor, TLRecord, TLStoreSnapshot, TLCamera } from 'tldraw'
+import type { Editor, TLRecord, TLStoreSnapshot, TLCamera } from '@/lib/whiteboard'
 import { createLessonPlayback, lessonAt, writingClip, type LessonRecording } from './lesson'
 
 const record = (id: string, value: string) => ({ id, typeName: 'shape', props: { value } }) as unknown as TLRecord

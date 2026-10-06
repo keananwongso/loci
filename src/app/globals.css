@@ -68,20 +68,13 @@ button {
 	inset: 0;
 }
 
-.tl-container {
+.loci-whiteboard {
 	font-family: var(--loci-sans);
 	--color-background: var(--loci-bg);
 }
 
-.tl-background {
+.react-flow__pane {
 	background-color: var(--loci-bg);
-}
-
-/* tldraw's own panels (style panel) sit on the same paper */
-.tlui-style-panel {
-	background: var(--loci-surface);
-	border-radius: var(--radius-card);
-	box-shadow: var(--loci-shadow);
 }
 
 /* ------------------------------------------------------------------ overlay UI */
@@ -942,7 +935,7 @@ button {
 .loci-buddy__thought {
 	position: absolute;
 	white-space: nowrap;
-	font-family: 'loci-hand', var(--loci-sans);
+	font-family: 'Shantell Sans', var(--loci-sans);
 	opacity: 0;
 	transition:
 		opacity 0.25s,
@@ -1248,9 +1241,6 @@ button {
 	transform: translate(-50%, -50%);
 	white-space: nowrap;
 	pointer-events: none;
-	padding: 0 3px;
-	border-radius: 4px;
-	background: rgba(253, 252, 252, 0.85);
 }
 
 .loci-graph__title {
@@ -1391,17 +1381,17 @@ button {
    the layout, and symbols the hand font lacks (∇, ⟨⟩, roots) fall back to KaTeX's own fonts */
 
 .loci-hand .katex {
-	font-family: 'loci-hand', KaTeX_Main, 'Times New Roman', serif;
+	font-family: 'Shantell Sans', KaTeX_Main, 'Times New Roman', serif;
 }
 
 .loci-hand .katex .mathnormal,
 .loci-hand .katex .mathit {
-	font-family: 'loci-hand', KaTeX_Math, serif;
+	font-family: 'Shantell Sans', KaTeX_Math, serif;
 	font-style: normal;
 }
 
 .loci-graph.loci-hand .loci-graph__title {
-	font-family: 'loci-hand', var(--loci-sans);
+	font-family: 'Shantell Sans', var(--loci-sans);
 }
 
 /* a pen writing left to right */
@@ -2255,4 +2245,34 @@ button {
 	.loci-auth { grid-template-columns: 1fr; }
 	.loci-auth__scene { display: none; }
 	.loci-auth__body { margin: 64px 0 auto; }
+}
+/* Owned whiteboard and React Flow controls. */
+.loci-whiteboard { position:absolute; inset:0; outline:none; background:#fdfcfc; }
+.loci-whiteboard .react-flow__node { border:0; padding:0; background:transparent; border-radius:0; }
+.loci-whiteboard .react-flow__node.selected { outline:1px solid #1c2230; }
+.loci-whiteboard .react-flow__node:has([data-shape-id]) { box-shadow:none; }
+.loci-rich-text p { margin:0; min-height:1.4em; line-height:1.4; }
+.loci-shape { position:relative; }
+.loci-styles { position:absolute; right:16px; top:80px; z-index:20; display:flex; gap:8px; padding:10px; border:1px solid #ddd; border-radius:12px; background:#fdfcfc; font-size:12px; }
+.loci-styles label { display:grid; gap:4px; }
+.loci-styles select { padding:4px; background:#fff; border:1px solid #ddd; border-radius:4px; }
+.loci-unsupported { padding:12px; background:#fff4d8; border:1px dashed #a77; font:12px sans-serif; }
+.loci-hand { font-family:'Shantell Sans',cursive; }
+.loci-whiteboard .react-flow__resize-control { z-index: 5; --xy-resize-background-color: #1c2230; }
+.loci-whiteboard .react-flow__resize-control.handle { width: 8px; height: 8px; }
+
+.loci-styles { max-width: 330px; flex-wrap: wrap; }
+
+/* Hit native strokes rather than the empty space in their SVG viewport. */
+.loci-shape svg[data-hit-strokes] > * { pointer-events: visiblePainted; }
+
+/* Keep the opening actions clear of canvas tools and the prompt on narrow screens. */
+@media (max-width: 640px) {
+	.loci-empty { padding: 76px 16px 150px 72px; overflow: auto; }
+	.loci-empty__inner { max-width: 100%; padding: 12px 0; }
+	.loci-empty .loci-sphere { display: none; }
+	.loci-empty__title { font-size: 32px; margin: 12px 0; }
+	.loci-empty__lede { font-size: 14px; }
+	.loci-empty__actions { margin-top: 16px; }
+	.loci-empty .loci-badge { font-size: 10px; padding: 0 8px; }
 }

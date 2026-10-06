@@ -1,5 +1,5 @@
 'use client'
-import { HTMLContainer, Rectangle2d, ShapeUtil, T, resizeBox, type RecordProps, type TLResizeInfo } from 'tldraw'
+import { HTMLContainer, Rectangle2d, ShapeUtil, resizeBox, type TLResizeInfo } from '@/lib/whiteboard'
 import { HIGHLIGHT, type HighlightShape } from '@/lib/canvas/shape-types'
 import { HIGHLIGHT_FILL, HIGHLIGHT_STROKE } from '@/lib/canvas/palette'
 import { consumeFresh } from '@/lib/canvas/fresh'
@@ -63,12 +63,6 @@ function HighlightView({ shape }: { shape: HighlightShape }) {
 /** A tutor mark on part of the student's material. Lives inside the material shape, so it moves and scales with it. */
 export class HighlightShapeUtil extends ShapeUtil<HighlightShape> {
 	static override type = HIGHLIGHT
-	static override props: RecordProps<HighlightShape> = {
-		w: T.number,
-		h: T.number,
-		style: T.literalEnum('marker', 'box', 'circle', 'underline'),
-		color: T.literalEnum('yellow', 'green', 'blue', 'pink'),
-	}
 
 	getDefaultProps(): HighlightShape['props'] {
 		return { w: 100, h: 24, style: 'marker', color: 'yellow' }

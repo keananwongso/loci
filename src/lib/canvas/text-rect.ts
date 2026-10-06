@@ -9,9 +9,9 @@ import { union, type Rect } from './placement'
 /** The box around `query` in the shape's own coordinates, or null if it can't be found. */
 export function textRectInShape(shapeId: string, query: string): Rect | null {
 	if (typeof document === 'undefined') return null
-	const el = document.querySelector<HTMLElement>(`.tl-shape[data-shape-id="${CSS.escape(shapeId)}"]`)
+	const el = document.querySelector<HTMLElement>(`.loci-shape[data-shape-id="${CSS.escape(shapeId)}"]`)
 	if (!el) return null
-	const roots = Array.from(el.querySelectorAll('.tl-rich-text, .katex-html'))
+	const roots = Array.from(el.querySelectorAll('.loci-rich-text, .katex-html'))
 	const nodes: Text[] = []
 	for (const root of roots.length ? roots : [el]) {
 		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)

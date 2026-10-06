@@ -95,7 +95,7 @@ To deploy on Vercel: import the repo, then set your model key (e.g. `ANTHROPIC_A
 
 Limits default to on on Vercel; other hosts must set `LOCI_DEMO_LIMITS=on`. Production free usage requires Redis credentials and a stable `LOCI_COOKIE_SECRET`; missing configuration refuses paid requests. Redis reserves device, network, and global usage atomically so concurrent requests cannot exceed caps. Local development can use in-memory counters. Defaults: 5 questions/device/day, 20/network/day, 300 globally/day; speech and transcription have separate caps. All counters reset at midnight UTC.
 
-tldraw requires a license key on a public domain: request a free [hobby license](https://tldraw.dev/get-a-license/hobby) for non-commercial use and set it as `NEXT_PUBLIC_TLDRAW_LICENSE_KEY`.
+The canvas uses MIT-licensed React Flow and perfect-freehand. No canvas license key is required.
 
 ### Seeing usage and spend
 
@@ -123,7 +123,7 @@ Visitors using the hosted demo send their questions and page images to that serv
 ## Architecture
 
 ```
-canvas (tldraw + custom shapes)
+canvas (React Flow + Loci document store + custom shapes)
    │  selection, region, objects with stable ids
    ▼
 serializer ── board state + page text + images ──► /api/tutor (local Next.js route)
@@ -147,7 +147,7 @@ native canvas objects (meta.author = assistant)
 | `src/lib/tutor/session.ts` | Validates each tool call against the schema and the live board (ids exist, LaTeX compiles, quoted text is found) and returns precise errors to the model |
 | `src/lib/tutor/prompt.ts` | System prompt and the text description of the board |
 | `src/lib/providers/` | `TutorModelProvider` interface, the Anthropic provider, one OpenAI-compatible provider for everything else, and the mock |
-| `src/lib/canvas/executor.ts` | Turns validated actions into tldraw shapes |
+| `src/lib/canvas/executor.ts` | Turns validated actions into Loci canvas records |
 | `src/lib/canvas/placement.ts` | Semantic placement and collision avoidance |
 | `src/lib/canvas/serialize.ts` | Builds the structured board context and captures images |
 | `src/lib/documents/` | pdf.js rendering, text extraction, OCR for images, phrase matching |
@@ -160,7 +160,7 @@ The model never runs code in the browser. It can only call the declared tools; e
 
 Adding a provider with a different API format means implementing `TutorModelProvider.run` in `src/lib/providers/` and routing each tool call through `session.handle`. Nothing else changes.
 
-tldraw is free to use in development and on localhost. Deploying Loci publicly in production requires a tldraw license key (https://tldraw.dev/pricing).
+Local boards use the versioned `loci-documents` IndexedDB store. Existing tldraw records and assets are read without modifying their original databases; saved explanations retain support for version-1 lessons. New explanations use version 2.
 
 ## Roadmap
 
@@ -173,4 +173,4 @@ tldraw is free to use in development and on localhost. Deploying Loci publicly i
 
 Loci is open source under the [MIT License](../LICENSE).
 
-Its dependencies keep their own licenses. Note that tldraw, the canvas library, is not MIT: it is free in development and on localhost, and needs a license key (a free hobby license for non-commercial use) when deployed on a public domain.
+Its dependencies keep their own licenses. React Flow and perfect-freehand are MIT licensed. Shantell Sans is bundled under the SIL Open Font License.

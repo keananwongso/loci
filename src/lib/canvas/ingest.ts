@@ -3,7 +3,7 @@
  * Puts uploaded pdfs and images on the board as material shapes. Files are processed in the
  * browser and stored in IndexedDB; nothing is uploaded.
  */
-import { createShapeId, type Editor, type TLShapeId } from 'tldraw'
+import { createShapeId, type Editor, type TLShapeId } from '@/lib/whiteboard'
 import { renderPdf } from '@/lib/documents/pdf'
 import { recognizeImage } from '@/lib/documents/ocr'
 import { putBlob, randomKey } from '@/lib/storage/blobs'

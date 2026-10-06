@@ -5,7 +5,7 @@ const dev = process.env.NODE_ENV === 'development'
 const storage = process.env.SUPABASE_URL ? ` ${new URL(process.env.SUPABASE_URL).origin}/storage/v1/object/` : ''
 
 /**
- * Same-origin only, apart from tldraw's CDN (license check, fallback assets). The main job is
+ * Same-origin canvas resources; account storage is allowed separately. The main job is
  * connect-src/img-src: even if a script got injected, it couldn't send a visitor's own API key
  * (kept in localStorage) anywhere. Next's inline bootstrap scripts still need 'unsafe-inline'.
  */
@@ -13,9 +13,9 @@ const policy = (google = false) => [
 	"default-src 'self'",
 	`script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${dev ? " 'unsafe-eval'" : ''}${google ? ` ${GSI}client` : ''}`,
 	`style-src 'self' 'unsafe-inline'${google ? ` ${GSI}style` : ''}`,
-	`img-src 'self' data: blob: https://cdn.tldraw.com${storage}`,
-	"font-src 'self' data: https://cdn.tldraw.com",
-	`connect-src 'self' data: blob: https://cdn.tldraw.com${storage}${dev ? ' ws:' : ''}${google ? ` ${GSI}` : ''}`,
+	`img-src 'self' data: blob:${storage}`,
+	"font-src 'self' data:",
+	`connect-src 'self' data: blob:${storage}${dev ? ' ws:' : ''}${google ? ` ${GSI}` : ''}`,
 	...(google ? [`frame-src ${GSI}`] : []),
 	`media-src 'self' data: blob:${storage}`,
 	"worker-src 'self' blob:",
@@ -29,7 +29,7 @@ const policy = (google = false) => [
 const GSI = 'https://accounts.google.com/gsi/'
 
 const nextConfig: NextConfig = {
-	// tldraw and pdf.js are browser-only; the canvas is loaded client-side.
+	// The whiteboard and pdf.js are browser-only; the canvas is loaded client-side.
 	reactStrictMode: true,
 	poweredByHeader: false,
 	// Don't write AGENTS.md / CLAUDE.md into the repo on `next dev`.

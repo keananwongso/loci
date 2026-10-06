@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { useEditor, useValue } from 'tldraw'
+import { useEditor, useValue } from '@/lib/whiteboard'
 import { describeSelection } from '../selection'
 import { heard, tutorPresence, talkKeysLabel } from '@/lib/canvas/presence'
 import { LayersIcon, MicIcon, PageIcon, SendIcon, StopIcon } from './icons'

@@ -1,13 +1,13 @@
 'use client'
 /**
- * The tutor writes by hand: its notes use tldraw's handwriting font (Shantell Sans, served from
+ * The tutor writes by hand: its notes use Shantell Sans handwriting font (Shantell Sans, served from
  * this app), and so do the letters and numbers inside its equations. New writing is revealed
  * left to right as the pen moves across it.
  */
 import { penAlong } from './presence'
 import { lineClip, type WritingLine } from './writing-layout'
 
-export const HAND_FAMILY = 'loci-hand'
+export const HAND_FAMILY = 'Shantell Sans'
 
 type WritingObserver = (writing: { shapeId: string; duration: number; lines: WritingLine[] }) => void
 const observers = new Set<WritingObserver>()
@@ -18,19 +18,11 @@ export function observeWriting(observer: WritingObserver) {
 
 let loading: Promise<void> | null = null
 
-/** Register the handwriting font once, from the self-hosted tldraw asset. */
-export function loadHandFont(url: string | undefined): Promise<void> {
-	if (typeof document === 'undefined' || !url) return Promise.resolve()
-	loading ??= (async () => {
-		try {
-			const face = new FontFace(HAND_FAMILY, `url(${url})`)
-			document.fonts.add(face)
-			await face.load()
-		} catch (err) {
-			console.warn('[loci] could not load the handwriting font', err)
-		}
-	})()
-	return loading
+/** Register the handwriting font once, from the self-hosted font package. */
+export function loadHandFont(): Promise<void> {
+ if (typeof document === 'undefined') return Promise.resolve()
+ loading ??= document.fonts.load('28px "Shantell Sans"').then(() => {})
+ return loading
 }
 
 /** Resolves once the font is ready (or failed), so measurements use the real glyphs. */
@@ -48,7 +40,7 @@ export function writingTime(chars: number) {
  * Shapes that lay out their own lines (a table's rows) mark them with `data-write-line`.
  */
 function textLines(shape: HTMLElement): WritingLine[] {
-	const text = shape.querySelector('.tl-rich-text')
+	const text = shape.querySelector('.loci-rich-text')
 	const bounds = shape.getBoundingClientRect()
 	if (!bounds.width || !bounds.height) return []
 	const rects: DOMRect[] = Array.from(shape.querySelectorAll('[data-write-line]'), (el) => el.getBoundingClientRect())
@@ -79,14 +71,14 @@ function textLines(shape: HTMLElement): WritingLine[] {
 
 /**
  * Reveal a freshly created shape left to right over `ms` while the tutor's pen moves along it.
- * Works for any shape (native tldraw text included) by styling its DOM node by id.
+ * Works for any shape (native text included) by styling its DOM node by id.
  */
 export async function writeIn(shapeId: string, area: { x: number; y: number; w: number; h: number }, ms: number) {
 	if (typeof document === 'undefined') return
 	const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
 	if (reduce) return
 	const style = document.createElement('style')
-	const sel = `.tl-shape[data-shape-id="${CSS.escape(shapeId)}"]`
+	const sel = `.loci-shape[data-shape-id="${CSS.escape(shapeId)}"]`
 	style.textContent = `${sel} { clip-path: inset(0 100% 0 0); }`
 	document.head.appendChild(style)
 	let animation: Animation | undefined

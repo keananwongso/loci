@@ -1,5 +1,5 @@
 'use client'
-import { GeoShapeGeoStyle, useEditor, useValue } from 'tldraw'
+import { GeoShapeGeoStyle, useEditor, useValue } from '@/lib/whiteboard'
 import type { ReactNode } from 'react'
 import { talkKeysLabel } from '@/lib/canvas/presence'
 import { ArrowIcon, EraserIcon, HandIcon, PenIcon, RectIcon, RegionIcon, SelectIcon, TextIcon, TrashIcon, UploadIcon } from './icons'

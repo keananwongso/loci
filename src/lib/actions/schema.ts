@@ -3,7 +3,7 @@
  *
  * The model never touches editor state directly. It calls these tools; every call is
  * validated against these schemas (and then against the live board in `validate.ts`)
- * before the browser turns it into native tldraw shapes in `canvas/executor.ts`.
+ * before the browser turns it into canvas shapes in `canvas/executor.ts`.
  *
  * One schema per tool. The tool's JSON schema for the model is generated from the same
  * Zod object, so the contract cannot drift between what we advertise and what we accept.

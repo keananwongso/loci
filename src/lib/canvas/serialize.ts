@@ -4,7 +4,7 @@
  * (with full extracted text only for the material in focus) plus a few images. This is the
  * minimum context needed for one question; it is assembled fresh for each request.
  */
-import { renderPlaintextFromRichText, type Editor, type TLShape } from 'tldraw'
+import { renderPlaintextFromRichText, type Editor, type TLShape } from '@/lib/whiteboard'
 import { groupLines, textInRegion } from '@/lib/documents/text'
 import type { BoardContext, BoardObject, BoardObjectType, ContextImage } from '@/lib/tutor/types'
 import { getBlob } from '@/lib/storage/blobs'
@@ -26,7 +26,7 @@ function rectOf(editor: Editor, shape: TLShape): Rect | null {
 function richText(editor: Editor, shape: TLShape): string | undefined {
 	const props = shape.props as { richText?: unknown }
 	if (!props.richText) return undefined
-	const text = renderPlaintextFromRichText(editor, props.richText as never).trim()
+	const text = renderPlaintextFromRichText(props.richText).trim()
 	return text || undefined
 }
 
@@ -179,7 +179,7 @@ function describeShape(editor: Editor, s: TLShape, inFocus: boolean): Partial<Bo
 			}
 		}
 		case EQUATION:
-			return { type: 'equation', latex: (s as Extract<TLShape, { type: typeof EQUATION }>).props.latex }
+			return { type: 'equation', latex: s.props.latex }
 		case GRAPH: {
 			const p = (s as GraphShape).props
 			return { type: 'graph', graph: { xRange: [p.xMin, p.xMax], yRange: [p.yMin, p.yMax], title: p.title || undefined, items: p.items } }
@@ -189,7 +189,7 @@ function describeShape(editor: Editor, s: TLShape, inFocus: boolean): Partial<Bo
 			return { type: 'table', table: { columns: p.columns, rows: p.cells } }
 		}
 		case HIGHLIGHT:
-			return { type: 'highlight', highlight: { style: (s as Extract<TLShape, { type: typeof HIGHLIGHT }>).props.style } }
+			return { type: 'highlight', highlight: { style: s.props.style } }
 		case REGION:
 			return { type: 'region' }
 		case 'text':

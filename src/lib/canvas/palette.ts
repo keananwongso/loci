@@ -1,4 +1,4 @@
-import type { TLDefaultColorStyle } from 'tldraw'
+import type { TLDefaultColorStyle } from '@/lib/whiteboard'
 import type { HighlightColor, InkColor } from '@/lib/actions/schema'
 
 /** Hex values for ink colours used by Loci's custom shapes (graphs, equations). */
@@ -12,7 +12,7 @@ export const INK: Record<InkColor, string> = {
 	grey: '#7b8494',
 }
 
-/** The closest tldraw palette colour, for native shapes (text, arrows, geo). */
+/** The canvas palette colour, for native shapes (text, arrows, geo). */
 export const TL_COLOR: Record<InkColor, TLDefaultColorStyle> = {
 	ink: 'black',
 	blue: 'blue',

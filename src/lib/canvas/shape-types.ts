@@ -1,8 +1,8 @@
 /**
- * Loci's custom tldraw shape types. Registered with tldraw through module augmentation,
+ * Loci's custom canvas shape types. Registered with the owned document model through module augmentation,
  * so `editor.createShape({ type: 'loci-equation', ... })` is fully typed.
  */
-import type { TLShape } from 'tldraw'
+import type { TLShape } from '@/lib/whiteboard'
 import type { GraphItem, HighlightColor } from '@/lib/actions/schema'
 import type { TableCell, TextItem } from '@/lib/tutor/types'
 
@@ -13,7 +13,7 @@ export const HIGHLIGHT = 'loci-highlight'
 export const REGION = 'loci-region'
 export const TABLE = 'loci-table'
 
-declare module 'tldraw' {
+declare module '@/lib/whiteboard/model' {
 	export interface TLGlobalShapePropsMap {
 		/** A pdf page or uploaded image. The pixels live in IndexedDB under `blobKey`. */
 		[MATERIAL]: {

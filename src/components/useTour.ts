@@ -5,7 +5,7 @@
  * and each answer can be kept as the branch's take.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { Editor } from 'tldraw'
+import type { Editor } from '@/lib/whiteboard'
 import { emphasize, endTutorTurn, heard, lookAt, setTutorMode } from '@/lib/canvas/presence'
 import { loadPack, loadPackVoice, placePack, pointArea } from '@/lib/demo/client'
 import { pickBranch, type DemoBranch, type DemoPack, type DemoStep } from '@/lib/demo/pack'

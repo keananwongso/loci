@@ -1,13 +1,14 @@
 import { createStore, get, set } from 'idb-keyval'
 import { cloudBoard, fileUrl, uploadFile } from './cloud'
-import type { Editor, TLCamera, TLRecord, TLStoreSnapshot } from 'tldraw'
+import type { Editor, TLCamera, TLRecord, TLStoreSnapshot } from '@/lib/whiteboard'
 import { lineClip, type WritingLine } from '@/lib/canvas/writing-layout'
 
 export interface LessonCue { text: string; start: number; end: number; audioKey?: string; voiced?: boolean }
 export interface LessonFrame { t: number; put: TLRecord[]; remove: TLRecord['id'][]; camera: TLCamera }
 export interface LessonWriting { shapeId: string; start: number; end: number; lines: WritingLine[] }
 export interface LessonRecording {
-	version: 1
+	version: 1 | 2
+	pageId?: string
 	baseline: TLStoreSnapshot
 	camera: TLCamera
 	frames: LessonFrame[]
@@ -61,12 +62,14 @@ export function lessonAt(lesson: LessonRecording, time: number) {
 }
 
 /** Forward playback applies each recorded change once; only a seek rebuilds the document. */
-export function createLessonPlayback(editor: Pick<Editor, 'loadSnapshot' | 'store' | 'setCamera' | 'updateInstanceState'>, lesson: LessonRecording) {
+export function createLessonPlayback(editor: Pick<Editor, 'loadSnapshot' | 'store' | 'setCamera' | 'updateInstanceState'> & Partial<Pick<Editor, 'setCurrentPage'>>,  lesson: LessonRecording) {
 	let next = 0
 	let previousTime = -Infinity
 	return (time: number, seek = false) => {
 		if (seek || time < previousTime || previousTime === -Infinity) {
 			editor.loadSnapshot(lessonAt(lesson, time).snapshot)
+            const pageId=lesson.pageId ?? (lesson.camera.id?.startsWith('camera:') ? lesson.camera.id.slice('camera:'.length) : undefined)
+            if(pageId)editor.setCurrentPage?.(pageId)
 			editor.updateInstanceState({ isReadonly: true })
 			next = 0
 			while (next < lesson.frames.length && lesson.frames[next].t <= time) next++

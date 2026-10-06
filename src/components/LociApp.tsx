@@ -1,7 +1,6 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Tldraw, useEditor, useValue, type Editor, type TLComponents, type TLUiOverrides, toRichText, createShapeId } from 'tldraw'
-import { RegionTool } from './shapes/RegionShapeUtil'
+import { Whiteboard, useEditor, useValue, toRichText, createShapeId } from '@/lib/whiteboard'
 import { Buddy } from './ui/Buddy'
 import { Emphasis } from './ui/Emphasis'
 import { Toolbar } from './ui/Toolbar'
@@ -28,48 +27,10 @@ import { tutorPresence } from '@/lib/canvas/presence'
 import { REGION } from '@/lib/canvas/shape-types'
 import { checkSpeechProvider } from '@/lib/voice/player'
 import { warmAcks } from '@/lib/voice/ack'
-import { loadHandFont } from '@/lib/canvas/hand'
-import { installDragToPan } from '@/lib/canvas/pan'
 import { loadPack, loadPackVoice, placePack } from '@/lib/demo/client'
 
-import { shapeUtils, assetUrls } from './canvasConfig'
-const tools = [RegionTool]
-
-const components: TLComponents = {
-	MainMenu: null,
-	PageMenu: null,
-	ActionsMenu: null,
-	HelpMenu: null,
-	Toolbar: null,
-	QuickActions: null,
-	SharePanel: null,
-	MenuPanel: null,
-	TopPanel: null,
-	DebugPanel: null,
-	DebugMenu: null,
-	HelperButtons: null,
-	Minimap: null,
-	InFrontOfTheCanvas: () => (
-		<>
-			<Emphasis />
-			<Buddy />
-		</>
-	),
-	StylePanel,
-}
-
-const overrides: TLUiOverrides = {
-	tools(editor, toolItems) {
-		toolItems['loci-region'] = {
-			id: 'loci-region',
-			label: 'Ask about an area' as never,
-			icon: 'tool-frame',
-			kbd: 'q',
-			onSelect: () => editor.setCurrentTool('loci-region'),
-		}
-		return toolItems
-	},
-}
+import { shapeUtils } from './canvasConfig'
+const components = { InFrontOfTheCanvas: () => <><Emphasis /><Buddy /></>, StylePanel }
 
 const VOICE_KEY = 'loci:voice-out'
 
@@ -237,7 +198,7 @@ function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onL
 			data-replay={Boolean(replay)}
 			onPasteCapture={(e) => {
 				if (replay && e.clipboardData.files.length) { e.preventDefault(); e.stopPropagation(); return }
-				// Editable fields bypass tldraw's canvas paste handler. Accept files there too.
+				// Editable fields bypass canvas paste handler. Accept files there too.
 				if (!ownNotes && !(e.target instanceof Element && e.target.closest('.loci-prompt'))) return
 				const clipboardFiles = Array.from(e.clipboardData.files)
 				const files = (clipboardFiles.length ? clipboardFiles : Array.from(e.clipboardData.items).flatMap((item) => {
@@ -403,43 +364,20 @@ export default function LociApp({ boardId }: { boardId?: string } = {}) {
 		if (renamed) updateBoard(renamed.id, { name: renamed.name }).then(() => setLibrary(next)).catch(() => setAccountError('Could not rename the board.'))
 	}
 
-	const onMount = useCallback((editor: Editor) => {
-		editor.user.updateUserPreferences({ colorScheme: 'light' })
-		// The canvas sits on eggshell paper and selects in ink rather than tldraw's blue.
-		const theme = editor.getTheme('default')
-		if (theme) {
-			const light = theme.colors.light
-			editor.updateTheme({
-				...theme,
-				colors: {
-					...theme.colors,
-					light: { ...light, background: '#fdfcfc', negativeSpace: '#fdfcfc', selectionStroke: '#000000', selectionFill: 'rgba(0, 0, 0, 0.04)' },
-				},
-			})
-		}
-		loadHandFont(assetUrls.fonts?.tldraw_draw)
-		installDragToPan(editor)
-	}, [])
 
 	if (!library) return <div className="loci-loading">Opening your board…</div>
 	return (
 		<div className="loci-root">
 			{storageError && <p className="loci-toast">Browser storage is unavailable. Allow storage to save and switch boards.</p>}
 			{accountError && <p className="loci-toast" role="alert">{accountError} <button onClick={() => setAccountError('')}>Dismiss</button></p>}
-			<Tldraw
+			<Whiteboard
 				key={library.active}
 				persistenceKey={canvasKey(library.active)}
 				shapeUtils={shapeUtils}
-				tools={tools}
 				components={components}
-				overrides={overrides}
-				assetUrls={assetUrls}
-				// Needed only when deploying on a public domain; localhost works without one.
-				licenseKey={process.env.NEXT_PUBLIC_TLDRAW_LICENSE_KEY || undefined}
-				onMount={onMount}
 			>
 				{boardId ? <AccountBoard boardId={boardId} library={library} onLibrary={changeLibrary} /> : <Shell library={library} onLibrary={changeLibrary} />}
-			</Tldraw>
+			</Whiteboard>
 		</div>
 	)
 }

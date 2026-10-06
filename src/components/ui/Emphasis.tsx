@@ -1,5 +1,5 @@
 'use client'
-import { useEditor, useValue } from 'tldraw'
+import { useEditor, useValue } from '@/lib/whiteboard'
 import { emphasis } from '@/lib/canvas/presence'
 
 /** A soft pulse around what the tutor is talking about, following the camera. */

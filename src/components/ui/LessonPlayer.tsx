@@ -1,8 +1,8 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Tldraw, useEditor } from 'tldraw'
-import { shapeUtils, assetUrls } from '../canvasConfig'
+import { Whiteboard, useEditor } from '@/lib/whiteboard'
+import { shapeUtils } from '../canvasConfig'
 import { loadLesson, createLessonPlayback, writingClip, type LessonRecording } from '@/lib/storage/lesson'
 import { getBlobUrl } from '@/lib/storage/blobs'
 import { renderRich } from '@/lib/canvas/richtext'
@@ -148,7 +148,7 @@ export function LessonPlayer({ id, question, onClose }: { id: string; question: 
 		if (e.code === 'ArrowLeft') { e.preventDefault(); seek(position.current - 10000) }
 		if (e.code === 'ArrowRight') { e.preventDefault(); seek(position.current + 10000) }
 	}}>
-		{lesson && createPortal(<div className="loci-replay-canvas" aria-label="Replaying explanation on the board"><style>{lesson.writing?.map((w) => { const clip = writingClip(w, time); return clip ? `.loci-replay-canvas .tl-shape[data-shape-id="${CSS.escape(w.shapeId)}"] { clip-path: ${clip}; }` : '' }).join('\n')}</style><Tldraw shapeUtils={shapeUtils} assetUrls={assetUrls} snapshot={lesson.baseline} hideUi licenseKey={process.env.NEXT_PUBLIC_TLDRAW_LICENSE_KEY || undefined} onMount={(editor) => { editor.updateInstanceState({ isReadonly: true }); editor.user.updateUserPreferences({ colorScheme: 'light' }); draw.current = createLessonPlayback(editor, lesson); draw.current(position.current, true) }} /></div>, liveEditor.getContainer())}
+		{lesson && createPortal(<div className="loci-replay-canvas" aria-label="Replaying explanation on the board"><style>{lesson.writing?.map((w) => { const clip = writingClip(w, time); return clip ? `.loci-replay-canvas .loci-shape[data-shape-id="${CSS.escape(w.shapeId)}"] { clip-path: ${clip}; }` : '' }).join('\n')}</style><Whiteboard shapeUtils={shapeUtils} snapshot={lesson.baseline} hideUi onMount={(editor) => { editor.updateInstanceState({ isReadonly: true }); draw.current = createLessonPlayback(editor, lesson); draw.current(position.current, true) }} /></div>, liveEditor.getContainer())}
 		<header><span title={question}>Replay · {question}</span><button className="loci-icon-btn loci-icon-btn--sm" onClick={onClose} aria-label="Finish replay" title="Return to your board"><CloseIcon /></button></header>
 		{error && <p className="loci-player__error" role="alert">{error}</p>}
 		{lesson ? <>
@@ -158,7 +158,7 @@ export function LessonPlayer({ id, question, onClose }: { id: string; question: 
 			</aside>}
 			{!transcript && cue && <p className="loci-player__caption" dangerouslySetInnerHTML={{ __html: renderRich(cue.text) }} />}
 			<div className="loci-player__controls">
-				<input aria-label="Explanation timeline" type="range" min="0" max={lesson.duration} step="100" value={time} onChange={(e) => seek(Number(e.target.value))} />
+				<input aria-label="Explanation timeline" type="range" min="0" max={Math.ceil(lesson.duration)} step="1" value={Math.ceil(time)} onChange={(e) => seek(Number(e.target.value))} />
 				<div><button onClick={() => seek(position.current - 10000)} className="loci-player__skip" aria-label="Rewind 10 seconds" title="Back 10 seconds"><SkipIcon /><b>10</b></button><button className="loci-player__play" onClick={togglePlay} aria-label={playing ? 'Pause replay' : 'Play replay'}>{playing ? <PauseIcon /> : <PlayIcon />}</button><button onClick={() => seek(position.current + 10000)} className="loci-player__skip" aria-label="Forward 10 seconds" title="Forward 10 seconds"><SkipIcon forward /><b>10</b></button><span>{clock(time)} / {clock(lesson.duration)}</span><select aria-label="Playback speed" value={rate} onChange={(e) => { const next = Number(e.target.value); if (audioRef.current) audioRef.current.playbackRate = next; seeking.current = true; setRate(next) }}>{[0.5, 0.75, 1, 1.25, 1.5, 2].map((r) => <option key={r} value={r}>{r}×</option>)}</select><button aria-pressed={transcript} onClick={() => setTranscript(!transcript)}>Transcript</button></div>
 			</div>
 		</> : !error && <p>Opening the saved explanation…</p>}

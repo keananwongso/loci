@@ -4,14 +4,12 @@ import {
 	HTMLContainer,
 	Rectangle2d,
 	ShapeUtil,
-	T,
 	resizeBox,
 	useEditor,
 	useValue,
-	type RecordProps,
 	type TLResizeInfo,
 	type TLShape,
-} from 'tldraw'
+} from '@/lib/whiteboard'
 import { blobToDataUrl, getBlob, getBlobUrl } from '@/lib/storage/blobs'
 import { HIGHLIGHT, MATERIAL, type MaterialShape } from '@/lib/canvas/shape-types'
 import { setMaterialRole } from '@/lib/canvas/ingest'
@@ -76,18 +74,6 @@ function MaterialView({ shape }: { shape: MaterialShape }) {
 /** A page of a pdf or an uploaded image: the student's source material. */
 export class MaterialShapeUtil extends ShapeUtil<MaterialShape> {
 	static override type = MATERIAL
-	static override props: RecordProps<MaterialShape> = {
-		w: T.number,
-		h: T.number,
-		blobKey: T.string,
-		kind: T.literalEnum('pdf', 'image'),
-		name: T.string,
-		page: T.number,
-		pageCount: T.number,
-		pixelW: T.number,
-		pixelH: T.number,
-		textItems: T.arrayOf(T.object({ t: T.string, b: T.arrayOf(T.number) })) as never,
-	}
 
 	getDefaultProps(): MaterialShape['props'] {
 		return { w: 600, h: 800, blobKey: '', kind: 'image', name: '', page: 1, pageCount: 1, pixelW: 0, pixelH: 0, textItems: [] }

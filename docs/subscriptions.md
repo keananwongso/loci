@@ -38,7 +38,7 @@ Checkout is server-created using the signed-in account and configured price. Cli
 
 In Stripe test mode, complete Google sign-in, subscribe using a test card, confirm Pro in `/account` and the tutor, and check that paid questions and voice count against account limits. Verify duplicate checkout clicks, cancellation through the portal, payment failures and webhook retries. Sign out and confirm the free allowance applies again; boards must remain saved. These flows require your own configured Supabase project and Stripe sandbox; local unit tests mock the external services.
 
-Subscriptions change Loci into a commercial use of the canvas SDK. Confirm an appropriate [tldraw production license](https://tldraw.dev/pricing) before charging users; the hobby license is intended for projects built for fun.
+The React Flow and perfect-freehand canvas dependencies permit commercial use under their MIT licenses; no canvas license key is required.
 
 ## Implementation boundaries
 

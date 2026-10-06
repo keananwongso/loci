@@ -1,8 +1,8 @@
 'use client'
 /**
- * Executes validated canvas actions in the browser by creating native tldraw shapes.
+ * Executes validated canvas actions in the browser by creating canvas shapes.
  *
- * Model-facing ids map 1:1 to tldraw ids ("eq-1" <-> "shape:eq-1"), so the tutor can refer
+ * Model-facing ids map 1:1 to canvas ids ("eq-1" <-> "shape:eq-1"), so the tutor can refer
  * to anything it drew in earlier turns. Every created shape carries meta.author = 'assistant'.
  */
 import {
@@ -16,7 +16,7 @@ import {
 	type TLShape,
 	type TLShapeId,
 	type TLTextShape,
-} from 'tldraw'
+} from '@/lib/whiteboard'
 import type { ActionOf, Anchor, CanvasAction, GraphItem, Position } from '@/lib/actions/schema'
 import { equalAspectHeight, toLocal } from '@/lib/math/graph'
 import {
@@ -373,7 +373,7 @@ export class CanvasExecutor {
 		// In the target's own coordinates, and parented to it, so the mark moves with it.
 		let local: Rect
 		if (target.type === MATERIAL) {
-			const { w, h } = (target as Extract<TLShape, { type: typeof MATERIAL }>).props
+			const { w, h } = target.props
 			const r = action.region ?? { x: 0, y: 0, w: 1, h: 1 }
 			local = { x: r.x * w, y: r.y * h, w: Math.max(6, r.w * w), h: Math.max(6, r.h * h) }
 		} else {
