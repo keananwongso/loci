@@ -132,7 +132,6 @@ export default function AccountPage() {
 						<button className="loci-primary" disabled={pending || !email.trim()}>{pending ? 'One moment…' : 'Send sign-in link'}</button>
 					</form>
 				</>}
-				<p className="loci-auth__note">Your boards save to your account and open on any device. Anything you made in the demo comes with you.</p>
 			</div>
 			<Link className="loci-auth__back" href="/demo">Keep using the demo without an account</Link>
 		</section>
