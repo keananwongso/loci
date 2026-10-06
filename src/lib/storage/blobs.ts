@@ -1,18 +1,28 @@
 /**
- * Page images and uploaded pictures, stored locally in IndexedDB (never uploaded anywhere).
- * The board only references them by key, which keeps the canvas document small.
+ * Page images, pictures and replay audio, stored locally in IndexedDB. The board only references
+ * them by key, which keeps the canvas document small. On a board saved to an account they are also
+ * uploaded, and a key missing here (another device's upload) is fetched once and kept.
  */
 import { createStore, del, get, set } from 'idb-keyval'
+import { cloudBoard, fileUrl, uploadFile } from './cloud'
 
 const store = typeof indexedDB !== 'undefined' ? createStore('loci-blobs', 'blobs') : undefined
 const urls = new Map<string, string>()
 
 export async function putBlob(key: string, blob: Blob) {
 	await set(key, blob, store)
+	const board = cloudBoard()
+	if (board) void uploadFile(key, blob, board).catch(() => {})
 }
 
 export async function getBlob(key: string): Promise<Blob | undefined> {
-	return get<Blob>(key, store)
+	const local = await get<Blob>(key, store)
+	if (local || !cloudBoard()) return local
+	const res = await fetch(fileUrl(key)).catch(() => null)
+	if (!res?.ok) return undefined
+	const blob = await res.blob()
+	await set(key, blob, store).catch(() => {})
+	return blob
 }
 
 export async function deleteBlob(key: string) {

@@ -10,8 +10,8 @@ import { getProvider, providerForUserKey } from '@/lib/providers'
 import type { TutorModelProvider } from '@/lib/providers/types'
 import { deviceFor, ipHashFor } from '@/lib/server/device'
 import { VISIT_LIMITS, limitConfigFromEnv, readQuota, takeQuestion, takeUsage, type Quota } from '@/lib/server/limits'
-import { authConfigured, currentUser } from '@/lib/server/auth'
-import { paidAccount } from '@/lib/server/billing'
+import { authConfigured } from '@/lib/server/auth'
+import { meterId, viewer } from '@/lib/server/billing'
 import { paidQuota, paidUsage } from '@/lib/server/paid-usage'
 import { countryOf, recordStats } from '@/lib/server/stats'
 import { buildTurnText, SYSTEM_PROMPT, GUIDED_DEMO_PROMPT } from '@/lib/tutor/prompt'
@@ -29,7 +29,9 @@ export async function GET(req: Request) {
 	const limits = limitConfigFromEnv()
 	const device = deviceFor(req)
 	let quota: Quota | undefined
-	if (limits.enabled) quota = await Promise.resolve().then(() => readQuota(limits, device.id, ipHashFor(req))).catch(() => undefined)
+	// Signed in or not matters even without hosted limits; the top bar shows it.
+	const who = await viewer().catch(() => ({ paid: null, userId: null }))
+	if (limits.enabled) quota = await Promise.resolve().then(() => readQuota(limits, meterId(device.id, who.userId), ipHashFor(req))).catch(() => undefined)
 	// The board asks for this once when it opens, so it doubles as the visitor count. On a hosted
 	// demo the count is capped per network, since anyone can call this in a loop.
 	const counted =
@@ -40,8 +42,7 @@ export async function GET(req: Request) {
 	if (counted) await recordStats({ visits: 1 }, { id: device.id, country: countryOf(req), unique: 'visitors' })
 	try {
 		const provider = getProvider()
-		const user = await currentUser()
-		const account = limits.enabled ? await paidAccount(user) : null
+		const account = limits.enabled ? who.paid : null
 		if (account) quota = await paidQuota(account)
 		return withCookie(
 			Response.json({
@@ -51,7 +52,7 @@ export async function GET(req: Request) {
 				setupHint: provider.setupHint,
 				hosted: limits.enabled,
 				accounts: authConfigured(),
-				signedIn: Boolean(user),
+				signedIn: Boolean(who.userId),
 				pro: Boolean(account),
 				quota,
 			}),
@@ -101,8 +102,10 @@ async function chooseProvider(
 	const limits = limitConfigFromEnv()
 	const device = deviceFor(req)
 	if (!limits.enabled) return { provider, cookie: device.setCookie, ownerPays: { id: device.id, country: countryOf(req) } }
+	let who: Awaited<ReturnType<typeof viewer>>
 	try {
-		const account = await paidAccount()
+		who = await viewer()
+		const account = who.paid
 		if (account) {
 			const usage = await paidUsage(account, 'question', 1)
 			if (!usage.ok) return Response.json({ error: usage.reason === 'subscription' ? 'Your questions for this billing month are used up.' : usage.reason === 'daily' ? 'Your daily question allowance is used up. More questions tomorrow.' : 'Loci is at capacity today. Please try again tomorrow.', limitReached: usage.reason, quota: usage.quota }, { status: 429 })
@@ -113,7 +116,7 @@ async function chooseProvider(
 		return Response.json({ error: 'Could not check your subscription. Please try again.', limitReached: 'store' }, { status: 503 })
 	}
 	const decision = await Promise.resolve()
-		.then(() => takeQuestion(limits, device.id, ipHashFor(req)))
+		.then(() => takeQuestion(limits, meterId(device.id, who.userId), ipHashFor(req)))
 		.catch(() => null)
 	if (!decision)
 		return withCookie(

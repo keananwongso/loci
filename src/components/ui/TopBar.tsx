@@ -16,9 +16,11 @@ interface Props {
 	onTour?: () => void
 	/** Remove everything Loci drew, keeping the student's own notes and marks. */
 	onEraseDrawings: () => void
+	/** On a board saved to an account: the plan, and where the save stands. */
+	account?: { pro: boolean; saveState: React.ReactNode }
 }
 
-export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear, onSample, onTour, onEraseDrawings, busy, library }: Props) {
+export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear, onSample, onTour, onEraseDrawings, busy, library, account }: Props) {
 	const [menu, setMenu] = useState(false)
 	const accountLabel = status.pro ? 'Pro · Account' : status.signedIn ? 'Account' : 'Sign in'
 	const ref = useRef<HTMLDivElement>(null)
@@ -31,10 +33,13 @@ export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear
 
 	return (
 		<div className="loci-topbar" data-menu-open={menu} onPointerDown={(e) => e.stopPropagation()}>
-			<a className="loci-brand" href="/" style={{ textDecoration: 'none', color: 'inherit' }}>Loci</a>
+			<a className="loci-brand" href={account ? '/home' : '/'} title={account ? 'Your boards' : undefined} style={{ textDecoration: 'none', color: 'inherit' }}>Loci</a>
 
 			{library}
-			{status.accounts && <a className="loci-topbar__account" href="/account" aria-label={accountLabel}><span className="loci-topbar__account-full">{accountLabel}</span><span className="loci-topbar__account-short">{status.pro ? 'Pro' : accountLabel}</span></a>}
+			{account?.saveState}
+			{account
+				? <a className="loci-topbar__account" href="/account"><span className="loci-topbar__account-full">{account.pro ? 'Pro · Account' : 'Account'}</span><span className="loci-topbar__account-short">{account.pro ? 'Pro' : 'Account'}</span></a>
+				: status.accounts && <a className="loci-topbar__account" href="/account" aria-label={accountLabel}><span className="loci-topbar__account-full">{accountLabel}</span><span className="loci-topbar__account-short">{status.pro ? 'Pro' : accountLabel}</span></a>}
 			<button className="loci-icon-btn" data-active={voiceOut} onClick={onToggleVoice} title={
 					voiceOut
 						? `Loci speaks its answers${voiceProvider === 'fish' ? ' (Fish Audio)' : voiceProvider === 'browser' ? " (your browser's voice)" : ''}. Click to turn off.`

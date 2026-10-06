@@ -1,9 +1,12 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { MemoryStore } from './limits'
 
-const state = vi.hoisted(() => ({ store: null as unknown, account: null as import('./billing').Subscription | null, signedIn: false, unavailable: false, tutor: vi.fn(), speech: vi.fn(), transcribe: vi.fn() }))
+const state = vi.hoisted(() => ({ store: null as unknown, account: null as import('./billing').Subscription | null, userId: null as string | null, signedIn: false, unavailable: false, tutor: vi.fn(), speech: vi.fn(), transcribe: vi.fn() }))
 vi.mock('./auth', () => ({ authConfigured: () => true, currentUser: async () => state.signedIn ? { id: 'free-user' } : null }))
-vi.mock('./billing', () => ({ paidAccount: async () => state.account }))
+vi.mock('./billing', async (original) => ({
+	meterId: (await original<typeof import('./billing')>()).meterId,
+	viewer: async () => ({ paid: state.account, userId: state.account?.user_id ?? state.userId ?? (state.signedIn ? 'free-user' : null) }),
+}))
 vi.mock('./limits', async (original) => {
 	const actual = await original<typeof import('./limits')>()
 	const store = () => { if (state.unavailable) throw new Error('Redis unavailable'); return state.store as MemoryStore }
@@ -40,6 +43,7 @@ beforeEach(() => {
 	state.store = new MemoryStore()
 	state.unavailable = false
 	state.account = null
+	state.userId = null
 	state.signedIn = false
 	vi.clearAllMocks()
 	vi.stubEnv('NODE_ENV', 'production')
@@ -142,4 +146,13 @@ describe('paid public endpoints', () => {
 		expect(state.speech).toHaveBeenCalledTimes(1)
 	})
 
+	it('counts a signed-in free account across browsers and networks', async () => {
+		state.userId = 'free-account'
+		// Each request is a new browser (no cookie) on a different network.
+		for (const ip of ['198.51.100.1', '198.51.100.2']) expect((await tutor(req('tutor', JSON.stringify(question), { 'x-forwarded-for': ip }))).status).toBe(200)
+		const blocked = await tutor(req('tutor', JSON.stringify(question), { 'x-forwarded-for': '198.51.100.3' }))
+		expect(blocked.status).toBe(429)
+		expect(await blocked.json()).toMatchObject({ limitReached: 'device' })
+		expect(state.tutor).toHaveBeenCalledTimes(2)
+	})
 })
