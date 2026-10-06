@@ -53,7 +53,7 @@ export default function HomePage() {
 	const atLimit = Boolean(plan && boards && boards.length >= plan.boards)
 
 	return <main className="loci-account loci-home">
-		<nav><Link className="loci-brand" href="/home"><BrandLogo /></Link><Link href="/account">{account?.pro ? 'Pro · Account' : 'Account'}</Link></nav>
+		<nav><Link className="loci-brand" href="/home"><BrandLogo /></Link><a href="/account">{account?.pro ? 'Pro · Account' : 'Account'}</a></nav>
 		<header className="loci-home__header">
 			<div>
 				<h1>Your boards</h1>
@@ -63,7 +63,7 @@ export default function HomePage() {
 				</p>}
 			</div>
 			<div className="loci-home__actions">
-				{atLimit && !plan?.pro && <Link className="loci-secondary" href="/account">Upgrade for more boards</Link>}
+				{atLimit && !plan?.pro && <a className="loci-secondary" href="/account">Upgrade for more boards</a>}
 				<button className="loci-primary" disabled={pending || !boards || atLimit} onClick={newBoard}>New board</button>
 			</div>
 		</header>

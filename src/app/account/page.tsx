@@ -15,28 +15,44 @@ interface GoogleId {
 declare global { interface Window { google?: { accounts: { id: GoogleId } } } }
 
 let gsi: Promise<GoogleId> | undefined
-const loadGoogle = () => gsi ??= new Promise<GoogleId>((resolve, reject) => {
+const loadGoogle = () => window.google?.accounts.id ? Promise.resolve(window.google.accounts.id) : gsi ??= new Promise<GoogleId>((resolve, reject) => {
 	const script = document.createElement('script')
 	script.src = 'https://accounts.google.com/gsi/client'
 	script.async = true
-	script.onload = () => window.google ? resolve(window.google.accounts.id) : reject(new Error('Google sign-in did not load.'))
-	script.onerror = () => { gsi = undefined; reject(new Error('Google sign-in did not load. Check your connection or ad blocker.')) }
+	const fail = () => {
+		clearTimeout(timeout)
+		script.remove()
+		gsi = undefined
+		reject(new Error('Google sign-in could not load. Please try again.'))
+	}
+	const timeout = setTimeout(fail, 15000)
+	script.onload = () => { clearTimeout(timeout); window.google?.accounts.id ? resolve(window.google.accounts.id) : fail() }
+	script.onerror = fail
 	document.head.appendChild(script)
 })
+
+// Strict Mode can start two effects. Share the in-flight request so a cancelled effect
+// cannot overwrite the nonce cookie after the active button has been initialized.
+let googleSetup: Promise<{ clientId: string; nonce: string }> | undefined
+const prepareGoogle = () => googleSetup ??= fetch('/api/auth/google', { cache: 'no-store' }).then(async (res) => {
+	const data = await res.json()
+	if (!res.ok) throw new Error(data.error || 'Google sign-in is not available.')
+	return data as { clientId: string; nonce: string }
+}).finally(() => { googleSetup = undefined })
 
 /** Google's own button: the popup names this site, and the token is verified on the server. */
 function GoogleButton({ onSignedIn, onError }: { onSignedIn: () => Promise<unknown>; onError: (message: string) => void }) {
 	const ref = useRef<HTMLDivElement>(null)
 	const [attempt, setAttempt] = useState(0)
+	const [loadFailed, setLoadFailed] = useState(false)
 	useEffect(() => {
 		let cancelled = false
-		Promise.all([loadGoogle(), fetch('/api/auth/google', { cache: 'no-store' }).then(async (res) => {
-			const data = await res.json()
-			if (!res.ok) throw new Error(data.error || 'Google sign-in is not available.')
-			return data as { clientId: string; nonce: string }
-		})]).then(([google, { clientId, nonce }]) => {
+		setLoadFailed(false)
+		Promise.all([loadGoogle(), prepareGoogle()]).then(([google, { clientId, nonce }]) => {
 			if (cancelled || !ref.current) return
 			google.initialize({ client_id: clientId, nonce, ux_mode: 'popup', context: 'signin', use_fedcm_for_button: true, itp_support: true, callback: async ({ credential }) => {
+				if (cancelled) return
+				onError('')
 				try {
 					const res = await fetch('/api/auth/google', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ credential }) })
 					const data = await res.json()
@@ -50,10 +66,10 @@ function GoogleButton({ onSignedIn, onError }: { onSignedIn: () => Promise<unkno
 			} })
 			ref.current.replaceChildren()
 			google.renderButton(ref.current, { theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', width: Math.min(360, ref.current.clientWidth || 360) })
-		}).catch((err) => { if (!cancelled) onError(err.message) })
+		}).catch((err) => { if (!cancelled) { setLoadFailed(true); onError(err.message) } })
 		return () => { cancelled = true }
 	}, [attempt, onSignedIn, onError])
-	return <div ref={ref} className="loci-account__google" />
+	return <><div ref={ref} className="loci-account__google" />{loadFailed && <button className="loci-secondary" onClick={() => { onError(''); setAttempt((n) => n + 1) }}>Retry Google sign-in</button>}</>
 }
 
 /** Loci at work on a page that isn't math: the answer is drawn beside the notes it explains. */

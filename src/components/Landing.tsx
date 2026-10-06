@@ -15,7 +15,7 @@ export default function Landing({ accounts, billing }: { accounts: boolean; bill
 					<BrandLogo />
 				</a>
 				{accounts && <div className="loci-landing__account">
-					<Link className="loci-landing__cta" href="/account">Get started</Link>
+					<a className="loci-landing__cta" href="/account">Get started</a>
 				</div>}
 			</nav>
 			<section className="loci-landing__hero">
@@ -37,7 +37,7 @@ export default function Landing({ accounts, billing }: { accounts: boolean; bill
 						{returning ? 'Continue learning →' : 'Try Loci →'}
 					</Link>
 				</div>
-				{billing && <p className="loci-landing__fine">Keep learning with <Link href="/account">Loci Pro · US$8/month</Link>.</p>}
+				{billing && <p className="loci-landing__fine">Keep learning with <a href="/account">Loci Pro · US$8/month</a>.</p>}
 				<div className="loci-landing__board" aria-label="Illustration of Loci drawing a gradient beside calculus notes">
 					<div className="loci-landing__notes">
 						<span>YOUR NOTES</span>

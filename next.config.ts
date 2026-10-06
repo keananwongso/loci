@@ -26,6 +26,7 @@ const policy = (google = false) => [
 	...(dev ? [] : ['upgrade-insecure-requests']),
 ].join('; ')
 /** Google's sign-in button. Allowed only on the account page; the canvas, where API keys live, stays same-origin. */
+// Links into /account must use full navigation: client routing retains the previous document's CSP.
 const GSI = 'https://accounts.google.com/gsi/'
 
 const nextConfig: NextConfig = {
