@@ -20,9 +20,9 @@ export async function readSubscription(userId: string): Promise<Subscription | n
 	return data
 }
 
-export async function paidAccount(): Promise<Subscription | null> {
+export async function paidAccount(authenticatedUser?: User | null): Promise<Subscription | null> {
 	if (!billingConfigured()) return null
-	const user = await currentUser()
+	const user = authenticatedUser === undefined ? await currentUser() : authenticatedUser
 	if (!user) return null
 	const subscription = await readSubscription(user.id)
 	return subscriptionActive(subscription) ? subscription : null

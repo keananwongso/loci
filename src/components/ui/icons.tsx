@@ -119,3 +119,8 @@ export const NewBoardIcon = () => (
 		<path d="M18 2v6M15 5h6" />
 	</Icon>
 )
+
+export const TrashIcon = () => <Icon><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7M14 10v7" /></Icon>
+export const SkipIcon = ({ forward = false }: { forward?: boolean }) => <Icon style={forward ? { transform: 'scaleX(-1)' } : undefined}><path d="M4 9V4m0 5h5M4 9a8 8 0 1 1-1 7" /></Icon>
+export const PlayIcon = () => <Icon><path d="m9 5 11 7-11 7z" fill="currentColor" stroke="none" /></Icon>
+export const PauseIcon = () => <Icon><path d="M9 6v12M15 6v12" strokeWidth={3} /></Icon>

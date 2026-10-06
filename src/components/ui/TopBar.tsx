@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { MoreIcon, NewBoardIcon, SpeakerIcon } from './icons'
+import { MoreIcon, SpeakerIcon } from './icons'
 import type { TutorStatus } from '../useTutor'
 
 interface Props {
@@ -20,6 +20,7 @@ interface Props {
 
 export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear, onSample, onTour, onEraseDrawings, busy, library }: Props) {
 	const [menu, setMenu] = useState(false)
+	const accountLabel = status.pro ? 'Pro · Account' : status.signedIn ? 'Account' : 'Sign in'
 	const ref = useRef<HTMLDivElement>(null)
 	useEffect(() => {
 		if (!menu) return
@@ -31,10 +32,9 @@ export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear
 	return (
 		<div className="loci-topbar" data-menu-open={menu} onPointerDown={(e) => e.stopPropagation()}>
 			<a className="loci-brand" href="/" style={{ textDecoration: 'none', color: 'inherit' }}>Loci</a>
-			<a className="loci-topbar__github" href="https://github.com/keananwongso/loci" target="_blank" rel="noreferrer">★ Star on GitHub</a>
 
 			{library}
-			{status.accounts && <a className="loci-topbar__account" href="/account" aria-label={status.pro ? 'Pro · Account' : 'Sign in / Pro'}><span className="loci-topbar__account-full">{status.pro ? 'Pro · Account' : 'Sign in / Pro'}</span><span className="loci-topbar__account-short">{status.pro ? 'Pro' : 'Sign in'}</span></a>}
+			{status.accounts && <a className="loci-topbar__account" href="/account" aria-label={accountLabel}><span className="loci-topbar__account-full">{accountLabel}</span><span className="loci-topbar__account-short">{status.pro ? 'Pro' : accountLabel}</span></a>}
 			<button className="loci-icon-btn" data-active={voiceOut} onClick={onToggleVoice} title={
 					voiceOut
 						? `Loci speaks its answers${voiceProvider === 'fish' ? ' (Fish Audio)' : voiceProvider === 'browser' ? " (your browser's voice)" : ''}. Click to turn off.`
@@ -42,21 +42,14 @@ export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear
 				}>
 				<SpeakerIcon off={!voiceOut} />
 			</button>
-			<button
-				className="loci-icon-btn"
-				onClick={onClear}
-				disabled={busy}
-				title="New board (keeps your current board saved)"
-				aria-label="New board"
-			>
-				<NewBoardIcon />
-			</button>
 			<div className="loci-menu" ref={ref}>
 				<button className="loci-icon-btn" onClick={() => setMenu((m) => !m)} title="Board menu" aria-expanded={menu}>
 					<MoreIcon />
 				</button>
 				{menu && (
 					<div className="loci-menu__list" role="menu">
+						<button role="menuitem" disabled={busy} onClick={() => { setMenu(false); onClear() }}>New board</button>
+						<a role="menuitem" href="https://github.com/keananwongso/loci" target="_blank" rel="noreferrer" onClick={() => setMenu(false)}>★ Star on GitHub</a>
 						{onTour && (
 							<button
 								role="menuitem"

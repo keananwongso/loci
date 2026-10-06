@@ -10,7 +10,7 @@ import { getProvider, providerForUserKey } from '@/lib/providers'
 import type { TutorModelProvider } from '@/lib/providers/types'
 import { deviceFor, ipHashFor } from '@/lib/server/device'
 import { VISIT_LIMITS, limitConfigFromEnv, readQuota, takeQuestion, takeUsage, type Quota } from '@/lib/server/limits'
-import { authConfigured } from '@/lib/server/auth'
+import { authConfigured, currentUser } from '@/lib/server/auth'
 import { paidAccount } from '@/lib/server/billing'
 import { paidQuota, paidUsage } from '@/lib/server/paid-usage'
 import { countryOf, recordStats } from '@/lib/server/stats'
@@ -40,7 +40,8 @@ export async function GET(req: Request) {
 	if (counted) await recordStats({ visits: 1 }, { id: device.id, country: countryOf(req), unique: 'visitors' })
 	try {
 		const provider = getProvider()
-		const account = limits.enabled ? await paidAccount() : null
+		const user = await currentUser()
+		const account = limits.enabled ? await paidAccount(user) : null
 		if (account) quota = await paidQuota(account)
 		return withCookie(
 			Response.json({
@@ -50,6 +51,7 @@ export async function GET(req: Request) {
 				setupHint: provider.setupHint,
 				hosted: limits.enabled,
 				accounts: authConfigured(),
+				signedIn: Boolean(user),
 				pro: Boolean(account),
 				quota,
 			}),
