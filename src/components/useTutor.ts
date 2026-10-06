@@ -31,6 +31,7 @@ export interface TutorStatus {
 	/** Running as a public demo with free-question limits. */
 	hosted?: boolean
 	accounts?: boolean
+	signedIn?: boolean
 	pro?: boolean
 	/** Free questions left today on this device (hosted demo). */
 	quota?: { limit: number; remaining: number }

@@ -1,7 +1,8 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { MemoryStore } from './limits'
 
-const state = vi.hoisted(() => ({ store: null as unknown, account: null as import('./billing').Subscription | null, unavailable: false, tutor: vi.fn(), speech: vi.fn(), transcribe: vi.fn() }))
+const state = vi.hoisted(() => ({ store: null as unknown, account: null as import('./billing').Subscription | null, signedIn: false, unavailable: false, tutor: vi.fn(), speech: vi.fn(), transcribe: vi.fn() }))
+vi.mock('./auth', () => ({ authConfigured: () => true, currentUser: async () => state.signedIn ? { id: 'free-user' } : null }))
 vi.mock('./billing', () => ({ paidAccount: async () => state.account }))
 vi.mock('./limits', async (original) => {
 	const actual = await original<typeof import('./limits')>()
@@ -39,6 +40,7 @@ beforeEach(() => {
 	state.store = new MemoryStore()
 	state.unavailable = false
 	state.account = null
+	state.signedIn = false
 	vi.clearAllMocks()
 	vi.stubEnv('NODE_ENV', 'production')
 	vi.stubEnv('LOCI_DEMO_LIMITS', 'on')
@@ -56,6 +58,14 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs())
 
 describe('paid public endpoints', () => {
+	it('distinguishes a signed-in free user from an anonymous visitor independently of billing', async () => {
+		state.signedIn = true
+		vi.stubEnv('LOCI_DEMO_LIMITS', 'off')
+		expect(await (await tutorInfo(new Request('https://loci.example/api/tutor'))).json()).toMatchObject({ accounts: true, signedIn: true, pro: false })
+		state.signedIn = false
+		expect(await (await tutorInfo(new Request('https://loci.example/api/tutor'))).json()).toMatchObject({ signedIn: false, pro: false })
+	})
+
 	it('stops counting cookie-less board opens from one network past the visit cap', async () => {
 		const [before] = await getStats().read([today()])
 		const initialVisitors = before.visitors
