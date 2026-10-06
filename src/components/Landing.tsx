@@ -20,14 +20,14 @@ export default function Landing({ accounts, billing }: { accounts: boolean; bill
 			</nav>
 			<section className="loci-landing__hero">
 				<div className="loci-sphere" aria-hidden />
-				<p className="loci-landing__eyebrow">An open-source spatial AI tutor</p>
+				<p className="loci-landing__eyebrow">A spatial canvas for learning</p>
 				<h1>
-					See the idea.
+					Intelligence,
 					<br />
-					Understand the math.
+					given a place.
 				</h1>
 				<p className="loci-landing__lede">
-					Your notes become a shared whiteboard. Loci explains by drawing graphs, writing equations, and talking you through them.
+					Bring notes from any course: calculus, physics, code, accounting. Loci explains on the same board, drawing, writing and talking you through it, so every answer stays where you asked it.
 				</p>
 				<div className="loci-landing__actions">
 					<a className="loci-primary" href={REPO_URL} target="_blank" rel="noreferrer">
