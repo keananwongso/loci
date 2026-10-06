@@ -2,7 +2,7 @@
 import { useEditor, useValue } from 'tldraw'
 import { UploadIcon } from './icons'
 
-export function EmptyState({ onUpload, onSample, loading }: { onUpload: () => void; onSample: () => void; loading?: string | null }) {
+export function EmptyState({ onUpload, onSample, loading, saved }: { onUpload: () => void; onSample: () => void; loading?: string | null; saved?: boolean }) {
 	const editor = useEditor()
 	const empty = useValue('empty', () => editor.getCurrentPageShapeIds().size === 0, [editor])
 	if (!empty && !loading) return null
@@ -10,7 +10,7 @@ export function EmptyState({ onUpload, onSample, loading }: { onUpload: () => vo
 		<div className="loci-empty">
 			<div className="loci-empty__inner" onPointerDown={(e) => e.stopPropagation()}>
 				<div className="loci-sphere" aria-hidden />
-				<span className="loci-badge">Runs locally · files stay on this machine</span>
+				<span className="loci-badge">{saved ? 'Saved to your account · opens on any device' : 'Runs locally · files stay on this machine'}</span>
 				<h1 className="loci-empty__title">
 					Learn right
 					<br />

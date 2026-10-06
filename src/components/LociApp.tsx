@@ -72,7 +72,7 @@ const overrides: TLUiOverrides = {
 
 const VOICE_KEY = 'loci:voice-out'
 
-function Shell({ library, onLibrary }: { library: WorkspaceLibrary; onLibrary: (library: WorkspaceLibrary) => void }) {
+function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onLibrary: (library: WorkspaceLibrary) => void; account?: { pro: boolean; saveState: React.ReactNode } }) {
 	const editor = useEditor()
 	const [voiceOut, setVoiceOut] = useState(false)
 	const [loading, setLoading] = useState<string | null>(null)
@@ -253,6 +253,7 @@ function Shell({ library, onLibrary }: { library: WorkspaceLibrary; onLibrary: (
 			}}
 		>
 			<TopBar
+				account={account}
 				status={tutor.status}
 				voiceOut={voiceOut}
 				voiceProvider={voiceProvider}
@@ -278,7 +279,7 @@ function Shell({ library, onLibrary }: { library: WorkspaceLibrary; onLibrary: (
 			{!replay && (tour.phase === 'start' ? (
 				<TourStart tour={tour} overBoard={editor.getCurrentPageShapeIds().size > 0} />
 			) : tour.phase === 'running' ? null : (
-				<EmptyState onUpload={() => fileRef.current?.click()} onSample={tour.pack?.steps.length ? startTour : loadSample} loading={loading} />
+				<EmptyState saved={Boolean(account)} onUpload={() => fileRef.current?.click()} onSample={tour.pack?.steps.length ? startTour : loadSample} loading={loading} />
 			))}
 			{loading && <div className="loci-toast">{loading}</div>}
 			{!replay && (record ? (
@@ -340,7 +341,7 @@ function Shell({ library, onLibrary }: { library: WorkspaceLibrary; onLibrary: (
 }
 
 const SYNC_LABELS: Record<SyncState, string> = {
-	opening: 'Opening…', saving: 'Saving…', saved: 'Saved to your account', offline: 'Offline · saved on this device',
+	opening: 'Opening…', saving: 'Saving…', saved: 'Saved', offline: 'Offline · saved on this device',
 	error: 'Not saved', missing: 'Board not found', 'signed-out': 'Signed out · saved on this device',
 }
 
@@ -349,6 +350,8 @@ function AccountBoard({ boardId, library, onLibrary }: { boardId: string; librar
 	const editor = useEditor()
 	const sync = useCloudSync(editor, boardId)
 	const [error, setError] = useState('')
+	const [pro, setPro] = useState(false)
+	useEffect(() => { fetch('/api/account', { cache: 'no-store' }).then((r) => r.json()).then((a) => setPro(Boolean(a.pro))).catch(() => {}) }, [])
 	useEffect(() => {
 		const show = (e: Event) => setError((e as CustomEvent<string>).detail)
 		window.addEventListener('loci:cloud-error', show)
@@ -357,9 +360,10 @@ function AccountBoard({ boardId, library, onLibrary }: { boardId: string; librar
 	if (sync.state === 'missing') return <div className="loci-loading">This board isn't in your account. <a href="/home">Go to your boards</a></div>
 	const message = sync.notice || error || (sync.state === 'signed-out' ? 'Your session ended. Sign in again to keep saving to your account.' : '')
 	return <>
-		<p className="loci-sync" data-state={sync.state} role="status">{SYNC_LABELS[sync.state]}</p>
 		{message && <p className="loci-toast" role="alert">{message} <button onClick={() => { sync.dismissNotice(); setError('') }}>Dismiss</button></p>}
-		{sync.ready ? <Shell library={library} onLibrary={onLibrary} /> : <div className="loci-loading">Opening your board…</div>}
+		{sync.ready
+			? <Shell library={library} onLibrary={onLibrary} account={{ pro, saveState: <span className="loci-sync" data-state={sync.state} role="status">{SYNC_LABELS[sync.state]}</span> }} />
+			: <div className="loci-loading">Opening your board…</div>}
 	</>
 }
 

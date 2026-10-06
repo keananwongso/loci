@@ -6,7 +6,7 @@ import { CloudError, createBoard, deleteBoard, listBoards, updateBoard, type Clo
 interface Account { configured: boolean; user: { email?: string } | null; pro: boolean; quota: { remaining: number; limit: number } | null }
 
 const MB = 1024 * 1024
-const size = (bytes: number) => (bytes < MB ? `${Math.max(0, Math.round(bytes / 1024))} KB` : `${(bytes / MB).toFixed(bytes < 10 * MB ? 1 : 0)} MB`)
+const size = (bytes: number) => bytes >= 1024 * MB ? `${+(bytes / (1024 * MB)).toFixed(1)} GB` : bytes < MB ? `${Math.max(0, Math.round(bytes / 1024))} KB` : `${(bytes / MB).toFixed(bytes < 10 * MB ? 1 : 0)} MB`
 function edited(iso: string) {
 	const minutes = Math.round((Date.now() - Date.parse(iso)) / 60000)
 	if (minutes < 1) return 'Edited just now'
@@ -45,7 +45,7 @@ export default function HomePage() {
 	const atLimit = Boolean(plan && boards && boards.length >= plan.boards)
 
 	return <main className="loci-account loci-home">
-		<nav><Link className="loci-brand" href="/">Loci</Link><Link href="/account">{account?.pro ? 'Pro · Account' : 'Account'}</Link></nav>
+		<nav><Link className="loci-brand" href="/home">Loci</Link><Link href="/account">{account?.pro ? 'Pro · Account' : 'Account'}</Link></nav>
 		<header className="loci-home__header">
 			<div>
 				<h1>Your boards</h1>
