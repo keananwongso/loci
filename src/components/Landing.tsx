@@ -1,4 +1,5 @@
 'use client'
+import { BrandLogo } from '@/components/ui/BrandLogo'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { tourDone } from './useTour'
@@ -11,7 +12,7 @@ export default function Landing({ accounts, billing }: { accounts: boolean; bill
 		<main className="loci-landing">
 			<nav className="loci-landing__nav">
 				<a className="loci-brand" href="/">
-					Loci
+					<BrandLogo />
 				</a>
 				{accounts && <div className="loci-landing__account">
 					<Link className="loci-landing__cta" href="/account">Get started</Link>

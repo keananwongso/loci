@@ -1,4 +1,5 @@
 'use client'
+import { BrandLogo } from '@/components/ui/BrandLogo'
 import { useEffect, useRef, useState } from 'react'
 import { MoreIcon, SpeakerIcon } from './icons'
 import type { TutorStatus } from '../useTutor'
@@ -33,7 +34,7 @@ export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear
 	return (
 		<>
 		<div className="loci-topbar" data-menu-open={menu} onPointerDown={(e) => e.stopPropagation()}>
-			<a className="loci-brand" href={account ? '/home' : '/'} title={account ? 'Your boards' : undefined} style={{ textDecoration: 'none', color: 'inherit' }}>Loci</a>
+			<a className="loci-brand" href={account ? '/home' : '/'} title={account ? 'Your boards' : undefined} style={{ textDecoration: 'none', color: 'inherit' }}><BrandLogo /></a>
 
 			{library}
 			{account?.saveState}

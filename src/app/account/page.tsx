@@ -1,4 +1,5 @@
 'use client'
+import { BrandLogo } from '@/components/ui/BrandLogo'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 
@@ -117,7 +118,7 @@ export default function AccountPage() {
 	// Signed out: a sign-in page of its own, with Loci at work beside it.
 	if (account?.configured && !account.user) return <main className="loci-auth">
 		<section className="loci-auth__form">
-			<Link className="loci-brand" href="/">Loci</Link>
+			<Link className="loci-brand" href="/"><BrandLogo /></Link>
 			<div className="loci-auth__body">
 				<h1>Sign in or create your account</h1>
 				<p>Continue with Google. It's the same step whether you're new or coming back.</p>
@@ -138,7 +139,7 @@ export default function AccountPage() {
 		<AuthScene />
 	</main>
 	return <main className="loci-account">
-		<nav><Link className="loci-brand" href="/">Loci</Link><Link href={account?.user ? '/home' : '/demo'}>{account?.user ? 'Your boards' : 'Open the demo'}</Link></nav>
+		<nav><Link className="loci-brand" href="/"><BrandLogo /></Link><Link href={account?.user ? '/home' : '/demo'}>{account?.user ? 'Your boards' : 'Open the demo'}</Link></nav>
 		<section className="loci-account__card">
 			<h1>{account?.user ? 'Keep learning.' : 'Sign in or create your account.'}</h1>
 			{error && <p role="alert" className="loci-account__error">{error}</p>}

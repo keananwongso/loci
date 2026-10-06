@@ -152,6 +152,10 @@ button {
 }
 
 .loci-brand {
+	display: inline-flex;
+	align-items: center;
+	flex-shrink: 0;
+	text-decoration: none;
 	font-family: var(--loci-sans);
 	font-size: 17px;
 	font-weight: 600;
@@ -2345,3 +2349,7 @@ button {
 .loci-add__modes button { font: inherit; padding: 8px 12px; border: 1px solid var(--loci-line); border-radius: 8px; background: transparent; color: var(--loci-ink-2); cursor: pointer; }
 .loci-add__modes button[aria-pressed='true'] { background: var(--loci-hover); color: var(--loci-ink); }
 .loci-add__link textarea { padding: 10px; border: 1px solid var(--loci-line); border-radius: 8px; font: inherit; resize: vertical; }
+
+/* Keep the spatial mark local to the identity; the tutor keeps its own orb. */
+.loci-brand__logo { display: block; width: 96px; height: auto; }
+.loci-topbar .loci-brand { margin-right: 0; }

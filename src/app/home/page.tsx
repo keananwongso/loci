@@ -1,4 +1,5 @@
 'use client'
+import { BrandLogo } from '@/components/ui/BrandLogo'
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
@@ -52,7 +53,7 @@ export default function HomePage() {
 	const atLimit = Boolean(plan && boards && boards.length >= plan.boards)
 
 	return <main className="loci-account loci-home">
-		<nav><Link className="loci-brand" href="/home">Loci</Link><Link href="/account">{account?.pro ? 'Pro · Account' : 'Account'}</Link></nav>
+		<nav><Link className="loci-brand" href="/home"><BrandLogo /></Link><Link href="/account">{account?.pro ? 'Pro · Account' : 'Account'}</Link></nav>
 		<header className="loci-home__header">
 			<div>
 				<h1>Your boards</h1>
