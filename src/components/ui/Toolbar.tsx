@@ -2,7 +2,7 @@
 import { GeoShapeGeoStyle, useEditor, useValue } from 'tldraw'
 import type { ReactNode } from 'react'
 import { talkKeysLabel } from '@/lib/canvas/presence'
-import { ArrowIcon, EraserIcon, HandIcon, PenIcon, RectIcon, RegionIcon, SelectIcon, TextIcon, UploadIcon } from './icons'
+import { ArrowIcon, EraserIcon, HandIcon, PenIcon, RectIcon, RegionIcon, SelectIcon, TextIcon, TrashIcon, UploadIcon } from './icons'
 
 const TOOLS: Array<{ id: string; label: string; kbd: string; tip: string; icon: ReactNode; geo?: boolean }> = [
 	{ id: 'select', label: 'Select', kbd: 'V', tip: 'Click a page or object to ask about it. Drag to move things.', icon: <SelectIcon /> },
@@ -31,6 +31,7 @@ function Tip({ label, kbd, children }: { label: string; kbd?: string; children: 
 export function Toolbar({ onUpload }: { onUpload?: () => void }) {
 	const editor = useEditor()
 	const current = useValue('tool', () => editor.getCurrentToolId(), [editor])
+	const canDelete = useValue('deletable selection', () => !editor.getInstanceState().isReadonly && editor.getSelectedShapes().some((shape) => !editor.isShapeOrAncestorLocked(shape)), [editor])
 	return (
 		<nav className="loci-toolbar" aria-label="Canvas tools" onPointerDown={(e) => e.stopPropagation()}>
 			{TOOLS.map((t) => (
@@ -51,6 +52,11 @@ export function Toolbar({ onUpload }: { onUpload?: () => void }) {
 				</button>
 			))}
 			<div className="loci-toolbar__sep" />
+			{canDelete && <button className="loci-tool" aria-label="Delete selected drawings" onClick={() => {
+				editor.markHistoryStoppingPoint('delete selected drawings')
+				editor.deleteShapes(editor.getSelectedShapeIds())
+				editor.focus()
+			}}><TrashIcon /><Tip label="Delete selection" kbd="⌫">Remove the selected object. Undo with Ctrl/⌘ + Z.</Tip></button>}
 			<button
 				className="loci-tool loci-tool--accent"
 				data-active={current === 'loci-region'}
