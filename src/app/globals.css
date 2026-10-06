@@ -1969,7 +1969,12 @@ button {
 .loci-landing { height: 100dvh; overflow: auto; padding: 0 6vw; }
 .loci-landing a { color: inherit; text-decoration: none; }
 .loci-landing__nav { max-width: 1160px; margin: auto; height: 90px; display: flex; align-items: center; justify-content: space-between; }
-.loci-landing__nav > a:last-child { font-size: 13px; color: var(--loci-ink-3); }
+.loci-landing__account { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+.loci-landing__account a { color: var(--loci-ink); text-decoration: none; padding: 9px 14px; border-radius: 999px; white-space: nowrap; }
+.loci-landing__account a:hover { background: var(--loci-hover); }
+.loci-landing__account a.loci-landing__cta { background: var(--loci-ink); color: var(--color-eggshell); font-weight: 500; }
+.loci-landing__account a.loci-landing__cta:hover { background: var(--loci-ink); opacity: .88; }
+@media (max-width: 480px) { .loci-landing__account a:not(.loci-landing__cta) { display: none; } }
 .loci-landing__hero { max-width: 900px; margin: 32px auto 70px; text-align: center; }
 .loci-landing__hero .loci-sphere { width: 78px; height: 78px; margin: 0 auto 26px; }
 .loci-landing__eyebrow { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--loci-ink-3); }
