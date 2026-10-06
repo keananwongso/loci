@@ -1974,7 +1974,6 @@ button {
 .loci-landing__account a:hover { background: var(--loci-hover); }
 .loci-landing__account a.loci-landing__cta { background: var(--loci-ink); color: var(--color-eggshell); font-weight: 500; }
 .loci-landing__account a.loci-landing__cta:hover { background: var(--loci-ink); opacity: .88; }
-@media (max-width: 480px) { .loci-landing__account a:not(.loci-landing__cta) { display: none; } }
 .loci-landing__hero { max-width: 900px; margin: 32px auto 70px; text-align: center; }
 .loci-landing__hero .loci-sphere { width: 78px; height: 78px; margin: 0 auto 26px; }
 .loci-landing__eyebrow { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--loci-ink-3); }
@@ -2222,8 +2221,33 @@ button {
 @media (max-width: 720px) {
 	/* Below the top bar, which takes the full width on a phone. */
 	.loci-corner { top: 66px; right: 12px; height: 40px; padding: 0 4px; }
-	.loci-corner__secondary { display: none; }
 }
 /* Device boards open off-screen while they are copied into the account. */
 .loci-device-import { position: fixed; left: -10000px; top: 0; width: 800px; height: 600px; pointer-events: none; visibility: hidden; }
 .loci-home__notice { padding: 12px 16px; border-radius: 12px; background: #f4effb; color: #4b3a6b; font-size: 14px; }
+
+/* Sign in: the form on the left, Loci at work on the right. */
+.loci-auth { min-height: 100dvh; display: grid; grid-template-columns: minmax(360px, 1fr) minmax(0, 1.2fr); background: #fdfcfc; }
+.loci-auth__form { display: flex; flex-direction: column; gap: 24px; padding: 28px clamp(24px, 6vw, 80px); }
+.loci-auth__form .loci-brand { color: inherit; text-decoration: none; }
+.loci-auth__body { margin: auto 0; width: 100%; max-width: 380px; }
+.loci-auth__body h1 { margin: 0 0 12px; font-size: clamp(28px, 3vw, 34px); font-weight: 500; letter-spacing: -.035em; line-height: 1.15; }
+.loci-auth__body > p { margin: 0 0 28px; color: #69616d; font-size: 15px; line-height: 1.6; }
+.loci-auth__body .loci-account__google { justify-content: flex-start; }
+.loci-auth__body p.loci-auth__note { margin: 28px 0 0; padding-top: 20px; border-top: 1px solid #ece7ef; font-size: 13px; color: #8a8290; }
+.loci-auth__body form { display: grid; gap: 10px; }
+.loci-auth__body form input { padding: 14px; border: 1px solid #ddd5e5; border-radius: 10px; font: inherit; }
+.loci-auth__back { font-size: 13px; color: #6f6876; }
+.loci-auth__scene { position: relative; margin: 12px; border-radius: 28px; background: var(--loci-taupe); display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1fr); align-items: center; gap: 28px; padding: clamp(28px, 5vw, 64px); overflow: hidden; }
+.loci-auth__page { background: #fdfcfc; border-radius: 8px; box-shadow: var(--loci-shadow); padding: 26px; transform: rotate(-2deg); }
+.loci-auth__page small { font-size: 11px; color: #8a8290; }
+.loci-auth__page h2 { margin: 8px 0 12px; font-size: 21px; font-weight: 400; letter-spacing: -.035em; }
+.loci-auth__page p { margin: 0 0 10px; font-size: 13px; line-height: 1.7; color: #5f5865; }
+.loci-auth__circled { padding: 1px 5px; border: 2px solid #7445e0; border-radius: 50% 45% 55% 48%; color: #2c2732; }
+.loci-auth__drawing { width: 100%; font-family: inherit; }
+.loci-auth__orb { position: absolute; width: 44px; height: 44px; right: 18%; top: 22%; }
+@media (max-width: 860px) {
+	.loci-auth { grid-template-columns: 1fr; }
+	.loci-auth__scene { display: none; }
+	.loci-auth__body { margin: 64px 0 auto; }
+}

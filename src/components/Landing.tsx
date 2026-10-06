@@ -14,8 +14,7 @@ export default function Landing({ accounts, billing }: { accounts: boolean; bill
 					Loci
 				</a>
 				{accounts && <div className="loci-landing__account">
-					<Link href="/account">Sign in</Link>
-					<Link className="loci-landing__cta" href="/account">Create free account</Link>
+					<Link className="loci-landing__cta" href="/account">Get started</Link>
 				</div>}
 			</nav>
 			<section className="loci-landing__hero">
