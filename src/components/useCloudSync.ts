@@ -15,6 +15,10 @@ function writeMeta(id: string, meta: Meta) {
 	try { localStorage.setItem(metaKey(id), JSON.stringify(meta)) } catch {}
 }
 
+/** One save at a time per board, across every mount in this tab, and the last body the account has. */
+const inflight = new Map<string, Promise<unknown>>()
+const lastSaved = new Map<string, string>()
+
 const QUIET_MS = 2000
 const MAX_WAIT_MS = 10000
 const RETRY_MS = 15000
@@ -33,6 +37,7 @@ export function useCloudSync(editor: Editor, id: string) {
 	useEffect(() => {
 		let disposed = false
 		let meta = readMeta(id)
+		const refresh = () => { meta = readMeta(id) }
 		let applying = false
 		let edits = 0
 		let firstEdit = 0
@@ -50,7 +55,9 @@ export function useCloudSync(editor: Editor, id: string) {
 				await saveConversation(board.conversation as Turn[], id)
 			} finally { applying = false }
 			persist({ version: board.version, dirty: false })
+			lastSaved.set(id, body(snapshot(), board.conversation))
 		}
+		const body = (snap: unknown, conversation: unknown) => JSON.stringify({ snapshot: snap, conversation })
 		/** This device's unsaved edits lost a race with another device: keep them as their own board. */
 		const keepLocalCopy = async (boardName: string) => {
 			try {
@@ -77,15 +84,28 @@ export function useCloudSync(editor: Editor, id: string) {
 		const save = (): Promise<void> => {
 			if (saving) return saving
 			saving = (async () => {
+				// Another mount of this board may be mid-save; follow it, then read where it left off.
+				await inflight.get(id)?.catch(() => {})
+				refresh()
 				const startEdits = edits
-				setState('saving')
 				try {
 					// The saved board must not point at material that hasn't reached the account yet.
 					await pendingUploads()
-					const version = await saveBoard(id, { baseVersion: meta.version, snapshot: snapshot(), conversation: await loadConversation(id) })
-					persist({ version, dirty: edits !== startEdits })
+					const snap = snapshot()
+					const conversation = await loadConversation(id)
+					const content = body(snap, conversation)
+					if (content === lastSaved.get(id)) {
+						persist({ ...meta, dirty: edits !== startEdits })
+					} else {
+						setState('saving')
+						const request = saveBoard(id, { baseVersion: meta.version, snapshot: snap, conversation })
+						inflight.set(id, request)
+						const version = await request.finally(() => { if (inflight.get(id) === request) inflight.delete(id) })
+						lastSaved.set(id, content)
+						persist({ version, dirty: edits !== startEdits })
+					}
 					if (!meta.dirty) firstEdit = 0
-					setState(meta.dirty ? 'saving' : 'saved')
+					setState('saved')
 				} catch (err) {
 					if (err instanceof CloudError && err.status === 409) { await takeNewer().catch(() => {}); setState('saved') }
 					else if (err instanceof CloudError && err.status === 401) { blocked = true; setState('signed-out') }
@@ -113,10 +133,11 @@ export function useCloudSync(editor: Editor, id: string) {
 		loadBoard(id).then(async (board) => {
 			if (disposed) return
 			setName(board.name)
+			refresh()
 			if (meta.dirty && meta.version === board.version) await save()
 			else if (meta.dirty && meta.version < board.version) await takeNewer()
 			else await apply(board)
-			if (!disposed) setState(meta.dirty ? 'saving' : 'saved')
+			if (!disposed) setState('saved')
 		}).catch((err) => {
 			if (disposed) return
 			if (err instanceof CloudError && err.status === 404) { setState('missing'); return }
