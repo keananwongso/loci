@@ -1,5 +1,10 @@
 "use client";
-import React, { createContext, useContext, useSyncExternalStore } from "react";
+import React, {
+  createContext,
+  useContext,
+  useRef,
+  useSyncExternalStore,
+} from "react";
 import { Editor } from "./editor";
 import { Rectangle2d, type TLShape } from "./model";
 export const EditorContext = createContext<Editor | null>(null);
@@ -29,20 +34,44 @@ export function useEditor() {
   if (!editor) throw new Error("Canvas context is missing");
   return editor;
 }
-const noopSubscribe = () => () => {};
+function shallowEqual(a: unknown, b: unknown) {
+  if (Object.is(a, b)) return true;
+  if (!a || !b || typeof a !== "object" || typeof b !== "object") return false;
+  const ak = Object.keys(a),
+    bk = Object.keys(b);
+  return (
+    ak.length === bk.length &&
+    ak.every(
+      (key) =>
+        Object.prototype.hasOwnProperty.call(b, key) &&
+        Object.is(
+          (a as Record<string, unknown>)[key],
+          (b as Record<string, unknown>)[key],
+        ),
+    )
+  );
+}
 export function useValue<T>(_name: string, get: () => T, _deps?: unknown[]) {
   const editor = useContext(EditorContext);
-  useSyncExternalStore(
-    editor?.subscribe ?? noopSubscribe,
-    editor?.getVersion ?? (() => 0),
-    () => 0,
+  const cache = useRef<{ value: T } | null>(null);
+  const snapshot = () => {
+    const value = get();
+    if (!cache.current || !shallowEqual(cache.current.value, value))
+      cache.current = { value };
+    return cache.current.value;
+  };
+  const subscribe = React.useCallback(
+    (fn: () => void) => {
+      const stopEditor = editor?.subscribe(fn);
+      const stopAtoms = subscribeAtoms(fn);
+      return () => {
+        stopEditor?.();
+        stopAtoms();
+      };
+    },
+    [editor],
   );
-  useSyncExternalStore(
-    subscribeAtoms,
-    () => atomVersion,
-    () => 0,
-  );
-  return get();
+  return useSyncExternalStore(subscribe, snapshot, snapshot);
 }
 export const useIsEditing = (id: string) => {
   const editor = useEditor();

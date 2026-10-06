@@ -30,12 +30,17 @@ import {
   type TLShape,
   type TLStoreSnapshot,
 } from "./model";
-import { loadBoard, saveBoard } from "./persistence";
+import { checkpointBoard, loadBoard, saveBoard } from "./persistence";
 import { inkHex } from "@/lib/canvas/palette";
 import { getBlobUrl } from "@/lib/storage/blobs";
 import { loadHandFont } from "@/lib/canvas/hand";
 
-type ShapeNode = Node<{ shape: TLShape }, "shape">;
+type ShapeNode = Node<{ shape: TLShape; geometryKey: string }, "shape">;
+const strokeHitShape = (shape: TLShape) =>
+  ["arrow", "line", "draw", "highlight"].includes(shape.type) ||
+  (shape.type === "geo" &&
+    shape.meta.author === "assistant" &&
+    shape.props.fill === "none");
 const colors: Record<string, string> = {
   black: "#1c2230",
   yellow: "#edbd13",
@@ -394,81 +399,98 @@ function NativeShape({ shape }: { shape: TLShape }) {
       width={Math.max(1, b.w)}
       height={Math.max(1, b.h)}
       viewBox={`${b.x} ${b.y} ${Math.max(1, b.w)} ${Math.max(1, b.h)}`}
-      style={{ overflow: "visible", display: "block" }}
+      data-hit-strokes={strokeHitShape(shape) || undefined}
+      style={{
+        overflow: "visible",
+        display: "block",
+        pointerEvents: strokeHitShape(shape) ? "none" : undefined,
+      }}
     >
       {paths}
     </svg>
   );
 }
-function CanvasNode({ data, selected }: NodeProps<ShapeNode>) {
-  const editor = useEditor(),
-    shape = data.shape,
-    b = editor.getShapeGeometry(shape).bounds,
-    m = worldMatrix(shape, editor.records),
-    angle = Math.atan2(m[1], m[0]),
-    renderer = editor.renderers.get(shape.type);
-  return (
-    <>
-      {selected &&
-        renderer?.resizable !== false &&
-        !editor.getIsReadonly() &&
-        !["draw", "highlight", "arrow", "line", "text"].includes(
-          shape.type,
-        ) && (
-          <NodeResizer
-            isVisible
-            keepAspectRatio={renderer?.aspect}
-            minWidth={20}
-            minHeight={20}
-            onResizeStart={() => editor.markHistoryStoppingPoint("resize")}
-            onResize={(_e, params) => {
-              const parent = editor.getShapeParent(shape),
-                point = transform(
-                  parent
-                    ? inverse(worldMatrix(parent, editor.records))
-                    : [1, 0, 0, 1, 0, 0],
-                  params,
+const CanvasNode = React.memo(
+  function CanvasNode({ data, selected }: NodeProps<ShapeNode>) {
+    const editor = useEditor(),
+      readonly = useValue("node-readonly", () => editor.getIsReadonly()),
+      shape = data.shape,
+      b = editor.getShapeGeometry(shape).bounds,
+      m = worldMatrix(shape, editor.records),
+      angle = Math.atan2(m[1], m[0]),
+      renderer = editor.renderers.get(shape.type);
+    return (
+      <>
+        {selected &&
+          renderer?.resizable !== false &&
+          !readonly &&
+          !["draw", "highlight", "arrow", "line", "text"].includes(
+            shape.type,
+          ) && (
+            <NodeResizer
+              isVisible
+              keepAspectRatio={renderer?.aspect}
+              minWidth={20}
+              minHeight={20}
+              onResizeStart={() => editor.markHistoryStoppingPoint("resize")}
+              onResize={(_e, params) => {
+                const parent = editor.getShapeParent(shape),
+                  point = transform(
+                    parent
+                      ? inverse(worldMatrix(parent, editor.records))
+                      : [1, 0, 0, 1, 0, 0],
+                    params,
+                  );
+                editor.resizeShape(
+                  shape.id,
+                  params.width,
+                  params.height,
+                  point,
                 );
-              editor.resizeShape(shape.id, params.width, params.height, point);
-            }}
-          />
-        )}
-      <div
-        className="loci-shape"
-        data-shape-id={shape.id}
-        style={{
-          width: Math.max(1, b.w),
-          height: Math.max(1, b.h),
-          opacity: shape.opacity,
-          transform: `rotate(${angle}rad)`,
-          transformOrigin: "0 0",
-        }}
-        onDoubleClick={() => {
-          if (shape.type === "group" && !editor.getIsReadonly()) {
-            editor.select(
-              ...editor
-                .getCurrentPageShapes()
-                .filter((s) => s.parentId === shape.id)
-                .map((s) => s.id),
-            );
-            return;
-          }
-          if (
-            !editor.getIsReadonly() &&
-            (renderer?.editable ||
-              shape.type === "text" ||
-              shape.type === "note")
-          ) {
-            editor.markHistoryStoppingPoint("edit");
-            editor.setEditingShape(shape.id);
-          }
-        }}
-      >
-        {renderer ? renderer.component(shape) : <NativeShape shape={shape} />}
-      </div>
-    </>
-  );
-}
+              }}
+            />
+          )}
+        <div
+          className="loci-shape"
+          data-shape-id={shape.id}
+          style={{
+            width: Math.max(1, b.w),
+            height: Math.max(1, b.h),
+            opacity: shape.opacity,
+            transform: `rotate(${angle}rad)`,
+            transformOrigin: "0 0",
+          }}
+          onDoubleClick={() => {
+            if (shape.type === "group" && !readonly) {
+              editor.select(
+                ...editor
+                  .getCurrentPageShapes()
+                  .filter((s) => s.parentId === shape.id)
+                  .map((s) => s.id),
+              );
+              return;
+            }
+            if (
+              !readonly &&
+              (renderer?.editable ||
+                shape.type === "text" ||
+                shape.type === "note")
+            ) {
+              editor.markHistoryStoppingPoint("edit");
+              editor.setEditingShape(shape.id);
+            }
+          }}
+        >
+          {renderer ? renderer.component(shape) : <NativeShape shape={shape} />}
+        </div>
+      </>
+    );
+  },
+  (a, b) =>
+    a.selected === b.selected &&
+    a.data.shape === b.data.shape &&
+    a.data.geometryKey === b.data.geometryKey,
+);
 const nodeTypes = { shape: CanvasNode };
 export interface WhiteboardProps {
   persistenceKey?: string;
@@ -554,12 +576,19 @@ export function Whiteboard({
     if (!ready || !persistenceKey) return;
     let timer: ReturnType<typeof setTimeout>;
     let writes = Promise.resolve();
-    const persist = () => {
+    const persist = (checkpoint = false) => {
       const saved = {
         snapshot: editor.store.getStoreSnapshot(),
         camera: editor.camera,
         pageId: editor.pageId,
       };
+      if (checkpoint) {
+        try {
+          checkpointBoard(persistenceKey, saved);
+        } catch {
+          /* Durable saving below can still succeed when checkpoint storage is full. */
+        }
+      }
       writes = writes
         .catch(() => {})
         .then(() => saveBoard(persistenceKey, saved))
@@ -573,13 +602,13 @@ export function Whiteboard({
     const stop = editor.store.listen(
       () => {
         clearTimeout(timer);
-        timer = setTimeout(persist, 150);
+        timer = setTimeout(() => persist(), 150);
       },
       { scope: "all" },
     );
     const flush = () => {
       clearTimeout(timer);
-      persist();
+      persist(true);
     };
     window.addEventListener("pagehide", flush);
     return () => {
@@ -652,38 +681,63 @@ export function Whiteboard({
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, [editor, ready]);
-  const nodes: ShapeNode[] = useMemo(
-    () =>
-      editor.getCurrentPageShapesSorted().map((shape, order) => {
-        const b = editor.getShapeGeometry(shape).bounds,
-          m = worldMatrix(shape, editor.records),
-          point = transform(m, { x: b.x, y: b.y });
-        return {
-          id: shape.id,
-          type: "shape",
-          position: point,
-          data: { shape },
-          style: {
-            width: Math.max(1, b.w),
-            height: Math.max(1, b.h),
-            zIndex: order,
-          },
-          selected: editor.selected.includes(shape.id),
-          draggable:
-            !editor.getIsReadonly() &&
-            !editor.isShapeOrAncestorLocked(shape) &&
-            editor.tool === "select",
-          selectable: editor.tool === "select" && !editor.getIsReadonly(),
-        };
-      }),
-    [
-      editor,
-      editor.records,
-      editor.selected,
-      editor.tool,
-      editor.readonlyState,
-    ],
-  );
+  const nodeData = useRef(new Map<string, ShapeNode["data"]>());
+  const nodes: ShapeNode[] = useMemo(() => {
+    for (const id of nodeData.current.keys())
+      if (!editor.records[id]) nodeData.current.delete(id);
+    return editor.getCurrentPageShapesSorted().map((shape, order) => {
+      const b = editor.getShapeGeometry(shape).bounds,
+        m = worldMatrix(shape, editor.records),
+        point = transform(m, { x: b.x, y: b.y });
+      // Parent rotation, group bounds and bound arrow targets can change without
+      // replacing the shape itself. Include their visual dependencies in the key.
+      const geometryKey = JSON.stringify([
+        b.x,
+        b.y,
+        b.w,
+        b.h,
+        Math.atan2(m[1], m[0]),
+        shape.type === "arrow" ? editor.arrowEnds(shape) : null,
+        shape.type === "image"
+          ? editor.resolveAsset(shape.props.assetId)
+          : null,
+      ]);
+      let data = nodeData.current.get(shape.id);
+      if (!data || data.shape !== shape || data.geometryKey !== geometryKey) {
+        data = { shape, geometryKey };
+        nodeData.current.set(shape.id, data);
+      }
+      return {
+        id: shape.id,
+        type: "shape",
+        position: point,
+        data,
+        style: {
+          width: Math.max(1, b.w),
+          height: Math.max(1, b.h),
+          zIndex: order,
+          // Tutor annotations must not intercept clicks through transparent bounds.
+          pointerEvents:
+            ["loci-highlight", "loci-region"].includes(shape.type) ||
+            strokeHitShape(shape)
+              ? "none"
+              : undefined,
+        },
+        selected: editor.selected.includes(shape.id),
+        draggable:
+          !editor.getIsReadonly() &&
+          !editor.isShapeOrAncestorLocked(shape) &&
+          editor.tool === "select",
+        selectable: editor.tool === "select" && !editor.getIsReadonly(),
+      };
+    });
+  }, [
+    editor,
+    editor.records,
+    editor.selected,
+    editor.tool,
+    editor.readonlyState,
+  ]);
   const viewport: Viewport = {
     x: editor.camera.x * editor.camera.z,
     y: editor.camera.y * editor.camera.z,

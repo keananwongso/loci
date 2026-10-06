@@ -1,6 +1,11 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect } from "vitest";
-import { readLegacyBoard, loadBoard, saveBoard } from "./persistence";
+import { describe, it, expect, vi } from "vitest";
+import {
+  readLegacyBoard,
+  loadBoard,
+  saveBoard,
+  checkpointBoard,
+} from "./persistence";
 import { Editor } from "./editor";
 import { getBlob } from "@/lib/storage/blobs";
 import {
@@ -205,4 +210,31 @@ it("retains a migrated asset blob reference when the legacy account snapshot ope
     "canvas-asset-local",
   );
   expect(legacy.props).not.toHaveProperty("blobKey");
+});
+
+it("recovers an unload checkpoint before a stale durable snapshot and clears only matching committed checkpoints", async () => {
+  const cache = new Map<string, string>();
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => cache.get(key) ?? null,
+    setItem: (key: string, value: string) => cache.set(key, value),
+    removeItem: (key: string) => cache.delete(key),
+  });
+  try {
+    const key = "unload-race";
+    const initial = {
+      snapshot: { schema: {}, store: {} },
+      camera: { x: 0, y: 0, z: 1 },
+    };
+    await saveBoard(key, initial);
+    const latest = { ...initial, camera: { x: 250, y: 80, z: 2 } };
+    checkpointBoard(key, latest);
+    await saveBoard(key, initial);
+    expect((await loadBoard(key))?.camera).toEqual(latest.camera);
+    expect(cache.size).toBe(1);
+    await saveBoard(key, (await loadBoard(key))!);
+    expect(cache.size).toBe(0);
+    expect((await loadBoard(key))?.camera).toEqual(latest.camera);
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });

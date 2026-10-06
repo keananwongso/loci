@@ -2260,3 +2260,6 @@ button {
 .loci-whiteboard .react-flow__resize-control.handle { width: 8px; height: 8px; }
 
 .loci-styles { max-width: 330px; flex-wrap: wrap; }
+
+/* Hit native strokes rather than the empty space in their SVG viewport. */
+.loci-shape svg[data-hit-strokes] > * { pointer-events: visiblePainted; }

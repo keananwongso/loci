@@ -6,6 +6,7 @@ import {
   type TLRecord,
 } from "./model";
 import { putBlob } from "@/lib/storage/blobs";
+const loadedCheckpoints = new Map<string, string>();
 let localStore: ReturnType<typeof createStore> | undefined;
 const db = () => (localStore ??= createStore("loci-documents", "boards"));
 export interface SavedBoard {
@@ -98,11 +99,44 @@ export async function readLegacyBoard(
   };
 }
 export async function loadBoard(key: string): Promise<SavedBoard | undefined> {
+  // A page can close before its queued IndexedDB transaction starts. Recover the
+  // synchronous unload checkpoint first; saveBoard clears it once committed.
+  try {
+    const recovery = localStorage.getItem(`loci-board-recovery:${key}`);
+    if (recovery) {
+      const saved = JSON.parse(recovery) as SavedBoard;
+      if (saved.snapshot?.store && saved.camera) {
+        loadedCheckpoints.set(key, recovery);
+        return { ...saved, snapshot: normalizeSnapshot(saved.snapshot) };
+      }
+    }
+  } catch {
+    /* Storage may be disabled; the durable database is still usable. */
+  }
   const saved = await get<SavedBoard>(key, db());
   return saved
     ? { ...saved, snapshot: normalizeSnapshot(saved.snapshot) }
     : readLegacyBoard(key);
 }
+/** Synchronous checkpoint for unload; native assets remain in the blob store. */
+export function checkpointBoard(key: string, value: SavedBoard) {
+  localStorage.setItem(`loci-board-recovery:${key}`, JSON.stringify(value));
+}
 export async function saveBoard(key: string, value: SavedBoard) {
   await set(key, value, db());
+  try {
+    const recoveryKey = `loci-board-recovery:${key}`;
+    // An older queued write must not remove a newer unload checkpoint.
+    const recovery = localStorage.getItem(recoveryKey);
+    if (
+      recovery &&
+      (recovery === loadedCheckpoints.get(key) ||
+        recovery === JSON.stringify(value))
+    ) {
+      localStorage.removeItem(recoveryKey);
+      loadedCheckpoints.delete(key);
+    }
+  } catch {
+    /* IndexedDB succeeded, even when localStorage is unavailable. */
+  }
 }
