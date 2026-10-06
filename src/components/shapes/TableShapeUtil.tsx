@@ -1,6 +1,6 @@
 'use client'
 import { useRef } from 'react'
-import { HTMLContainer, Rectangle2d, ShapeUtil, T, stopEventPropagation, useEditor, useValue, type RecordProps } from 'tldraw'
+import { HTMLContainer, Rectangle2d, ShapeUtil, stopEventPropagation, useEditor, useValue } from '@/lib/whiteboard'
 import { TABLE, type TableShape } from '@/lib/canvas/shape-types'
 import { CELL_MAX } from '@/lib/actions/schema'
 import { INK, inkHex } from '@/lib/canvas/palette'
@@ -72,6 +72,7 @@ function TableView({ shape }: { shape: TableShape }) {
 								spellCheck={false}
 								autoComplete="off"
 								aria-label={`${columns[c] || `column ${c + 1}`}, row ${r + 1}`}
+								onFocus={() => editor.markHistoryStoppingPoint('edit table cell')}
 								onPointerDown={stopEventPropagation}
 								onChange={(e) => type(r, c, e.currentTarget.value)}
 								onKeyDown={(e) => {
@@ -96,15 +97,6 @@ function TableView({ shape }: { shape: TableShape }) {
 /** A ruled table the tutor draws; its blank cells are inputs the student types into. */
 export class TableShapeUtil extends ShapeUtil<TableShape> {
 	static override type = TABLE
-	static override props: RecordProps<TableShape> = {
-		w: T.number,
-		h: T.number,
-		columns: T.arrayOf(T.string),
-		cells: T.arrayOf(T.jsonValue) as never,
-		color: T.string,
-		minW: T.arrayOf(T.number),
-		colW: T.arrayOf(T.number),
-	}
 
 	getDefaultProps(): TableShape['props'] {
 		return { w: 120, h: ROW_H * 2, columns: [''], cells: [[{ text: '', by: 'student' }]], color: 'blue', minW: [], colW: [120] }

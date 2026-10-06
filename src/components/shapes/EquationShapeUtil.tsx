@@ -4,14 +4,12 @@ import {
 	HTMLContainer,
 	Rectangle2d,
 	ShapeUtil,
-	T,
 	resizeBox,
 	stopEventPropagation,
 	useEditor,
 	useIsEditing,
-	type RecordProps,
 	type TLResizeInfo,
-} from 'tldraw'
+} from '@/lib/whiteboard'
 import { EQUATION, type EquationShape } from '@/lib/canvas/shape-types'
 import { EQUATION_FONT_SIZE, EQUATION_PAD, latexToPlain, measureLatex, renderLatex } from '@/lib/canvas/katex'
 import { inkHex } from '@/lib/canvas/palette'
@@ -72,15 +70,6 @@ function EquationView({ shape }: { shape: EquationShape }) {
 /** A typeset LaTeX equation that keeps its source. Double-click to edit the LaTeX. */
 export class EquationShapeUtil extends ShapeUtil<EquationShape> {
 	static override type = EQUATION
-	static override props: RecordProps<EquationShape> = {
-		w: T.number,
-		h: T.number,
-		baseW: T.number,
-		baseH: T.number,
-		latex: T.string,
-		color: T.string,
-		size: T.literalEnum('s', 'm', 'l'),
-	}
 
 	getDefaultProps(): EquationShape['props'] {
 		return { w: 200, h: 60, baseW: 200, baseH: 60, latex: 'x', color: 'ink', size: 'm' }

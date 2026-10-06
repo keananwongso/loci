@@ -4,7 +4,7 @@
  * replay the streamed events in order. Speech and drawing share one queue: a sentence starts,
  * the marks after it are drawn while it is spoken, and the next sentence waits for it to end.
  */
-import type { Editor } from 'tldraw'
+import type { Editor } from '@/lib/whiteboard'
 import { CanvasExecutor, type BeforeDraw } from '@/lib/canvas/executor'
 import { captureImages, serializeBoard } from '@/lib/canvas/serialize'
 import type { CanvasAction } from '@/lib/actions/schema'

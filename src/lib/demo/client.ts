@@ -3,7 +3,7 @@
  * Browser side of the demo pack: fetch it, put its materials on the board, find what a step points
  * at, and load recorded takes. Everything is static files under public/demo/.
  */
-import type { Editor } from 'tldraw'
+import type { Editor } from '@/lib/whiteboard'
 import { ingestFiles, type IngestProgress } from '@/lib/canvas/ingest'
 import { MATERIAL, type MaterialShape } from '@/lib/canvas/shape-types'
 import { findTextBox } from '@/lib/documents/text'

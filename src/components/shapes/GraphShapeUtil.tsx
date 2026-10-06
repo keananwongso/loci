@@ -3,11 +3,9 @@ import {
 	HTMLContainer,
 	Rectangle2d,
 	ShapeUtil,
-	T,
 	resizeBox,
-	type RecordProps,
 	type TLResizeInfo,
-} from 'tldraw'
+} from '@/lib/whiteboard'
 import { GRAPH, type GraphShape } from '@/lib/canvas/shape-types'
 import { layoutGraph, type GraphLayout } from '@/lib/canvas/graph-layout'
 import { latexToPlain, renderLatex } from '@/lib/canvas/katex'
@@ -81,19 +79,6 @@ function GraphView({ shape }: { shape: GraphShape }) {
 /** A coordinate plane. Its items (vectors, curves, angles...) are stored in math coordinates. */
 export class GraphShapeUtil extends ShapeUtil<GraphShape> {
 	static override type = GRAPH
-	static override props: RecordProps<GraphShape> = {
-		w: T.number,
-		h: T.number,
-		xMin: T.number,
-		xMax: T.number,
-		yMin: T.number,
-		yMax: T.number,
-		grid: T.boolean,
-		xLabel: T.string,
-		yLabel: T.string,
-		title: T.string,
-		items: T.arrayOf(T.jsonValue) as never,
-	}
 
 	getDefaultProps(): GraphShape['props'] {
 		return { w: 400, h: 400, xMin: -5, xMax: 5, yMin: -5, yMax: 5, grid: true, xLabel: 'x', yLabel: 'y', title: '', items: [] }

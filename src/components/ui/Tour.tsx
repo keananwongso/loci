@@ -1,5 +1,5 @@
 'use client'
-import { useValue } from 'tldraw'
+import { useValue } from '@/lib/whiteboard'
 import { heard, talkKeysLabel } from '@/lib/canvas/presence'
 import { spokenScriptWords } from '@/lib/voice/read-along'
 import { CloseIcon, MicIcon } from './icons'

@@ -1,5 +1,5 @@
 'use client'
-import type { Editor } from 'tldraw'
+import type { Editor } from '@/lib/whiteboard'
 import type { LessonCue, LessonRecording } from '@/lib/storage/lesson'
 import { putBlob } from '@/lib/storage/blobs'
 import { observeWriting } from '@/lib/canvas/hand'
@@ -8,7 +8,7 @@ import { observeWriting } from '@/lib/canvas/hand'
 export function recordLesson(editor: Editor, turnId: string) {
 	const baseline = editor.store.getStoreSnapshot('document')
 	const started = performance.now()
-	const recording: LessonRecording = { version: 1, baseline, camera: editor.getCamera(), frames: [], cues: [], duration: 0 }
+	const recording: LessonRecording = { version: 2, pageId: editor.pageId, baseline, camera: editor.getCamera(), frames: [], cues: [], duration: 0 }
 	let previous = baseline.store
 	let lastCamera = recording.camera
 	const now = () => performance.now() - started

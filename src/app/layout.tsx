@@ -2,7 +2,8 @@ import type { Metadata, Viewport } from 'next'
 import { Analytics } from '@vercel/analytics/next'
 import '@fontsource-variable/inter'
 import 'katex/dist/katex.min.css'
-import 'tldraw/tldraw.css'
+import '@xyflow/react/dist/style.css'
+import '@fontsource/shantell-sans/400.css'
 import './globals.css'
 
 export const metadata: Metadata = {

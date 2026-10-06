@@ -47,6 +47,6 @@ Then run `npm run dev` and open [localhost:3000](http://localhost:3000). Claude,
 
 ## Built with
 
-Next.js, tldraw, pdf.js and KaTeX, with Supabase and Stripe for hosted accounts. [Contributions welcome](CONTRIBUTING.md). [MIT licensed](LICENSE); tldraw has its own licensing terms.
+Next.js, React Flow, perfect-freehand, pdf.js and KaTeX, with Supabase and Stripe for hosted accounts. [Contributions welcome](CONTRIBUTING.md). [MIT licensed](LICENSE). The canvas dependencies are MIT licensed; the bundled handwriting font is OFL licensed.
 
 Built by [Keanan Wongso](https://keananwongso.com). [LinkedIn](https://linkedin.com/in/keananwongso).

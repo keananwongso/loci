@@ -1,6 +1,6 @@
 'use client'
 /**
- * Boards saved to a signed-in account. This browser keeps a working copy (tldraw's IndexedDB
+ * Boards saved to a signed-in account. This browser keeps a working copy (the canvas IndexedDB
  * persistence plus the local blob store) and the account holds the saved version, so a board
  * opens instantly here and on any other device.
  */

@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import type { Editor, TLStoreSnapshot } from 'tldraw'
+import type { Editor, TLStoreSnapshot } from '@/lib/whiteboard'
 import { CloudError, createBoard, loadBoard, pendingUploads, saveBoard, setCloudBoard } from '@/lib/storage/cloud'
 import { loadConversation, saveConversation, type Turn } from '@/lib/storage/conversation'
 

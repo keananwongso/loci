@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef } from 'react'
-import { useEditor, useValue } from 'tldraw'
+import { useEditor, useValue } from '@/lib/whiteboard'
 import { buddyAsked, buddyStatus, buddyThought, heard, tutorPresence, type BuddyThought } from '@/lib/canvas/presence'
 import { renderLatex } from '@/lib/canvas/katex'
 import { micLevel, voiceLevel } from '@/lib/voice/level'

@@ -1,5 +1,5 @@
 'use client'
-import { useEditor, useValue } from 'tldraw'
+import { useEditor, useValue } from '@/lib/whiteboard'
 import { UploadIcon } from './icons'
 
 export function EmptyState({ onUpload, onSample, loading, saved }: { onUpload: () => void; onSample: () => void; loading?: string | null; saved?: boolean }) {

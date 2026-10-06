@@ -1,6 +1,6 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createShapeId, useEditor } from 'tldraw'
+import { createShapeId, useEditor } from '@/lib/whiteboard'
 import { REGION, type RegionShape } from '@/lib/canvas/shape-types'
 import { clearThinking, heard, setBuddyStatus, setThought, setTutorMode } from '@/lib/canvas/presence'
 import { endTimeline, mark as markTime, startTimeline } from '@/lib/tutor/timeline'

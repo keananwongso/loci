@@ -1,6 +1,6 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { Editor } from 'tldraw'
+import type { Editor } from '@/lib/whiteboard'
 import { lastMark, runTutorTurn } from '@/lib/tutor/client'
 import { clearConversation, loadConversation, saveConversation, type Turn } from '@/lib/storage/conversation'
 import { clearThinking, endTutorTurn, lookAt, lookAtWhileTalking, moveTutorTo, setBuddyStatus, setThought, showAsked } from '@/lib/canvas/presence'

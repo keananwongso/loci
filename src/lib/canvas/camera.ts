@@ -1,5 +1,5 @@
 'use client'
-import type { Editor } from 'tldraw'
+import type { Editor } from '@/lib/whiteboard'
 import type { Rect } from './placement'
 
 /** The part of the screen not covered by Loci's floating UI (toolbar, top bar, answer dock). */
@@ -43,7 +43,7 @@ export function frameArea(editor: Editor, area: Rect, opts: { pad?: number; dura
 	const pad = opts.pad ?? 40
 	const fit = fitZoom(editor, area, pad)
 	const z = Math.max(MIN_READABLE_ZOOM, fit)
-	// tldraw: screen = (page + camera) * zoom
+	// The controller retains the legacy camera convention: screen = (page + camera) * zoom
 	const cx = (area.w + pad * 2) * z <= safe.w ? area.x + area.w / 2 : area.x - pad + safe.w / z / 2
 	const cy = (area.h + pad * 2) * z <= safe.h ? area.y + area.h / 2 : area.y - pad + safe.h / z / 2
 	const sx = safe.x + safe.w / 2

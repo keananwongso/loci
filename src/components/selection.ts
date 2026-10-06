@@ -1,5 +1,5 @@
 'use client'
-import type { Editor, TLShape } from 'tldraw'
+import type { Editor, TLShape } from '@/lib/whiteboard'
 import type { AckKind } from '@/lib/voice/ack'
 import type { BuddyThought } from '@/lib/canvas/presence'
 import { EQUATION, GRAPH, HIGHLIGHT, MATERIAL, REGION, type MaterialShape } from '@/lib/canvas/shape-types'

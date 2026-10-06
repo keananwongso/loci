@@ -1,5 +1,5 @@
 'use client'
-import { atom } from 'tldraw'
+import { atom } from '@/lib/whiteboard'
 
 /**
  * The tutor's presence on the page. It rests by the student's cursor; while teaching it flies to
