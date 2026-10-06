@@ -9,6 +9,13 @@ import { lineClip, type WritingLine } from './writing-layout'
 
 export const HAND_FAMILY = 'loci-hand'
 
+type WritingObserver = (writing: { shapeId: string; duration: number; lines: WritingLine[] }) => void
+const observers = new Set<WritingObserver>()
+export function observeWriting(observer: WritingObserver) {
+	observers.add(observer)
+	return () => { observers.delete(observer) }
+}
+
 let loading: Promise<void> | null = null
 
 /** Register the handwriting font once, from the self-hosted tldraw asset. */
@@ -91,6 +98,7 @@ export async function writeIn(shapeId: string, area: { x: number; y: number; w: 
 		})
 		const shape = document.querySelector<HTMLElement>(sel)
 		const lines = shape ? textLines(shape) : []
+		for (const observer of observers) observer({ shapeId, duration: ms, lines })
 		if (shape && lines.length > 1) {
 			const total = lines.reduce((sum, line) => sum + line.w, 0)
 			let offset = 0

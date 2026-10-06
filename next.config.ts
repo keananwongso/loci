@@ -7,13 +7,14 @@ const dev = process.env.NODE_ENV === 'development'
  * connect-src/img-src: even if a script got injected, it couldn't send a visitor's own API key
  * (kept in localStorage) anywhere. Next's inline bootstrap scripts still need 'unsafe-inline'.
  */
-const csp = [
+const policy = (google = false) => [
 	"default-src 'self'",
-	`script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${dev ? " 'unsafe-eval'" : ''}`,
-	"style-src 'self' 'unsafe-inline'",
+	`script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${dev ? " 'unsafe-eval'" : ''}${google ? ` ${GSI}client` : ''}`,
+	`style-src 'self' 'unsafe-inline'${google ? ` ${GSI}style` : ''}`,
 	"img-src 'self' data: blob: https://cdn.tldraw.com",
 	"font-src 'self' data: https://cdn.tldraw.com",
-	`connect-src 'self' data: blob: https://cdn.tldraw.com${dev ? ' ws:' : ''}`,
+	`connect-src 'self' data: blob: https://cdn.tldraw.com${dev ? ' ws:' : ''}${google ? ` ${GSI}` : ''}`,
+	...(google ? [`frame-src ${GSI}`] : []),
 	"media-src 'self' data: blob:",
 	"worker-src 'self' blob:",
 	"object-src 'none'",
@@ -22,6 +23,8 @@ const csp = [
 	"frame-ancestors 'none'",
 	...(dev ? [] : ['upgrade-insecure-requests']),
 ].join('; ')
+/** Google's sign-in button. Allowed only on the account page; the canvas, where API keys live, stays same-origin. */
+const GSI = 'https://accounts.google.com/gsi/'
 
 const nextConfig: NextConfig = {
 	// tldraw and pdf.js are browser-only; the canvas is loaded client-side.
@@ -34,12 +37,16 @@ const nextConfig: NextConfig = {
 		return [{
 			source: '/(.*)',
 			headers: [
-				{ key: 'Content-Security-Policy', value: csp },
+				{ key: 'Content-Security-Policy', value: policy() },
 				{ key: 'X-Content-Type-Options', value: 'nosniff' },
 				{ key: 'X-Frame-Options', value: 'DENY' },
 				{ key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
 				{ key: 'Permissions-Policy', value: 'camera=(), microphone=(self)' },
 			],
+		}, {
+			// Later entries override the same header for matching paths.
+			source: '/account',
+			headers: [{ key: 'Content-Security-Policy', value: policy(true) }],
 		}]
 	},
 }

@@ -34,7 +34,7 @@ function RoleLabel({ shape }: { shape: MaterialShape }) {
 	const editor = useEditor()
 	const role = roleOf(shape.meta)
 	const selected = useValue('material-selected', () => editor.getOnlySelectedShapeId() === shape.id, [editor, shape.id])
-	if (!selected) return <span className="loci-role" data-role={role}>{ROLE_LABELS[role]}</span>
+	if (!selected || editor.getIsReadonly()) return <span className="loci-role" data-role={role}>{ROLE_LABELS[role]}</span>
 	return (
 		<span className="loci-role-switch" role="radiogroup" aria-label="What this is" onPointerDown={(e) => e.stopPropagation()}>
 			{ROLES.map((r) => (

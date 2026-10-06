@@ -33,7 +33,7 @@ export function tourDone() {
 	}
 }
 
-function markDone() {
+export function markDone() {
 	try {
 		localStorage.setItem(DONE_KEY, '1')
 	} catch {}
@@ -134,6 +134,7 @@ export function useTour({ editor, ask, busy, clear, setVoiceOut, setLoading, rec
 		await Promise.all([placePack(editor, pack), loadPackVoice()])
 		setLoading(null)
 		if (run.current !== at) return
+		if (!record) markDone()
 		await enterStep(0)
 	}, [pack, editor, clear, setVoiceOut, setLoading, enterStep])
 

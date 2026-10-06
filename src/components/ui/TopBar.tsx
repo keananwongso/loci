@@ -4,6 +4,8 @@ import { MoreIcon, NewBoardIcon, SpeakerIcon } from './icons'
 import type { TutorStatus } from '../useTutor'
 
 interface Props {
+	busy?: boolean
+	library?: React.ReactNode
 	status: TutorStatus
 	voiceOut: boolean
 	voiceProvider: 'fish' | 'browser' | null
@@ -16,7 +18,7 @@ interface Props {
 	onEraseDrawings: () => void
 }
 
-export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear, onSample, onTour, onEraseDrawings }: Props) {
+export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear, onSample, onTour, onEraseDrawings, busy, library }: Props) {
 	const [menu, setMenu] = useState(false)
 	const ref = useRef<HTMLDivElement>(null)
 	useEffect(() => {
@@ -31,6 +33,8 @@ export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear
 			<a className="loci-brand" href="/" style={{ textDecoration: 'none', color: 'inherit' }}>Loci</a>
 			<a className="loci-topbar__github" href="https://github.com/keananwongso/loci" target="_blank" rel="noreferrer">★ Star on GitHub</a>
 
+			{library}
+			{status.accounts && <a className="loci-topbar__account" href="/account" aria-label={status.pro ? 'Pro · Account' : 'Sign in / Pro'}><span className="loci-topbar__account-full">{status.pro ? 'Pro · Account' : 'Sign in / Pro'}</span><span className="loci-topbar__account-short">{status.pro ? 'Pro' : 'Sign in'}</span></a>}
 			<button className="loci-icon-btn" data-active={voiceOut} onClick={onToggleVoice} title={
 					voiceOut
 						? `Loci speaks its answers${voiceProvider === 'fish' ? ' (Fish Audio)' : voiceProvider === 'browser' ? " (your browser's voice)" : ''}. Click to turn off.`
@@ -40,8 +44,9 @@ export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear
 			</button>
 			<button
 				className="loci-icon-btn"
-				onClick={() => confirm('Start a new board? This clears the canvas and the conversation.') && onClear()}
-				title="New board (clears the canvas and conversation)"
+				onClick={onClear}
+				disabled={busy}
+				title="New board (keeps your current board saved)"
 				aria-label="New board"
 			>
 				<NewBoardIcon />
@@ -55,17 +60,19 @@ export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear
 						{onTour && (
 							<button
 								role="menuitem"
+								disabled={busy}
 								onClick={() => {
 									setMenu(false)
 									onTour()
 								}}
 							>
-								Replay the lesson
+								Replay demo
 							</button>
 						)}
 						{!onTour && (
 							<button
 								role="menuitem"
+								disabled={busy}
 								onClick={() => {
 									setMenu(false)
 									onSample()
@@ -85,6 +92,7 @@ export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear
 						</button>
 						<button
 							role="menuitem"
+							disabled={busy}
 							title="Removes everything Loci drew. Your notes, uploads and your own marks stay. Undo with Ctrl/⌘ + Z."
 							onClick={() => {
 								setMenu(false)

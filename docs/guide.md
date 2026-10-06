@@ -15,7 +15,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open http://localhost:3000 for the landing page, or http://localhost:3000/demo for your own board.
+Open http://localhost:3000. Local copies go straight to your board; hosted deployments keep the public landing page. The board is also available at http://localhost:3000/demo. The board-name menu switches saved boards and renames them. New board keeps your previous board and conversation.
 
 Your key goes in `.env.local`, which git ignores. It is read only by the local server route (`src/app/api/tutor/route.ts`) and is never sent to the browser.
 
@@ -53,9 +53,9 @@ With Anthropic, requests opt into the API's server side refusal fallback (`fallb
 
 ### Voice
 
-Click the speaker button in the top bar to turn on voice mode, then hold **Ctrl + Alt** (or the mic button) to ask out loud. The tutor speaks each sentence as it draws what that sentence is about, and the next sentence waits until the last one is finished. The written transcript is one click away (Show transcript).
+Click the speaker button in the top bar to turn on voice mode, then hold **Ctrl + Alt** (or the mic button) to ask out loud. The tutor speaks each sentence as it draws what that sentence is about, and the next sentence waits until the last one is finished. The written transcript is one click away (Show transcript). Completed answers have a Replay explanation button. Replay runs directly on the board with controls above the question bar: a timeline you can scrub, ±10-second jumps, 0.5×–2× playback and a clickable transcript. Replays preserve the actual canvas changes and original audio locally. No model or speech request is made when replaying; if the original voice was the browser voice, replay restarts that voice at the selected sentence. Answers given with voice off replay silently. Old answers saved before this feature do not have recordings.
 
-For natural voices add `FISH_API_KEY` to `.env.local` ([Fish Audio](https://fish.audio), about $15 per million characters, so roughly a cent per answer). `FISH_VOICE_ID` picks a voice and `LOCI_TTS_MODEL` the model (default `s2-pro`). The voice matters most for how lively it sounds: try a few expressive voices from the Fish library. `LOCI_TTS_SPEED` (default 0.92) sets the pace, `LOCI_TTS_TEMPERATURE` (default 0.85) how varied the delivery is, and `LOCI_TTS_LATENCY=normal` trades a slower start for Fish's full quality. The demo's pre-rendered lines always use full quality. With a key, hold-to-talk also records your question from the moment you press and Fish Audio transcribes it when you let go. Without a key, the browser's built-in voice and speech recognition are used. Only the tutor's spoken sentences and your recorded question are sent to Fish Audio, never your files.
+For natural voices add `FISH_API_KEY` to `.env.local` ([Fish Audio](https://fish.audio), about $15 per million characters, so roughly a cent per answer). `FISH_VOICE_ID` picks a voice and `LOCI_TTS_MODEL` the model (default `s2-pro`). The voice matters most for how lively it sounds: try a few expressive voices from the Fish library. Delivery controls are omitted unless you configure them: Fish uses its own defaults. `LOCI_TTS_SPEED`, `LOCI_TTS_TEMPERATURE` and `LOCI_TTS_LATENCY` optionally override them. The demo's pre-rendered lines always use full quality. With a key, hold-to-talk also records your question from the moment you press and Fish Audio transcribes it when you let go. Without a key, the browser's built-in voice and speech recognition are used. Only the tutor's spoken sentences and your recorded question are sent to Fish Audio, never your files.
 
 **Can I use a Claude or ChatGPT subscription instead of an API key?** No. Consumer subscriptions don't include API access, and routing an app through a subscription login (or through browser session cookies) goes against the providers' terms and can get the account suspended. For free or very cheap use, try Gemini's free tier, DeepSeek, or a local model through Ollama.
 
@@ -86,7 +86,7 @@ To change it, run `npm run dev` and open **http://localhost:3000/admin**:
 
 Loci can also run as a public website. Boards and files stay in the visitor’s browser; selected material is sent to the hosted server and model provider when they ask. Model and voice usage is bounded:
 
-* **Live onboarding.** The first question uses the configured model and counts against the daily allowance. Visitors can then paste or upload their own problems.
+* **Live onboarding once.** Returning visitors resume their board. Replay demo creates a separate board so their work stays saved. The first question uses the configured model and counts against the daily allowance. Visitors can then paste or upload their own problems.
 * **A few free questions on your key**, limited per device (a signed cookie), more loosely per network (so a campus Wi-Fi isn't locked out), and by a global daily cap that bounds your total spend whatever people do. IPs are stored only as salted hashes, and only counts are kept.
 * **Voice under the same limits.** Fish Audio speech is counted in characters and transcription in requests, per device, per network and globally per day. Past a limit the tutor falls back to the browser's own voice instead of failing.
 * **Bring your own key.** Visitors can paste their own API key for unlimited use. It is kept in their browser and passed through the server per request, never stored or logged. Only the built-in providers are accepted, so the server can't be pointed at arbitrary URLs.
@@ -107,9 +107,14 @@ For page views, referrers and countries, enable Web Analytics in the Vercel proj
 
 Visitors using the hosted demo send their questions and page images to that server and on to the model provider for inference. For private material, run Loci locally.
 
+### Optional hosted subscriptions
+
+[Account, Stripe, and Supabase setup →](subscriptions.md). Accounts and billing are optional; cloned copies need neither. Pro includes a configurable monthly allowance with separate daily spend caps. Anonymous demo caps still apply to free visitors.
+
 ## Privacy
 
-* Your PDFs, images, board and conversation are stored in your browser’s IndexedDB. The Next.js server forwards question context to the model provider; it does not store your files or conversation.
+* Your PDFs, images, boards, conversation and explanation replays are stored in your browser’s IndexedDB. The Next.js server forwards question context to the model provider; it does not store your files or conversation.
+* If hosted accounts are enabled, Supabase stores your account and the Stripe customer/subscription mapping. Stripe handles payment information. Signing in does not upload or sync boards.
 * When you ask a question, the local Next.js server sends the context for that one question to the AI provider you configured (nothing leaves your machine at all if you use a local model through Ollama): your question, a description of the board (including the extracted text of the page in focus), recent conversation turns, and a few images (the selected page or region and sometimes a screenshot of your current view). Nothing is stored by the local server.
 * Review your provider's privacy and data retention policy before uploading anything sensitive. Policies differ a lot between providers.
 * No analytics, tracking or telemetry when you run Loci yourself. A deployment on Vercel includes Vercel's cookie-free Web Analytics, and a hosted demo keeps daily usage counts (see Seeing usage and spend). Next.js's own anonymous telemetry is switched off by the npm scripts. Fonts and icons are bundled, so the app makes no requests to third party CDNs.

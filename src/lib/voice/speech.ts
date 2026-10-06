@@ -77,12 +77,12 @@ function pickVoice() {
 }
 
 /** Speak with the browser's voice; `onEnd` runs when it finishes or fails. */
-export function speak(text: string, onEnd?: () => void, onStart?: () => void) {
+export function speak(text: string, onEnd?: () => void, onStart?: () => void, rate = 1.02) {
 	if (!canSpeak()) return onEnd?.()
 	const u = new SpeechSynthesisUtterance(toSpoken(text))
 	const voice = pickVoice()
 	if (voice) u.voice = voice
-	u.rate = 1.02
+	u.rate = rate
 	u.onstart = () => onStart?.()
 	u.onend = () => onEnd?.()
 	u.onerror = () => onEnd?.()

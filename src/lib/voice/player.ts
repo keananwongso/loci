@@ -15,6 +15,7 @@ import { canSpeak, speak, stopSpeaking } from './speech'
 export interface AudioStream {
 	chunks: Uint8Array[]
 	finished: boolean
+	done: Promise<void>
 	/** Resolves when more audio arrives or the stream ends. */
 	more(): Promise<void>
 }
@@ -25,6 +26,8 @@ export interface PreparedSpeech {
 	/** Resolves once the first audio has arrived, or null if there is none (use the browser voice). */
 	audio: Promise<AudioStream | null>
 	controller: AbortController
+	/** The original audio for offline replay; no second synthesis request. */
+	recording: Promise<Blob | null>
 }
 
 let provider: 'fish' | 'browser' | 'unknown' = 'unknown'
@@ -56,11 +59,15 @@ export async function checkSpeechProvider(): Promise<'fish' | 'browser'> {
 /** Read a response body into an AudioStream; resolves at the first chunk (null if it never comes). */
 function streamAudio(res: Response): Promise<AudioStream | null> {
 	const reader = res.body!.getReader()
-	let wake = () => {}
+	const waiting = new Set<() => void>()
+	const wake = () => { for (const resolve of waiting) resolve(); waiting.clear() }
+	let complete = () => {}
+	const done = new Promise<void>((resolve) => { complete = resolve })
 	const stream: AudioStream = {
 		chunks: [],
 		finished: false,
-		more: () => new Promise<void>((r) => (wake = r)),
+		done,
+		more: () => new Promise<void>((r) => waiting.add(r)),
 	}
 	return new Promise((resolve) => {
 		const pump = async () => {
@@ -77,6 +84,7 @@ function streamAudio(res: Response): Promise<AudioStream | null> {
 				// Aborted or cut off: play what arrived.
 			}
 			stream.finished = true
+			complete()
 			resolve(stream.chunks.length ? stream : null)
 			wake()
 		}
@@ -92,7 +100,7 @@ export function prepareSpeech(text: string): PreparedSpeech {
 		const audio = fetch(clip, { signal: controller.signal })
 			.then((r) => (r.ok && r.body ? streamAudio(r) : null))
 			.catch(() => null)
-		return { spoken, audio, controller }
+		return { spoken, audio, controller, recording: recordedAudio(audio) }
 	}
 	const audio =
 		provider === 'fish' && spoken
@@ -109,7 +117,15 @@ export function prepareSpeech(text: string): PreparedSpeech {
 					})
 					.catch(() => null)
 			: Promise.resolve(null)
-	return { spoken, audio, controller }
+	return { spoken, audio, controller, recording: recordedAudio(audio) }
+}
+
+function recordedAudio(audio: Promise<AudioStream | null>): Promise<Blob | null> {
+	return timeout(audio.then(async (stream) => {
+		if (!stream) return null
+		await stream.done
+		return new Blob(stream.chunks as BlobPart[], { type: 'audio/mpeg' })
+	}), 30000, null)
 }
 
 const timeout = <T>(p: Promise<T>, ms: number, fallback: T) =>

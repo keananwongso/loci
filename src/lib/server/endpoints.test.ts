@@ -1,12 +1,14 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { MemoryStore } from './limits'
 
-const state = vi.hoisted(() => ({ store: null as unknown, unavailable: false, tutor: vi.fn(), speech: vi.fn(), transcribe: vi.fn() }))
+const state = vi.hoisted(() => ({ store: null as unknown, account: null as import('./billing').Subscription | null, unavailable: false, tutor: vi.fn(), speech: vi.fn(), transcribe: vi.fn() }))
+vi.mock('./billing', () => ({ paidAccount: async () => state.account }))
 vi.mock('./limits', async (original) => {
 	const actual = await original<typeof import('./limits')>()
 	const store = () => { if (state.unavailable) throw new Error('Redis unavailable'); return state.store as MemoryStore }
 	return {
 		...actual,
+		getStore: store,
 		takeQuestion: (...args: Parameters<typeof actual.takeQuestion>) => actual.takeQuestion(args[0], args[1], args[2], store()),
 		takeUsage: (...args: Parameters<typeof actual.takeUsage>) => actual.takeUsage(args[0], args[1], args[2], args[3], args[4], store()),
 		readQuota: (...args: Parameters<typeof actual.readQuota>) => actual.readQuota(args[0], args[1], args[2], store()),
@@ -36,6 +38,7 @@ const req = (path: string, body: string, headers: Record<string, string> = {}) =
 beforeEach(() => {
 	state.store = new MemoryStore()
 	state.unavailable = false
+	state.account = null
 	vi.clearAllMocks()
 	vi.stubEnv('NODE_ENV', 'production')
 	vi.stubEnv('LOCI_DEMO_LIMITS', 'on')
@@ -54,9 +57,11 @@ afterEach(() => vi.unstubAllEnvs())
 
 describe('paid public endpoints', () => {
 	it('stops counting cookie-less board opens from one network past the visit cap', async () => {
+		const [before] = await getStats().read([today()])
+		const initialVisitors = before.visitors
 		for (let i = 0; i < 120; i++) await tutorInfo(new Request('https://loci.example/api/tutor', { headers: { 'x-forwarded-for': '198.51.100.4' } }))
 		const [day] = await getStats().read([today()])
-		expect(day.visitors).toBe(100)
+		expect(day.visitors - initialVisitors).toBe(100)
 	})
 
 	it('limits concurrent tutor requests per device before calling the provider', async () => {
@@ -111,4 +116,20 @@ describe('paid public endpoints', () => {
 	it('keeps local admin endpoints disabled in production even with spoofed headers', () => {
 		expect(adminRefusal(new Request('http://localhost/api/admin/pack', { headers: { host: 'localhost', 'x-loci-admin': '1' } }))?.status).toBe(404)
 	})
+	it('uses verified account quotas across browsers and gates paid speech before the provider', async () => {
+		state.account = { user_id: 'verified-account', stripe_customer_id: 'cus_test', stripe_subscription_id: 'sub_test', status: 'active', period_start: Math.floor(Date.now() / 1000) - 100, period_end: Math.floor(Date.now() / 1000) + 86400, cancel_at_period_end: false }
+		vi.stubEnv('LOCI_PRO_QUESTIONS', '4')
+		vi.stubEnv('LOCI_PRO_SPEECH_CHARS', '5')
+		const info = await tutorInfo(new Request('https://loci.example/api/tutor'))
+		expect(await info.json()).toMatchObject({ pro: true, quota: { limit: 4, remaining: 4 } })
+		for (let i = 0; i < 4; i++) expect((await tutor(req('tutor', JSON.stringify(question)))).status).toBe(200)
+		const blocked = await tutor(req('tutor', JSON.stringify(question)))
+		expect(blocked.status).toBe(429)
+		expect(await blocked.json()).toMatchObject({ limitReached: 'subscription' })
+		expect(state.tutor).toHaveBeenCalledTimes(4)
+		expect((await speech(req('speech', JSON.stringify({ text: 'Hello' })))).status).toBe(200)
+		expect((await speech(req('speech', JSON.stringify({ text: '!' })))).status).toBe(429)
+		expect(state.speech).toHaveBeenCalledTimes(1)
+	})
+
 })

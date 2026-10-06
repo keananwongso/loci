@@ -5,12 +5,21 @@ import 'server-only'
  * a 429 once a cap is reached. The client treats a refusal as "use the browser's voice instead".
  */
 import { deviceFor, ipHashFor } from './device'
+import { paidAccount } from './billing'
+import { paidUsage } from './paid-usage'
 import { limitConfigFromEnv, takeUsage } from './limits'
 
 export async function guardUsage(req: Request, kind: 'speech' | 'transcribe', amount: number): Promise<{ refused?: Response; cookie?: string }> {
 	const config = limitConfigFromEnv()
 	if (!config.enabled) return {}
 	const device = deviceFor(req)
+	try {
+		const account = await paidAccount()
+		if (account) {
+			const usage = await paidUsage(account, kind, amount)
+			return usage.ok ? { cookie: device.setCookie } : { refused: Response.json({ error: 'Your included voice allowance is used up. Browser voice is still available.', limitReached: usage.reason }, { status: 429 }) }
+		}
+	} catch { return { refused: Response.json({ error: 'Could not check voice allowance.', limitReached: 'store' }, { status: 503 }) } }
 	const decision = await Promise.resolve().then(() => takeUsage(kind, config[kind], device.id, ipHashFor(req), amount)).catch((err) => {
 		// A broken counter store must not turn into unlimited spend.
 		console.error(`[loci] ${kind} limit check failed:`, err instanceof Error ? err.message : err)

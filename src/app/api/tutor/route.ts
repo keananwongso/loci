@@ -10,6 +10,9 @@ import { getProvider, providerForUserKey } from '@/lib/providers'
 import type { TutorModelProvider } from '@/lib/providers/types'
 import { deviceFor, ipHashFor } from '@/lib/server/device'
 import { VISIT_LIMITS, limitConfigFromEnv, readQuota, takeQuestion, takeUsage, type Quota } from '@/lib/server/limits'
+import { authConfigured } from '@/lib/server/auth'
+import { paidAccount } from '@/lib/server/billing'
+import { paidQuota, paidUsage } from '@/lib/server/paid-usage'
 import { countryOf, recordStats } from '@/lib/server/stats'
 import { buildTurnText, SYSTEM_PROMPT, GUIDED_DEMO_PROMPT } from '@/lib/tutor/prompt'
 import { ActionSession } from '@/lib/tutor/session'
@@ -37,6 +40,8 @@ export async function GET(req: Request) {
 	if (counted) await recordStats({ visits: 1 }, { id: device.id, country: countryOf(req), unique: 'visitors' })
 	try {
 		const provider = getProvider()
+		const account = limits.enabled ? await paidAccount() : null
+		if (account) quota = await paidQuota(account)
 		return withCookie(
 			Response.json({
 				provider: provider.name,
@@ -44,6 +49,8 @@ export async function GET(req: Request) {
 				configured: provider.isConfigured(),
 				setupHint: provider.setupHint,
 				hosted: limits.enabled,
+				accounts: authConfigured(),
+				pro: Boolean(account),
 				quota,
 			}),
 			device.setCookie,
@@ -92,6 +99,17 @@ async function chooseProvider(
 	const limits = limitConfigFromEnv()
 	const device = deviceFor(req)
 	if (!limits.enabled) return { provider, cookie: device.setCookie, ownerPays: { id: device.id, country: countryOf(req) } }
+	try {
+		const account = await paidAccount()
+		if (account) {
+			const usage = await paidUsage(account, 'question', 1)
+			if (!usage.ok) return Response.json({ error: usage.reason === 'subscription' ? 'Your questions for this billing month are used up.' : usage.reason === 'daily' ? 'Your daily question allowance is used up. More questions tomorrow.' : 'Loci is at capacity today. Please try again tomorrow.', limitReached: usage.reason, quota: usage.quota }, { status: 429 })
+			return { provider, quota: usage.quota, cookie: device.setCookie, ownerPays: { id: account.user_id, country: countryOf(req) } }
+		}
+	} catch (err) {
+		console.error('[loci] subscription check failed:', err instanceof Error ? err.message : err)
+		return Response.json({ error: 'Could not check your subscription. Please try again.', limitReached: 'store' }, { status: 503 })
+	}
 	const decision = await Promise.resolve()
 		.then(() => takeQuestion(limits, device.id, ipHashFor(req)))
 		.catch(() => null)

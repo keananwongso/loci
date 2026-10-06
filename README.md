@@ -31,9 +31,11 @@ Add a key to `.env.local`, for example:
 DEEPSEEK_API_KEY=your_key_here
 ```
 
-Then run `npm run dev` and open [localhost:3000](http://localhost:3000). Your own board is at [/demo](http://localhost:3000/demo).
+Then run `npm run dev` and open [localhost:3000](http://localhost:3000). Local copies open directly into your workspace. Create and switch boards from the board name in the top bar; your earlier boards stay saved.
 
-Claude, OpenAI, Gemini, OpenRouter, and local models through Ollama work too. Fish Audio is optional for voice. Boards are saved in your browser; when you ask, the relevant material goes to your configured model provider.
+Claude, OpenAI, Gemini, OpenRouter, and local models through Ollama work too. Fish Audio is optional for voice. Boards, conversations and explanation replays save in your browser. Replay a completed answer with pause, a seekable timeline, 10-second jumps, playback speed and a clickable transcript. When you ask, the relevant material goes to your configured model provider.
+
+[Hosted accounts and subscriptions →](docs/subscriptions.md)
 
 [More setup options, hosting, and how it works →](docs/guide.md)
 

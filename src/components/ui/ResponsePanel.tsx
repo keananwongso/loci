@@ -15,9 +15,10 @@ const PHASE: Record<Turn['status'], string> = {
 	stopped: 'Stopped',
 }
 
-function TurnView({ turn, live }: { turn: Turn; live: boolean }) {
+function TurnView({ turn, live, accounts, onReplay }: { turn: Turn; live: boolean; accounts?: boolean; onReplay: (turn: Turn) => void }) {
 	return (
 		<article className="loci-turn" data-live={live}>
+			{!live && turn.lessonId && <button className="loci-chip-btn" onClick={() => onReplay(turn)}>▶ Replay explanation</button>}
 			<div className="loci-turn__q">
 				<span className="loci-turn__ctx">{turn.context}</span>
 				{turn.question}
@@ -33,6 +34,7 @@ function TurnView({ turn, live }: { turn: Turn; live: boolean }) {
 			{turn.error && <p className="loci-turn__error">{turn.error}</p>}
 			{turn.limitReached && (
 				<div className="loci-turn__limit">
+					{accounts && <a className="loci-chip-btn" href="/account">View account / Loci Pro</a>}
 					<button className="loci-chip-btn" onClick={() => window.dispatchEvent(new CustomEvent('loci:open-key-dialog'))}>
 						Use your own API key
 					</button>
@@ -58,11 +60,12 @@ interface Props {
 	busy: boolean
 	status: TutorStatus
 	onUndo: () => void
+	onReplay: (turn: Turn) => void
 	/** In voice mode the orb's captions carry the answer, so the text panel starts collapsed. */
 	voice?: boolean
 }
 
-export function ResponsePanel({ turns, busy, status, onUndo, voice }: Props) {
+export function ResponsePanel({ turns, busy, status, onUndo, onReplay, voice }: Props) {
 	const [open, setOpen] = useState(!voice)
 	const [history, setHistory] = useState(false)
 	const bodyRef = useRef<HTMLDivElement>(null)
@@ -93,18 +96,14 @@ export function ResponsePanel({ turns, busy, status, onUndo, voice }: Props) {
 	}
 	if (!last) return null
 	if (!open) {
-		// Just the sentence being said right now, as one line of text. The orb's thought line covers
-		// the wait before the first sentence.
 		const line = last.said.at(-1)
-		if (!line) return null
-		return (
-			<p key={line} className="loci-caption" aria-live="polite">
-				{line}
-			</p>
-		)
+		return <div className="loci-captions">
+			{line && <p key={line} className="loci-caption" aria-live="polite">{line}</p>}
+			<div className="loci-caption-actions"><button className="loci-chip-btn" onClick={() => setOpen(true)}>Show transcript</button>{!busy && last.lessonId && <button className="loci-chip-btn" onClick={() => onReplay(last)}>▶ Replay</button>}</div>
+		</div>
 	}
 
-	const phase = last.limitReached === 'store' ? 'Demo temporarily unavailable' : last.limitReached ? 'Free questions used up' : PHASE[last.status]
+	const phase = last.limitReached === 'store' ? 'Loci temporarily unavailable' : last.limitReached === 'subscription' ? 'Monthly questions used up' : last.limitReached === 'daily' ? 'Daily questions used up' : last.limitReached === 'global' && status.pro ? 'Loci at capacity today' : last.limitReached ? 'Free questions used up' : PHASE[last.status]
 	const live = ['looking', 'thinking', 'teaching'].includes(last.status)
 	return (
 		<section className="loci-panel" onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()} aria-live="polite">
@@ -130,7 +129,7 @@ export function ResponsePanel({ turns, busy, status, onUndo, voice }: Props) {
 			</header>
 			<div className="loci-panel__body" ref={bodyRef}>
 				{shown.map((t) => (
-					<TurnView key={t.id} turn={t} live={t.id === last.id && live} />
+					<TurnView key={t.id} turn={t} live={busy || (t.id === last.id && live)} accounts={status.accounts} onReplay={onReplay} />
 				))}
 				{live && last.said.length === 0 && (
 					<p className="loci-turn__placeholder">{last.status === 'looking' ? 'Reading the page you selected…' : 'Working out how to explain this…'}</p>
