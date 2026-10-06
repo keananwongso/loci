@@ -1,5 +1,5 @@
 import { createStore, get, set } from 'idb-keyval'
-import type { TLCamera, TLRecord, TLStoreSnapshot } from 'tldraw'
+import type { Editor, TLCamera, TLRecord, TLStoreSnapshot } from 'tldraw'
 import { lineClip, type WritingLine } from '@/lib/canvas/writing-layout'
 
 export interface LessonCue { text: string; start: number; end: number; audioKey?: string; voiced?: boolean }
@@ -43,4 +43,36 @@ export function lessonAt(lesson: LessonRecording, time: number) {
 		camera = frame.camera
 	}
 	return { snapshot: { schema: lesson.baseline.schema, store: records }, camera }
+}
+
+/** Forward playback applies each recorded change once; only a seek rebuilds the document. */
+export function createLessonPlayback(editor: Pick<Editor, 'loadSnapshot' | 'store' | 'setCamera' | 'updateInstanceState'>, lesson: LessonRecording) {
+	let next = 0
+	let previousTime = -Infinity
+	return (time: number, seek = false) => {
+		if (seek || time < previousTime || previousTime === -Infinity) {
+			editor.loadSnapshot(lessonAt(lesson, time).snapshot)
+			editor.updateInstanceState({ isReadonly: true })
+			next = 0
+			while (next < lesson.frames.length && lesson.frames[next].t <= time) next++
+		} else {
+			editor.store.mergeRemoteChanges(() => {
+				while (next < lesson.frames.length && lesson.frames[next].t <= time) {
+					const frame = lesson.frames[next++]
+					if (frame.remove.length) editor.store.remove(frame.remove)
+					if (frame.put.length) editor.store.put(frame.put)
+				}
+			})
+		}
+		// Recording samples the camera at 10 Hz. Interpolate between samples at display refresh rate.
+		const before = next ? lesson.frames[next - 1] : { t: 0, camera: lesson.camera }
+		const after = lesson.frames[next]
+		// A long gap without changes means the camera was still, not moving throughout the gap.
+		const start = after ? Math.max(before.t, after.t - 100) : before.t
+		const progress = after ? Math.max(0, Math.min(1, (time - start) / Math.max(1, after.t - start))) : 0
+		const camera = before.camera
+		const target = after?.camera ?? camera
+		editor.setCamera({ x: camera.x + (target.x - camera.x) * progress, y: camera.y + (target.y - camera.y) * progress, z: camera.z + (target.z - camera.z) * progress }, { immediate: true })
+		previousTime = time
+	}
 }
