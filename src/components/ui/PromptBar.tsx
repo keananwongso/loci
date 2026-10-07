@@ -79,10 +79,9 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft, pro, 
 					{hasSelection ? <PageIcon /> : <LayersIcon />}
 					<span>{context}</span>
 				</div>
-				{topicControl}
-				{freeLeft !== undefined && (
+				{freeLeft === 0 && (
 					<span className="loci-prompt__quota" data-empty={freeLeft === 0}>
-						{pro ? `${freeLeft} question${freeLeft === 1 ? '' : 's'} left this month` : freeLeft === 0 ? 'No free questions left today' : `${freeLeft} free question${freeLeft === 1 ? '' : 's'} left today`}
+						No questions left · <a href="/account">View allowance</a>
 					</span>
 				)}
 			</div>
@@ -132,6 +131,7 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft, pro, 
 						<button className="loci-prompt__switch" aria-label="Switch to typing" title="Type a question (/)" disabled={listening || transcribing} onClick={() => setTyping(true)}><KeyboardIcon /></button>
 					</>
 				)}
+				{topicControl}
 				{busy && <button className="loci-send loci-send--stop" onClick={onStop} title="Stop" aria-label="Stop"><StopIcon /></button>}
 			</div>
 		</div>

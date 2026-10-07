@@ -100,8 +100,8 @@ export function ResponsePanel({ turns, busy, status, onUndo, onReplay, voice }: 
 	if (!open) {
 		const line = last.said.at(-1)
 		return <div className="loci-captions">
-			{line && <p key={line} className="loci-caption" aria-live="polite">{line}</p>}
-			<div className="loci-caption-actions"><button className="loci-chip-btn" onClick={() => setOpen(true)}>Show transcript</button></div>
+			{line && (busy || !last.lessonId) && <p key={line} className="loci-caption" aria-live="polite">{line}</p>}
+			{(busy || !last.lessonId) && <div className="loci-caption-actions"><button className="loci-chip-btn" onClick={() => setOpen(true)}>Show transcript</button></div>}
 			{busy ? <SpeechControls /> : last.lessonId && <LessonPlayer key={last.lessonId} id={last.lessonId} question={last.question} inline />}
 		</div>
 	}

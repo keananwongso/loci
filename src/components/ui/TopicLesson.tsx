@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { BookIcon } from './icons'
 import { useEditor, useValue } from '@/lib/whiteboard'
 import { ROLE_LABELS } from '@/lib/documents/roles'
 import { budgetPages, sourcePages, sourceFingerprint, readTopic, saveTopic, lessonContext, advanceTopic, teachingCheckpoint } from '@/lib/topics/sources'
@@ -95,8 +96,8 @@ export function TopicLesson({ busy, requestedTopic, requestKey, onPlanning, onQu
  const busyNow = busy || planning
  const showSetup = editing || !state
  return <section ref={panelRef} className="loci-topic" data-open={open} onPointerDown={e => e.stopPropagation()} onWheel={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()} aria-label="Topic lesson">
-  <button className="loci-topic__toggle" aria-expanded={open} aria-controls="loci-topic-panel" onClick={() => setOpen(v => !v)}>
-   <span>{state ? (state.complete ? 'Review topic' : `Lesson · ${state.current + 1}/${state.plan.sections.length}`) : 'Teach me a topic'}</span><span aria-hidden>{open ? '▾' : '▴'}</span>
+  <button className="loci-topic__toggle" title={state ? `Lesson: ${state.topic}` : "Teach me a topic"} aria-label={state ? "Open topic lesson" : "Teach me a topic"} aria-expanded={open} aria-controls="loci-topic-panel" onClick={() => setOpen(v => !v)}>
+   <BookIcon />
   </button>
   {open && <div id="loci-topic-panel" className="loci-topic__panel">
    {showSetup ? <>

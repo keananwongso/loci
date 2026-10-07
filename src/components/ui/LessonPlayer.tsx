@@ -8,7 +8,7 @@ import { getBlobUrl } from '@/lib/storage/blobs'
 import { renderRich } from '@/lib/canvas/richtext'
 import { speak, stopSpeaking } from '@/lib/voice/speech'
 import { stopAllSpeech } from '@/lib/voice/player'
-import { CloseIcon, SkipIcon, PlayIcon, PauseIcon } from './icons'
+import { CloseIcon, SkipIcon, PlayIcon, PauseIcon, MoreIcon } from './icons'
 
 // A brief silent clip unlocks this element when playback begins before the first spoken cue.
 const SILENT_AUDIO = 'data:audio/wav;base64,UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA=='
@@ -141,7 +141,7 @@ export function LessonPlayer({ id, question, onClose, inline = false }: { id: st
 		setPlaying(true)
 	}
 
-	const cue = lesson?.cues.find((cue) => time >= cue.start && time < cue.end)
+	const cue = lesson?.cues.find((cue) => time >= cue.start && time < cue.end) ?? (inline && !playing ? lesson?.cues.at(-1) : undefined)
 	return <section className="loci-player" aria-label="Explanation playback" onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()} onKeyDown={(e) => {
 		if (e.key === 'Escape') { e.preventDefault(); onClose?.(); return }
 		if ((e.target as HTMLElement).matches('input, select, button')) return
@@ -159,8 +159,15 @@ export function LessonPlayer({ id, question, onClose, inline = false }: { id: st
 			</aside>}
 			{!transcript && cue && <p className="loci-player__caption" dangerouslySetInnerHTML={{ __html: renderRich(cue.text) }} />}
 			<div className="loci-player__controls">
-				<input aria-label="Explanation timeline" type="range" min="0" max={Math.ceil(lesson.duration)} step="1" value={Math.ceil(time)} onChange={(e) => seek(Number(e.target.value))} />
-				<div><button onClick={() => seek(position.current - 10000)} className="loci-player__skip" aria-label="Rewind 10 seconds" title="Back 10 seconds"><SkipIcon /><b>10</b></button><button className="loci-player__play" onClick={togglePlay} aria-label={playing ? 'Pause explanation' : 'Play explanation'}>{playing ? <PauseIcon /> : <PlayIcon />}</button><button onClick={() => seek(position.current + 10000)} className="loci-player__skip" aria-label="Forward 10 seconds" title="Forward 10 seconds"><SkipIcon forward /><b>10</b></button><span>{clock(time)} / {clock(lesson.duration)}</span><select aria-label="Playback speed" value={rate} onChange={(e) => { const next = Number(e.target.value); if (audioRef.current) audioRef.current.playbackRate = next; seeking.current = true; setRate(next) }}>{[0.5, 0.75, 1, 1.25, 1.5, 2].map((r) => <option key={r} value={r}>{r}×</option>)}</select><button aria-pressed={transcript} onClick={() => setTranscript(!transcript)}>Transcript</button></div>
+                <button onClick={() => seek(position.current - 10000)} className="loci-player__skip" aria-label="Rewind 10 seconds" title="Back 10 seconds"><SkipIcon /><b>10</b></button>
+                <button className="loci-player__play" onClick={togglePlay} aria-label={playing ? 'Pause explanation' : 'Play explanation'}>{playing ? <PauseIcon /> : <PlayIcon />}</button>
+                <input aria-label="Explanation timeline" type="range" min="0" max={Math.ceil(lesson.duration)} step="1" value={Math.ceil(time)} onChange={(e) => seek(Number(e.target.value))} />
+                <button onClick={() => seek(position.current + 10000)} className="loci-player__skip" aria-label="Forward 10 seconds" title="Forward 10 seconds"><SkipIcon forward /><b>10</b></button>
+                <span className="loci-player__time">{clock(time)} / {clock(lesson.duration)}</span>
+                <details className="loci-player__menu"><summary aria-label="Playback options" title="Playback options"><MoreIcon /></summary><div>
+                 <label>Speed<select aria-label="Playback speed" value={rate} onChange={(e) => { const next = Number(e.target.value); if (audioRef.current) audioRef.current.playbackRate = next; seeking.current = true; setRate(next) }}>{[0.5, 0.75, 1, 1.25, 1.5, 2].map((r) => <option key={r} value={r}>{r}×</option>)}</select></label>
+                 <button aria-pressed={transcript} onClick={(e) => { setTranscript(!transcript); e.currentTarget.closest('details')?.removeAttribute('open') }}>{transcript ? 'Hide transcript' : 'Show transcript'}</button>
+                </div></details>
 			</div>
 		</> : !error && <p>Opening the saved explanation…</p>}
 		<audio ref={audioRef} preload="auto" />

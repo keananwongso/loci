@@ -128,3 +128,5 @@ export const PauseIcon = () => <Icon><path d="M9 6v12M15 6v12" strokeWidth={3} /
 export const KeyboardIcon = () => (
  <Icon><rect x="2" y="5" width="20" height="14" rx="3" /><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M7 15h10" /></Icon>
 )
+
+export const BookIcon = () => (<Icon><path d="M12 5v15M12 5C9 3 5 3 2 4v15c3-1 7-1 10 1 3-2 7-2 10-1V4c-3-1-7-1-10 1Z" /></Icon>)
