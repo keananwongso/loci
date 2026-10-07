@@ -34,3 +34,6 @@ output/
 
 # tesseract assets, copied from node_modules by scripts/ocr-assets.mjs
 /public/ocr/
+
+# Supabase CLI project link metadata
+supabase/.temp/
