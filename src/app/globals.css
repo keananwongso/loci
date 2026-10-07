@@ -2541,3 +2541,7 @@ html[data-loci-speech-paused] .loci-shape * { animation-play-state: paused !impo
 .loci-player__play svg { display: block; width: 18px; height: 18px; }
 .loci-player__play[aria-label='Play explanation'] svg { transform: translateX(1px); }
 .loci-player__skip svg { display: block; }
+/* Keep the skip interval beside its arrow, with no overlaid text. */
+.loci-player__controls .loci-player__skip { display: flex; align-items: center; justify-content: center; gap: 3px; width: 46px; }
+.loci-player__skip svg { width: 18px; height: 18px; flex: none; }
+.loci-player__skip span { font-size: 10px; line-height: 1; font-variant-numeric: tabular-nums; }
