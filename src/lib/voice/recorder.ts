@@ -4,6 +4,7 @@
  * between presses). Two bounded Fish previews provide live text when browser recognition is
  * unavailable; the complete clip is transcribed on release. All previews use the normal quotas.
  */
+import { loadVoiceKey, voiceKeyHeaders } from '@/lib/storage/voiceKey'
 import { openMic, releaseMic } from './level'
 import { checkSpeechProvider, hasFish } from './player'
 
@@ -79,7 +80,7 @@ export function startRecording(onInterim?: (text: string) => void, hasBrowserWor
 
 /** Fish Audio transcript of a clip, or null when transcription is unavailable or fails. */
 export async function transcribe(clip: Blob, timeoutMs = 8000, signal?: AbortSignal, onFailure?: (message: string) => void): Promise<string | null> {
-	if (!hasFish()) { await within(checkSpeechProvider(), 1500, 'browser' as const); if (!hasFish()) return null }
+	if (loadVoiceKey()?.provider !== 'fish' && !hasFish()) { await within(checkSpeechProvider(), 1500, 'browser' as const); if (!hasFish()) return null }
 	const controller = new AbortController()
 	const abort = () => controller.abort()
 	if (signal?.aborted) return null
@@ -89,7 +90,7 @@ export async function transcribe(clip: Blob, timeoutMs = 8000, signal?: AbortSig
 		// Browsers record webm, mp4 or ogg; Fish reliably decodes plain WAV, so send that when possible.
 		const audio = (await within(toWav(clip), 2000, null)) ?? clip
 		if (controller.signal.aborted) return null
-		const res = await fetch('/api/transcribe', { method: 'POST', body: audio, headers: { 'Content-Type': audio.type }, signal: controller.signal })
+		const res = await fetch('/api/transcribe', { method: 'POST', body: audio, headers: { 'Content-Type': audio.type, ...(loadVoiceKey()?.provider === 'fish' ? voiceKeyHeaders() : {}) }, signal: controller.signal })
 		if (!res.ok) {
 			onFailure?.(res.status === 429 ? 'Transcription allowance reached. Type your question instead.' : 'Could not transcribe your recording. Try typing instead.')
 			console.warn('[loci] Fish transcription failed:', (await res.json().catch(() => ({}))).error ?? res.status)

@@ -1,6 +1,6 @@
 'use client'
-/** Voice credentials are independent of model credentials and never persisted. */
-export interface VoiceKey { provider: 'fish' | 'elevenlabs'; key: string; voiceId?: string; model?: string }
+/** Page-only credentials stay in memory; saved credentials are server references, never raw keys. */
+export interface VoiceKey { provider: 'fish' | 'elevenlabs'; key: string; voiceId?: string; model?: string; saved?: boolean }
 let current: VoiceKey | null = null
 export const loadVoiceKey = (): VoiceKey | null => current ? { ...current } : null
 export function saveVoiceKey(value: VoiceKey | null) {
@@ -10,5 +10,6 @@ export function saveVoiceKey(value: VoiceKey | null) {
 export function voiceKeyHeaders(): Record<string, string> {
  const value = loadVoiceKey()
  if (!value) return {}
+ if (value.saved) return { 'x-loci-saved-voice': '1' }
  return { 'x-loci-voice-key': value.key, 'x-loci-voice-provider': value.provider, ...(value.voiceId ? { 'x-loci-voice-id': value.voiceId } : {}), ...(value.model ? { 'x-loci-voice-model': value.model } : {}) }
 }

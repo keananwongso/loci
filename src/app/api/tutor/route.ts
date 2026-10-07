@@ -1,3 +1,4 @@
+import { resolveAIKey } from '@/lib/server/provider-keys'
 import { readLimitedJson, refuseCrossOrigin } from '@/lib/server/request'
 /**
  * Local tutor endpoint. Runs on the user's own machine (`npm run dev`); it holds the
@@ -77,22 +78,18 @@ const LIMIT_MESSAGES = {
 }
 
 /**
- * Which model answers: the visitor's own key (sent in headers for this
- * request only, never stored or logged), or the server's key under the demo limits.
+ * Which model answers: a page-only key, an explicitly selected encrypted account key,
+ * or the server's key under the demo limits. Credentials are never logged.
  */
 async function chooseProvider(
 	req: Request,
 	request: TutorRequest,
 ): Promise<{ provider: TutorModelProvider; quota?: Quota; cookie?: string; ownerPays?: { id: string; country?: string } } | Response> {
-	const userKey = req.headers.get('x-loci-key')
-	if (userKey) {
-		try {
-			return {
-				provider: providerForUserKey(req.headers.get('x-loci-provider') ?? '', userKey, req.headers.get('x-loci-model') || undefined),
-			}
-		} catch {
-			return Response.json({ error: 'Invalid key settings. Choose a supported provider, a valid API key and a model ID if required.' }, { status: 400 })
-		}
+	try {
+		const userKey = await resolveAIKey(req)
+		if (userKey) return { provider: providerForUserKey(userKey.provider, userKey.key, userKey.model) }
+	} catch {
+		return Response.json({ error: 'Could not use your key. Check API key settings and sign in again if it is saved to your account.' }, { status: 400 })
 	}
 
 	let provider: TutorModelProvider

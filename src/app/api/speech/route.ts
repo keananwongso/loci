@@ -1,3 +1,4 @@
+import { resolveVoiceKey } from '@/lib/server/provider-keys'
 import { readLimitedJson, refuseCrossOrigin } from '@/lib/server/request'
 /**
  * Local text-to-speech endpoint for voice mode. Only the tutor's spoken sentences are sent to
@@ -7,7 +8,7 @@ import { z } from 'zod'
 import { FishError, MAX_SPEECH_CHARS, fishConfigFromEnv, fishSpeech } from '@/lib/voice/fish'
 import { guardUsage } from '@/lib/server/usage'
 import { countryOf, recordStats } from '@/lib/server/stats'
-import { userVoiceFromHeaders, userVoiceSpeech, safeVoiceError } from '@/lib/voice/user-voice'
+import { userVoiceSpeech, safeVoiceError } from '@/lib/voice/user-voice'
 import { deviceFor } from '@/lib/server/device'
 
 export const runtime = 'nodejs'
@@ -29,7 +30,7 @@ export async function POST(req: Request) {
 	if (!parsed.success) return Response.json({ error: 'Invalid request.' }, { status: 400 })
 	const start = performance.now()
  let userVoice
- try { userVoice = userVoiceFromHeaders(req.headers) } catch { return Response.json({ error: 'Invalid voice settings. Check the provider, key, voice ID and model.' }, { status: 400 }) }
+ try { userVoice = await resolveVoiceKey(req) } catch { return Response.json({ error: 'Invalid voice settings. Check the provider, key, voice ID and model.' }, { status: 400 }) }
  const config = fishConfigFromEnv()
  if (!userVoice && !config.apiKey) return Response.json({ error: 'Voice is not configured.' }, { status: 503 })
  let cookie: string | undefined

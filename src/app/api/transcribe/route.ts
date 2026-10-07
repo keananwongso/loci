@@ -1,3 +1,5 @@
+import { resolveVoiceKey } from '@/lib/server/provider-keys'
+import { safeVoiceError } from '@/lib/voice/user-voice'
 import { readLimitedBody, refuseCrossOrigin } from '@/lib/server/request'
 /**
  * Speech to text for hold-to-talk. The recording of the student's question is sent to Fish Audio
@@ -15,18 +17,25 @@ export const dynamic = 'force-dynamic'
 export async function POST(req: Request) {
 	const refusedOrigin = refuseCrossOrigin(req)
 	if (refusedOrigin) return refusedOrigin
-	const config = fishConfigFromEnv()
+	let voice
+	try { voice = await resolveVoiceKey(req) } catch { return Response.json({ error: 'Could not use your voice key. Check API key settings.' }, { status: 400 }) }
+	const ownFish = voice?.provider === 'fish'
+	const config = voice?.provider === 'fish' ? { apiKey: voice.key, model: voice.model } : fishConfigFromEnv()
 	if (!config.apiKey) return Response.json({ error: 'FISH_API_KEY is not set.' }, { status: 503 })
 	const body = await readLimitedBody(req, MAX_RECORDING_BYTES)
 	if (body instanceof Response) return body
 	const audio = new Blob([body as BlobPart], { type: req.headers.get('content-type') ?? '' })
 	if (!audio || audio.size === 0) return Response.json({ error: 'No audio.' }, { status: 400 })
 	if (audio.size > MAX_RECORDING_BYTES) return Response.json({ error: 'Recording too long.' }, { status: 413 })
-	const { refused, cookie } = await guardUsage(req, 'transcribe', 1)
-	if (refused) return refused
-	const device = deviceFor(req)
-	// Only a returning browser (it has the cookie) is attributed; a new random id would be a phantom visitor.
-	await recordStats({ transcriptions: 1 }, device.setCookie ? undefined : { id: device.id, country: countryOf(req) })
+	let cookie: string | undefined
+	if (!ownFish) {
+		const usage = await guardUsage(req, 'transcribe', 1)
+		if (usage.refused) return usage.refused
+		cookie = usage.cookie
+		const device = deviceFor(req)
+		await recordStats({ transcriptions: 1 }, device.setCookie ? undefined : { id: device.id, country: countryOf(req) })
+	}
+
 	const start = performance.now()
 	try {
 		const text = await fishTranscribe(audio, config, req.signal)
@@ -39,6 +48,6 @@ export async function POST(req: Request) {
 		const status = err instanceof FishError ? err.status : 502
 		if (!req.signal.aborted) console.error('[loci] transcription failed:', { status })
 		// Upstream error text may contain credentials; the browser falls back to its own recognition.
-		return Response.json({ error: 'Transcription failed.' }, { status: status >= 400 && status < 600 ? status : 502 })
+		return Response.json({ error: ownFish ? safeVoiceError(status).replace('generate audio', 'transcribe audio') : 'Transcription failed.' }, { status: status >= 400 && status < 600 ? status : 502 })
 	}
 }

@@ -18,7 +18,8 @@ vi.mock('./limits', async (original) => {
 		readQuota: (...args: Parameters<typeof actual.readQuota>) => actual.readQuota(args[0], args[1], args[2], store()),
 	}
 })
-vi.mock('@/lib/providers', () => ({
+vi.mock('@/lib/providers', async (original) => ({
+	...await original<typeof import('@/lib/providers')>(),
 	getProvider: () => ({ name: 'test', model: 'test', isConfigured: () => true, run: state.tutor }),
 	providerForUserKey: state.userProvider,
 }))
