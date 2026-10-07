@@ -8,6 +8,7 @@
  * Without a Fish key, or if a request fails, the browser's built-in voice is used instead.
  */
 import { loadVoiceKey, voiceKeyHeaders } from '@/lib/storage/voiceKey'
+import { bindSpeechControls, resetSpeechTransport, speechTimeout, updateSpeechTransport, waitForSpeechResume } from './transport'
 import { toSpoken } from './spoken'
 import { measureVoice, setSynthSpeaking } from './level'
 import { canSpeak, speak, stopSpeaking } from './speech'
@@ -43,6 +44,11 @@ export function registerStaticVoice(clips: Record<string, string>) {
 export const hasStaticVoice = (text: string) => staticVoice.has(text.trim())
 let element: HTMLAudioElement | null = null
 let stopCurrent: (() => void) | null = null
+let pauseCurrent: ((paused: boolean) => void) | null = null
+let navigating = false
+let speechEpoch = 0
+let history: PreparedSpeech[] = []
+let requestedIndex: number | null = null
 
 /** Fish Audio is set up on the server (known once checkSpeechProvider has run). */
 export const hasFish = () => provider === 'fish'
@@ -131,8 +137,7 @@ function recordedAudio(audio: Promise<AudioStream | null>): Promise<Blob | null>
 	}), 30000, null)
 }
 
-const timeout = <T>(p: Promise<T>, ms: number, fallback: T) =>
-	Promise.race([p, new Promise<T>((r) => setTimeout(() => r(fallback), ms))])
+const timeout = speechTimeout
 
 function sharedAudio() {
 	if (!element) {
@@ -151,14 +156,35 @@ export interface Playback {
 
 /** Play one prepared sentence. Synthesis can take seconds, so `started` and `done` are separate. */
 export function playSpeech(p: PreparedSpeech): Playback {
-	let markStarted = () => {}
-	const started = new Promise<void>((r) => (markStarted = r))
-	const done = play(p, markStarted).finally(markStarted)
-	return { started, done }
+ let markStarted = () => {}
+ const started = new Promise<void>(r => {markStarted=r})
+ const epoch=speechEpoch
+ history.push(p)
+ let index=history.length-1
+ const done=(async()=>{
+  bindSpeechControls({pause:paused=>pauseCurrent?.(paused),step:direction=>{
+   requestedIndex=direction<0 ? Math.max(0,index-1) : index+1
+   navigating=true;stopCurrent?.();navigating=false
+  }})
+  while(epoch===speechEpoch && index<history.length){
+   updateSpeechTransport({active:true,index,count:history.length,text:history[index].spoken})
+   await waitForSpeechResume(p.controller.signal)
+   if(epoch!==speechEpoch || p.controller.signal.aborted) break
+   await play(history[index],markStarted)
+   pauseCurrent=null
+   if(epoch!==speechEpoch) break
+   if(requestedIndex!==null){index=requestedIndex;requestedIndex=null}
+   else if(index<history.length-1)index++
+   else break
+  }
+ })().finally(()=>{markStarted();if(epoch===speechEpoch){pauseCurrent=null;bindSpeechControls(null);updateSpeechTransport({active:false})}})
+ return {started,done}
 }
 
 async function play(p: PreparedSpeech, onStart: () => void): Promise<void> {
 	const stream = await timeout(p.audio, 12000, null)
+ await waitForSpeechResume(p.controller.signal)
+ if(p.controller.signal.aborted) return
 
 	if (stream) {
 		const audio = sharedAudio()
@@ -177,7 +203,7 @@ async function play(p: PreparedSpeech, onStart: () => void): Promise<void> {
 				audio.addEventListener('error', done)
 				stopCurrent = () => {
 					audio.pause()
-					p.controller.abort()
+					if (!navigating) p.controller.abort()
 					done()
 				}
 			})
@@ -193,7 +219,10 @@ async function play(p: PreparedSpeech, onStart: () => void): Promise<void> {
 				audio.src = URL.createObjectURL(new Blob(stream.chunks as BlobPart[], { type: 'audio/mpeg' }))
 				complete = Promise.resolve()
 			}
-			await audio.play().catch(() => stopCurrent?.())
+			pauseCurrent = paused => { if(paused) audio.pause(); else void audio.play().catch(()=>stopCurrent?.()) }
+   await waitForSpeechResume(p.controller.signal)
+   if(p.controller.signal.aborted){stopCurrent?.();return}
+   await audio.play().catch(() => stopCurrent?.())
 			await Promise.race([finished, complete.then(() => endsWithin(audio, finished))])
 		} finally {
 			if (url) URL.revokeObjectURL(url)
@@ -212,7 +241,8 @@ async function play(p: PreparedSpeech, onStart: () => void): Promise<void> {
 					stopCurrent = null
 					resolve()
 				}
-				speak(p.spoken, done, onStart)
+				pauseCurrent = paused => { if(paused) speechSynthesis.pause(); else speechSynthesis.resume() }
+    speak(p.spoken, done, onStart)
 				stopCurrent = () => {
 					stopSpeaking()
 					done()
@@ -278,6 +308,11 @@ function endsWithin(audio: HTMLAudioElement, finished: Promise<void>) {
 }
 
 export function stopAllSpeech() {
+ speechEpoch++; requestedIndex=null
+ for(const speech of history) speech.controller.abort()
+ history=[]
+ pauseCurrent=null
+ resetSpeechTransport()
 	stopCurrent?.()
 	stopCurrent = null
 	stopSpeaking()

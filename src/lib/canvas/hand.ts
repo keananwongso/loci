@@ -4,6 +4,7 @@
  * this app), and so do the letters and numbers inside its equations. New writing is revealed
  * left to right as the pen moves across it.
  */
+import { getSpeechTransport, subscribeSpeechTransport } from '@/lib/voice/transport'
 import { penAlong } from './presence'
 import { lineClip, type WritingLine } from './writing-layout'
 
@@ -82,6 +83,8 @@ export async function writeIn(shapeId: string, area: { x: number; y: number; w: 
 	style.textContent = `${sel} { clip-path: inset(0 100% 0 0); }`
 	document.head.appendChild(style)
 	let animation: Animation | undefined
+ const syncPause=()=>{if(getSpeechTransport().paused)animation?.pause();else animation?.play()}
+ const unsubscribe=subscribeSpeechTransport(syncPause)
 	try {
 		// Give React a frame to mount the newly created text. Keep it hidden during that frame.
 		await new Promise<void>((resolve) => {
@@ -100,7 +103,7 @@ export async function writeIn(shapeId: string, area: { x: number; y: number; w: 
 				offset += line.w / total
 				frames.push({ clipPath: lineClip(line, 1), offset: Math.min(1, offset) })
 			}
-			animation = shape.animate(frames, { duration: ms, easing: 'linear', fill: 'both' })
+			animation = shape.animate(frames, { duration: ms, easing: 'linear', fill: 'both' }); syncPause()
 			for (const line of lines) {
 				await penAlong({ x: area.x + line.x * area.w, y: area.y + line.y * area.h, w: line.w * area.w, h: line.h * area.h }, ms * line.w / total)
 			}
@@ -109,7 +112,8 @@ export async function writeIn(shapeId: string, area: { x: number; y: number; w: 
 			await penAlong(area, ms)
 		}
 	} finally {
-		style.remove()
+		unsubscribe()
+  style.remove()
 		animation?.cancel()
 	}
 }

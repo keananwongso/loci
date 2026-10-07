@@ -1,4 +1,5 @@
 'use client'
+import { speechClock } from '@/lib/voice/transport'
 import type { Editor } from '@/lib/whiteboard'
 import type { LessonCue, LessonRecording } from '@/lib/storage/lesson'
 import { putBlob } from '@/lib/storage/blobs'
@@ -7,11 +8,11 @@ import { observeWriting } from '@/lib/canvas/hand'
 /** Record the actual document changes, not a second run of model actions with new placement. */
 export function recordLesson(editor: Editor, turnId: string) {
 	const baseline = editor.store.getStoreSnapshot('document')
-	const started = performance.now()
+	const started = speechClock()
 	const recording: LessonRecording = { version: 2, pageId: editor.pageId, baseline, camera: editor.getCamera(), frames: [], cues: [], duration: 0 }
 	let previous = baseline.store
 	let lastCamera = recording.camera
-	const now = () => performance.now() - started
+	const now = () => speechClock() - started
 	const stopWriting = observeWriting(({ shapeId, duration, lines }) => {
 		const start = now()
 		;(recording.writing ??= []).push({ shapeId, start, end: start + duration, lines })

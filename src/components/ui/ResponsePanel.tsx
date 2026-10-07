@@ -4,6 +4,8 @@ import type { Turn } from '@/lib/storage/conversation'
 import { renderRich } from '@/lib/canvas/richtext'
 import { CloseIcon, HistoryIcon, UndoIcon } from './icons'
 import type { TutorStatus } from '../useTutor'
+import { SpeechControls } from './SpeechControls'
+import { LessonPlayer } from './LessonPlayer'
 import { REPO_URL } from './KeyDialog'
 
 const PHASE: Record<Turn['status'], string> = {
@@ -18,7 +20,7 @@ const PHASE: Record<Turn['status'], string> = {
 function TurnView({ turn, live, accounts, onReplay }: { turn: Turn; live: boolean; accounts?: boolean; onReplay: (turn: Turn) => void }) {
 	return (
 		<article className="loci-turn" data-live={live}>
-			{!live && turn.lessonId && <button className="loci-chip-btn" onClick={() => onReplay(turn)}>▶ Replay explanation</button>}
+			{!live && turn.lessonId && <button className="loci-chip-btn" onClick={() => onReplay(turn)}>Review drawings</button>}
 			<div className="loci-turn__q">
 				<span className="loci-turn__ctx">{turn.context}</span>
 				{turn.question}
@@ -99,7 +101,8 @@ export function ResponsePanel({ turns, busy, status, onUndo, onReplay, voice }: 
 		const line = last.said.at(-1)
 		return <div className="loci-captions">
 			{line && <p key={line} className="loci-caption" aria-live="polite">{line}</p>}
-			<div className="loci-caption-actions"><button className="loci-chip-btn" onClick={() => setOpen(true)}>Show transcript</button>{!busy && last.lessonId && <button className="loci-chip-btn" onClick={() => onReplay(last)}>▶ Replay</button>}</div>
+			<div className="loci-caption-actions"><button className="loci-chip-btn" onClick={() => setOpen(true)}>Show transcript</button></div>
+			{busy ? <SpeechControls /> : last.lessonId && <LessonPlayer key={last.lessonId} id={last.lessonId} question={last.question} inline />}
 		</div>
 	}
 
@@ -127,6 +130,7 @@ export function ResponsePanel({ turns, busy, status, onUndo, onReplay, voice }: 
 					</button>
 				</div>
 			</header>
+			{busy ? <SpeechControls /> : last.lessonId && <LessonPlayer key={last.lessonId} id={last.lessonId} question={last.question} inline />}
 			<div className="loci-panel__body" ref={bodyRef}>
 				{shown.map((t) => (
 					<TurnView key={t.id} turn={t} live={busy || (t.id === last.id && live)} accounts={status.accounts} onReplay={onReplay} />

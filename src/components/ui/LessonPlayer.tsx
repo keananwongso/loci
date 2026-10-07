@@ -15,7 +15,7 @@ const SILENT_AUDIO = 'data:audio/wav;base64,UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8A
 
 const clock = (ms: number) => `${Math.floor(ms / 60000)}:${Math.floor(ms / 1000 % 60).toString().padStart(2, '0')}`
 
-export function LessonPlayer({ id, question, onClose }: { id: string; question: string; onClose: () => void }) {
+export function LessonPlayer({ id, question, onClose, inline = false }: { id: string; question: string; onClose?: () => void; inline?: boolean }) {
 	const liveEditor = useEditor()
 	const [lesson, setLesson] = useState<LessonRecording | null>(null)
 	const [error, setError] = useState('')
@@ -32,13 +32,14 @@ export function LessonPlayer({ id, question, onClose }: { id: string; question: 
 	const seeking = useRef(true)
 
 	useEffect(() => {
+		if (inline) return
 		const readonly = liveEditor.getInstanceState().isReadonly
 		liveEditor.updateInstanceState({ isReadonly: true })
 		return () => { liveEditor.updateInstanceState({ isReadonly: readonly }) }
-	}, [liveEditor])
+	}, [liveEditor, inline])
 
 	useEffect(() => {
-		stopAllSpeech()
+		if (!inline) stopAllSpeech()
 		let cancelled = false
 		loadLesson(id).then(async (recording) => {
 			if (!recording) throw new Error('This replay is no longer in browser storage.')
@@ -47,10 +48,10 @@ export function LessonPlayer({ id, question, onClose }: { id: string; question: 
 				const url = await getBlobUrl(cue.audioKey).catch(() => undefined)
 				if (url) urls.current.set(cue.audioKey, url)
 			}))
-			if (!cancelled) setLesson(recording)
+			if (!cancelled) { setLesson(recording); if (inline) { position.current = recording.duration; setTime(recording.duration) } }
 		}).catch(() => { if (!cancelled) setError('Could not open this replay from browser storage.') })
-		return () => { cancelled = true; audioAttempt.current++; audioRef.current?.pause(); stopSpeaking() }
-	}, [id])
+		return () => { cancelled = true; audioAttempt.current++; audioRef.current?.pause(); if (activeCue.current >= 0) stopSpeaking() }
+	}, [id, inline])
 
 	const render = useCallback((at: number, seek = false) => {
 		draw.current?.(at, seek)
@@ -141,15 +142,15 @@ export function LessonPlayer({ id, question, onClose }: { id: string; question: 
 	}
 
 	const cue = lesson?.cues.find((cue) => time >= cue.start && time < cue.end)
-	return <section className="loci-player" aria-label="Explanation replay" onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()} onKeyDown={(e) => {
-		if (e.key === 'Escape') { e.preventDefault(); onClose(); return }
+	return <section className="loci-player" aria-label="Explanation playback" onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()} onKeyDown={(e) => {
+		if (e.key === 'Escape') { e.preventDefault(); onClose?.(); return }
 		if ((e.target as HTMLElement).matches('input, select, button')) return
 		if (e.code === 'Space') { e.preventDefault(); togglePlay() }
 		if (e.code === 'ArrowLeft') { e.preventDefault(); seek(position.current - 10000) }
 		if (e.code === 'ArrowRight') { e.preventDefault(); seek(position.current + 10000) }
 	}}>
-		{lesson && createPortal(<div className="loci-replay-canvas" aria-label="Replaying explanation on the board"><style>{lesson.writing?.map((w) => { const clip = writingClip(w, time); return clip ? `.loci-replay-canvas .loci-shape[data-shape-id="${CSS.escape(w.shapeId)}"] { clip-path: ${clip}; }` : '' }).join('\n')}</style><Whiteboard shapeUtils={shapeUtils} snapshot={lesson.baseline} hideUi onMount={(editor) => { editor.updateInstanceState({ isReadonly: true }); draw.current = createLessonPlayback(editor, lesson); draw.current(position.current, true) }} /></div>, liveEditor.getContainer())}
-		<header><span title={question}>Replay · {question}</span><button className="loci-icon-btn loci-icon-btn--sm" onClick={onClose} aria-label="Finish replay" title="Return to your board"><CloseIcon /></button></header>
+		{lesson && !inline && createPortal(<div className="loci-replay-canvas" aria-label="Replaying explanation on the board"><style>{lesson.writing?.map((w) => { const clip = writingClip(w, time); return clip ? `.loci-replay-canvas .loci-shape[data-shape-id="${CSS.escape(w.shapeId)}"] { clip-path: ${clip}; }` : '' }).join('\n')}</style><Whiteboard shapeUtils={shapeUtils} snapshot={lesson.baseline} hideUi onMount={(editor) => { editor.updateInstanceState({ isReadonly: true }); draw.current = createLessonPlayback(editor, lesson); draw.current(position.current, true) }} /></div>, liveEditor.getContainer())}
+		{!inline && <header><span title={question}>Review · {question}</span><button className="loci-icon-btn loci-icon-btn--sm" onClick={onClose} aria-label="Finish replay" title="Return to your board"><CloseIcon /></button></header>}
 		{error && <p className="loci-player__error" role="alert">{error}</p>}
 		{lesson ? <>
 			{transcript && <aside className="loci-player__transcript" aria-label="Clickable transcript">
@@ -159,7 +160,7 @@ export function LessonPlayer({ id, question, onClose }: { id: string; question: 
 			{!transcript && cue && <p className="loci-player__caption" dangerouslySetInnerHTML={{ __html: renderRich(cue.text) }} />}
 			<div className="loci-player__controls">
 				<input aria-label="Explanation timeline" type="range" min="0" max={Math.ceil(lesson.duration)} step="1" value={Math.ceil(time)} onChange={(e) => seek(Number(e.target.value))} />
-				<div><button onClick={() => seek(position.current - 10000)} className="loci-player__skip" aria-label="Rewind 10 seconds" title="Back 10 seconds"><SkipIcon /><b>10</b></button><button className="loci-player__play" onClick={togglePlay} aria-label={playing ? 'Pause replay' : 'Play replay'}>{playing ? <PauseIcon /> : <PlayIcon />}</button><button onClick={() => seek(position.current + 10000)} className="loci-player__skip" aria-label="Forward 10 seconds" title="Forward 10 seconds"><SkipIcon forward /><b>10</b></button><span>{clock(time)} / {clock(lesson.duration)}</span><select aria-label="Playback speed" value={rate} onChange={(e) => { const next = Number(e.target.value); if (audioRef.current) audioRef.current.playbackRate = next; seeking.current = true; setRate(next) }}>{[0.5, 0.75, 1, 1.25, 1.5, 2].map((r) => <option key={r} value={r}>{r}×</option>)}</select><button aria-pressed={transcript} onClick={() => setTranscript(!transcript)}>Transcript</button></div>
+				<div><button onClick={() => seek(position.current - 10000)} className="loci-player__skip" aria-label="Rewind 10 seconds" title="Back 10 seconds"><SkipIcon /><b>10</b></button><button className="loci-player__play" onClick={togglePlay} aria-label={playing ? 'Pause explanation' : 'Play explanation'}>{playing ? <PauseIcon /> : <PlayIcon />}</button><button onClick={() => seek(position.current + 10000)} className="loci-player__skip" aria-label="Forward 10 seconds" title="Forward 10 seconds"><SkipIcon forward /><b>10</b></button><span>{clock(time)} / {clock(lesson.duration)}</span><select aria-label="Playback speed" value={rate} onChange={(e) => { const next = Number(e.target.value); if (audioRef.current) audioRef.current.playbackRate = next; seeking.current = true; setRate(next) }}>{[0.5, 0.75, 1, 1.25, 1.5, 2].map((r) => <option key={r} value={r}>{r}×</option>)}</select><button aria-pressed={transcript} onClick={() => setTranscript(!transcript)}>Transcript</button></div>
 			</div>
 		</> : !error && <p>Opening the saved explanation…</p>}
 		<audio ref={audioRef} preload="auto" />

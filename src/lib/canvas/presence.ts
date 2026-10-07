@@ -1,4 +1,5 @@
 'use client'
+import { getSpeechTransport, speechClock, speechTimeout } from '@/lib/voice/transport'
 import { atom } from '@/lib/whiteboard'
 
 /**
@@ -33,10 +34,11 @@ export async function moveTutorTo(area: { x: number; y: number; w: number; h: nu
 export async function penAlong(area: { x: number; y: number; w: number; h: number }, ms: number) {
 	const y = area.y + area.h * 0.6
 	tutorPresence.set({ x: area.x, y, away: true, mode: 'drawing' })
-	const start = performance.now()
+	const start = speechClock()
 	const glide = new Promise<void>((resolve) => {
 		const step = () => {
-			const k = Math.min(1, (performance.now() - start) / ms)
+			if(getSpeechTransport().paused){requestAnimationFrame(step);return}
+   const k = Math.min(1, (speechClock() - start) / ms)
 			tutorPresence.update((p) => ({ ...p, x: area.x + area.w * k, y }))
 			if (k < 1) requestAnimationFrame(step)
 			else resolve()
@@ -44,7 +46,7 @@ export async function penAlong(area: { x: number; y: number; w: number; h: numbe
 		requestAnimationFrame(step)
 	})
 	// Animation frames stop in a background tab; the writing must not stall the turn.
-	await Promise.race([glide, wait(ms + 150)])
+	await speechTimeout(glide, ms + 150, undefined)
 }
 
 /** A turn ended: leave a newer recording or transcription alone. */

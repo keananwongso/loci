@@ -12,6 +12,7 @@ import { TutorRequestSchema, type HistoryTurn, type TutorEvent, type TutorReques
 import { userKeyHeaders } from '@/lib/storage/userKey'
 import type { Take, TakeEvent } from '@/lib/demo/pack'
 import type { LessonContext } from '@/lib/topics/schema'
+import { waitForSpeechResume, speechClock } from '@/lib/voice/transport'
 import { mark } from './timeline'
 
 export interface SayPlayback {
@@ -159,7 +160,7 @@ export async function runTutorTurn(
 	let speaking: Promise<void> = opts.leadIn?.catch(() => {}) ?? Promise.resolve()
 	let error: string | undefined
 	let started = false
-	const startedAt = performance.now()
+	const startedAt = speechClock()
 	const events: TakeEvent[] = []
 	// Pacing the pen to the voice: each piece of writing belongs to the sentence before it, and
 	// shares out the time left in that sentence with the writing still to come in it.
@@ -168,7 +169,8 @@ export async function runTutorTurn(
 	const pendingWrites = new Map<number, number>()
 	const enqueue = (fn: () => Promise<void> | void) => {
 		queue = queue.then(async () => {
-			if (signal.aborted) return
+			await waitForSpeechResume(signal)
+   if (signal.aborted) return
 			try {
 				await fn()
 			} catch (err) {
@@ -178,7 +180,7 @@ export async function runTutorTurn(
 	}
 	const handle = (event: TutorEvent) => {
 		if (event.type === 'say' || event.type === 'thought' || event.type === 'action' || event.type === 'status') {
-			events.push({ ...event, t: Math.round(performance.now() - startedAt) })
+			events.push({ ...event, t: Math.round(speechClock() - startedAt) })
 		}
 		if (!started && (event.type === 'say' || event.type === 'action')) {
 			started = true
@@ -190,6 +192,7 @@ export async function runTutorTurn(
 				const prepared = cb.prepareSay?.(event.text)
 				enqueue(async () => {
 					await speaking
+     await waitForSpeechResume(signal)
 					if (signal.aborted) return
 					const area = event.look ? executor.lookArea(event.look) : null
 					if (event.look) console.info(`[loci] looking at ${JSON.stringify(event.look)}${area ? '' : ' (not found)'}`)
@@ -199,7 +202,7 @@ export async function runTutorTurn(
 					}
 					const playback = cb.onSay(event.text, prepared)
 					if (!playback) return
-					playback.started.then(() => (sentenceEnds = performance.now() + speakingTime(event.text)))
+					playback.started.then(() => (sentenceEnds = speechClock() + speakingTime(event.text)))
 					speaking = playback.done.catch(() => {})
 					// Draw what this sentence talks about while it is being said, not before.
 					await Promise.race([playback.started, new Promise((r) => setTimeout(r, MAX_VOICE_WAIT))])
@@ -213,7 +216,7 @@ export async function runTutorTurn(
 				enqueue(async () => {
 					let writeMs: number | undefined
 					if (writes) {
-						const left = sentenceEnds - performance.now()
+						const left = sentenceEnds - speechClock()
 						if (left > 0) writeMs = left / Math.max(1, pendingWrites.get(of) ?? 1)
 						pendingWrites.set(of, (pendingWrites.get(of) ?? 1) - 1)
 					}
