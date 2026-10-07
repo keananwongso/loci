@@ -8,6 +8,7 @@ import { getBlobUrl } from '@/lib/storage/blobs'
 import { renderRich } from '@/lib/canvas/richtext'
 import { speak, stopSpeaking } from '@/lib/voice/speech'
 import { stopAllSpeech } from '@/lib/voice/player'
+import { captionAt, captionParts } from '@/lib/voice/captions'
 import { CloseIcon, SkipIcon, PlayIcon, PauseIcon, MoreIcon } from './icons'
 
 // A brief silent clip unlocks this element when playback begins before the first spoken cue.
@@ -23,6 +24,15 @@ export function LessonPlayer({ id, question, onClose, inline = false }: { id: st
 	const [playing, setPlaying] = useState(false)
 	const [rate, setRate] = useState(1)
 	const [transcript, setTranscript] = useState(false)
+	const sectionRef = useRef<HTMLElement>(null)
+	const [captionLimit, setCaptionLimit] = useState(60)
+	useEffect(() => {
+		const element = sectionRef.current
+		if (!element) return
+		const observer = new ResizeObserver(([entry]) => setCaptionLimit(Math.max(12, Math.floor((entry.contentRect.width - 28) / 8.5))))
+		observer.observe(element)
+		return () => observer.disconnect()
+	}, [])
 	const draw = useRef<ReturnType<typeof createLessonPlayback> | null>(null)
 	const audioAttempt = useRef(0)
 	const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -142,7 +152,7 @@ export function LessonPlayer({ id, question, onClose, inline = false }: { id: st
 	}
 
 	const cue = lesson?.cues.find((cue) => time >= cue.start && time < cue.end) ?? (inline && !playing ? lesson?.cues.at(-1) : undefined)
-	return <section className="loci-player" aria-label="Explanation playback" onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()} onKeyDown={(e) => {
+	return <section ref={sectionRef} className="loci-player" aria-label="Explanation playback" onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()} onKeyDown={(e) => {
 		if (e.key === 'Escape') { e.preventDefault(); onClose?.(); return }
 		if ((e.target as HTMLElement).matches('input, select, button')) return
 		if (e.code === 'Space') { e.preventDefault(); togglePlay() }
@@ -158,7 +168,7 @@ export function LessonPlayer({ id, question, onClose, inline = false }: { id: st
 				{lesson.cues.map((cue, index) => <button key={index} data-active={time >= cue.start && time < cue.end} onClick={() => seek(cue.start)}><time>{clock(cue.start)}</time><span dangerouslySetInnerHTML={{ __html: renderRich(cue.text) }} /></button>)}
 				{!lesson.cues.length && <p>This explanation has drawing only.</p>}
 			</aside>}
-			{!transcript && cue && <button className="loci-player__caption" aria-label="Expand transcript" aria-expanded={false} title="Show full transcript" onClick={() => setTranscript(true)} dangerouslySetInnerHTML={{ __html: renderRich(cue.text) }} />}
+			{!transcript && cue && <button className="loci-player__caption" aria-label="Expand transcript" aria-expanded={false} title="Show full transcript" onClick={() => setTranscript(true)} dangerouslySetInnerHTML={{ __html: renderRich(captionAt(captionParts(cue.text, captionLimit), (time - cue.start) / Math.max(1, cue.end - cue.start))) }} />}
 			<div className="loci-player__controls">
                 <button onClick={() => seek(position.current - 10000)} className="loci-player__skip" aria-label="Rewind 10 seconds" title="Back 10 seconds"><SkipIcon /><b>10</b></button>
                 <button className="loci-player__play" onClick={togglePlay} aria-label={playing ? 'Pause explanation' : 'Play explanation'}>{playing ? <PauseIcon /> : <PlayIcon />}</button>
