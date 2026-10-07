@@ -2432,3 +2432,10 @@ html[data-loci-speech-paused] .loci-shape * { animation-play-state: paused !impo
 .loci-prompt__switch { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border-radius: 50%; }
 .loci-prompt__switch:hover { background: var(--loci-hover); }
 .loci-prompt__switch svg { width: 20px; height: 20px; }
+
+.loci-key-settings { height: min(760px, calc(100dvh - 32px)); display: flex; flex-direction: column; overflow: hidden; }
+.loci-key-settings > nav { flex: none; }
+.loci-key-settings__body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.loci-key-settings .loci-modal__card { animation: none; min-height: 100%; }
+.loci-key-settings__body > div:not([hidden]) { min-height: 100%; display: flex; }
+.loci-key-settings .loci-modal__actions { margin-top: auto; }

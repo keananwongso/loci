@@ -28,7 +28,9 @@ export function KeyDialog({ onClose, initialTab = 'ai' }: { onClose: () => void;
 		<div className="loci-modal" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
 			<div className="loci-key-settings" role="dialog" aria-label="API key settings" aria-modal="true" onKeyDown={e => { if (e.key === 'Escape') onClose(); e.stopPropagation() }}>
     <nav aria-label="Key type"><button type="button" aria-pressed={tab === 'ai'} onClick={()=>setTab('ai')}>AI model</button><button type="button" aria-pressed={tab === 'voice'} onClick={()=>setTab('voice')}>Voice</button></nav>
-    {tab === 'voice' ? <VoiceKeyForm onClose={onClose} /> : <form
+    <div className="loci-key-settings__body">
+    <div hidden={tab !== 'voice'}><VoiceKeyForm onClose={onClose} /></div>
+    <div hidden={tab !== 'ai'}><form
 				className="loci-modal__card"
 				onPointerDown={(e) => e.stopPropagation()}
 				onKeyDown={(e) => e.stopPropagation()}
@@ -87,7 +89,7 @@ export function KeyDialog({ onClose, initialTab = 'ai' }: { onClose: () => void;
 						Use key
 					</button>
 				</div>
-			</form>}
+			</form></div></div>
    </div>
 		</div>
 	)
