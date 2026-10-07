@@ -93,7 +93,9 @@ export type UserKeyProvider = (typeof USER_KEY_PROVIDERS)[number]
  * pointed at the known providers above.
  */
 export function providerForUserKey(provider: string, apiKey: string, model?: string): TutorModelProvider {
-	if (!(USER_KEY_PROVIDERS as readonly string[]).includes(provider)) throw new Error(`Unsupported provider "${provider}".`)
+	if (!(USER_KEY_PROVIDERS as readonly string[]).includes(provider)) throw new Error('Unsupported provider.')
+	if (apiKey.length > 4096 || !/^[\x21-\x7e]+$/.test(apiKey)) throw new Error('Invalid API key format.')
+	if (model && !/^[a-zA-Z0-9][a-zA-Z0-9._:/@+\-]{0,119}$/.test(model)) throw new Error('Invalid model ID.')
 	if (provider === 'anthropic') return new AnthropicProvider({ apiKey, model })
 	const preset = PRESETS[provider]
 	return new OpenAICompatibleProvider({

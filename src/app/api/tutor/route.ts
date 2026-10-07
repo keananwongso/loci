@@ -14,6 +14,7 @@ import { authConfigured } from '@/lib/server/auth'
 import { meterId, viewer } from '@/lib/server/billing'
 import { paidQuota, paidUsage } from '@/lib/server/paid-usage'
 import { countryOf, recordStats } from '@/lib/server/stats'
+import { safeProviderFailure } from '@/lib/server/provider-error'
 import { buildTurnText, SYSTEM_PROMPT, GUIDED_DEMO_PROMPT } from '@/lib/tutor/prompt'
 import { PlanSession, PLAN_PROMPT, PLAN_TOOL } from '@/lib/topics/planner'
 import { ActionSession } from '@/lib/tutor/session'
@@ -87,10 +88,10 @@ async function chooseProvider(
 	if (userKey) {
 		try {
 			return {
-				provider: providerForUserKey(req.headers.get('x-loci-provider') ?? '', userKey, req.headers.get('x-loci-model')?.slice(0, 120) || undefined),
+				provider: providerForUserKey(req.headers.get('x-loci-provider') ?? '', userKey, req.headers.get('x-loci-model') || undefined),
 			}
-		} catch (err) {
-			return Response.json({ error: (err as Error).message }, { status: 400 })
+		} catch {
+			return Response.json({ error: 'Invalid key settings. Choose a supported provider, a valid API key and a model ID if required.' }, { status: 400 })
 		}
 	}
 
@@ -153,6 +154,7 @@ export async function POST(req: Request) {
 	if (chosen instanceof Response) return chosen
 	const { provider, quota, cookie, ownerPays } = chosen
 	if (!provider.isConfigured()) {
+		if (req.headers.has('x-loci-key')) return Response.json({ error: 'Enter a model ID for your chosen provider.' }, { status: 400 })
 		return Response.json({ error: `No model configured. ${provider.setupHint}` }, { status: 503 })
 	}
 
@@ -190,15 +192,16 @@ export async function POST(req: Request) {
 				)
 			} catch (err) {
 				if (!abort.signal.aborted) {
-					console.error('[loci] tutor request failed:', err instanceof Error ? err.message : err)
-					emit({ type: 'error', message: provider.describeError?.(err) ?? (err instanceof Error ? err.message : String(err)) })
+					const failure = safeProviderFailure(err)
+					console.error('[loci] tutor request failed:', { status: failure.status ?? 'unknown' })
+					emit({ type: 'error', message: failure.message })
 				}
 			}
 			if (request.planning && !session.isComplete() && !abort.signal.aborted) emit({ type: 'error', message: 'The model did not return a lesson outline. Try again or choose a model that supports tool calling.' })
 			emit({ type: 'done' })
 			if (ownerPays) await recordStats({ questions: 1, ...tokens }, { ...ownerPays, unique: 'askers' })
 			controller.close()
-			console.info(`[loci] tutor ${provider.name} ${provider.model}: ${timing.summary()}${abort.signal.aborted ? ' (stopped)' : ''}`)
+			console.info(`[loci] tutor ${ownerPays ? `${provider.name} ${provider.model}` : 'user provider'}: ${timing.summary()}${abort.signal.aborted ? ' (stopped)' : ''}`)
 		},
 		cancel() {
 			abort.abort()

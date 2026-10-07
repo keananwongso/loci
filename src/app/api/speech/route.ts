@@ -42,9 +42,8 @@ export async function POST(req: Request) {
 		return res
 	} catch (err) {
 		const status = err instanceof FishError ? err.status : 502
-		const message = err instanceof Error ? err.message : 'Speech failed.'
-		if (!req.signal.aborted) console.error('[loci] speech failed:', message)
-		// The upstream detail stays in the server log; the browser just falls back to its own voice.
+		if (!req.signal.aborted) console.error('[loci] speech failed:', { status })
+		// Upstream error text may contain credentials; the browser falls back to its own voice.
 		return Response.json({ error: 'Speech failed.' }, { status: status >= 400 && status < 600 ? status : 502 })
 	}
 }

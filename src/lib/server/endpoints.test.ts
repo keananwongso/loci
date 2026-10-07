@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { MemoryStore } from './limits'
 
-const state = vi.hoisted(() => ({ store: null as unknown, account: null as import('./billing').Subscription | null, userId: null as string | null, signedIn: false, unavailable: false, tutor: vi.fn(), speech: vi.fn(), transcribe: vi.fn() }))
+const state = vi.hoisted(() => ({ store: null as unknown, account: null as import('./billing').Subscription | null, userId: null as string | null, signedIn: false, unavailable: false, tutor: vi.fn(), userProvider: vi.fn(), speech: vi.fn(), transcribe: vi.fn() }))
 vi.mock('./auth', () => ({ authConfigured: () => true, currentUser: async () => state.signedIn ? { id: 'free-user' } : null }))
 vi.mock('./billing', async (original) => ({
 	meterId: (await original<typeof import('./billing')>()).meterId,
@@ -20,7 +20,7 @@ vi.mock('./limits', async (original) => {
 })
 vi.mock('@/lib/providers', () => ({
 	getProvider: () => ({ name: 'test', model: 'test', isConfigured: () => true, run: state.tutor }),
-	providerForUserKey: () => { throw new Error('Unsupported provider') },
+	providerForUserKey: state.userProvider,
 }))
 vi.mock('@/lib/voice/fish', async (original) => ({
 	...await original<typeof import('@/lib/voice/fish')>(),
@@ -56,12 +56,43 @@ beforeEach(() => {
 	vi.stubEnv('LOCI_LIMIT_TRANSCRIBE_PER_DEVICE', '1')
 	vi.stubEnv('FISH_API_KEY', 'test-only-key')
 	state.tutor.mockResolvedValue(undefined)
+	state.userProvider.mockImplementation(() => { throw new Error('Unsupported provider') })
 	state.speech.mockImplementation(async () => new ReadableStream({ start(c) { c.enqueue(new Uint8Array([1])); c.close() } }))
 	state.transcribe.mockResolvedValue('a test question')
 })
 afterEach(() => vi.unstubAllEnvs())
 
 describe('paid public endpoints', () => {
+	it('does not expose echoed BYOK secrets in provider failures or logs', async () => {
+		const secret = 'sk-test-only-private-key'
+		const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {})
+		const infoLog = vi.spyOn(console, 'info').mockImplementation(() => {})
+		try {
+			state.userProvider.mockReturnValue({
+				name: 'deepseek', model: 'deepseek-flash', isConfigured: () => true,
+				run: async () => { throw Object.assign(new Error(`Authorization: ${secret}`), { status: 401 }) },
+				describeError: () => `Echoed key: ${secret}`,
+			})
+			const response = await tutor(req('tutor', JSON.stringify(question), { 'x-loci-key': secret, 'x-loci-provider': 'deepseek' }))
+			const body = await response.text()
+			expect(response.status).toBe(200)
+			expect(body).toContain('provider rejected the API key')
+			expect(body).not.toContain(secret)
+			expect(JSON.stringify(errorLog.mock.calls)).not.toContain(secret)
+			expect(JSON.stringify(infoLog.mock.calls)).not.toContain(secret)
+			expect(state.tutor).not.toHaveBeenCalled()
+		} finally { errorLog.mockRestore(); infoLog.mockRestore() }
+	})
+
+	it('does not expose credentials in rejected provider settings', async () => {
+		const secret = 'sk-test-only-private-key'
+		state.userProvider.mockImplementation(() => { throw new Error(`Unsupported provider ${secret}`) })
+		const response = await tutor(req('tutor', JSON.stringify(question), { 'x-loci-key': secret, 'x-loci-provider': secret }))
+		expect(response.status).toBe(400)
+		expect(await response.text()).not.toContain(secret)
+		expect(state.tutor).not.toHaveBeenCalled()
+	})
+
 	it('distinguishes a signed-in free user from an anonymous visitor independently of billing', async () => {
 		state.signedIn = true
 		vi.stubEnv('LOCI_DEMO_LIMITS', 'off')
