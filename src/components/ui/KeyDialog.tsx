@@ -20,6 +20,7 @@ export function KeyDialog({ onClose }: { onClose: () => void }) {
 	const [key, setKey] = useState(existing?.key ?? '')
 	const [model, setModel] = useState(existing?.model ?? '')
 	const hint = PROVIDERS.find((p) => p.id === provider)?.hint
+	const modelRequired = provider !== 'anthropic' && provider !== 'deepseek'
 
 	return (
 		<div className="loci-modal" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
@@ -47,15 +48,16 @@ export function KeyDialog({ onClose }: { onClose: () => void }) {
 				</label>
 				<label>
 					API key
-					<input type="password" autoComplete="off" spellCheck={false} value={key} onChange={(e) => setKey(e.target.value)} placeholder="Paste your key" />
+					<input type="password" autoComplete="off" spellCheck={false} maxLength={4096} value={key} onChange={(e) => setKey(e.target.value)} placeholder="Paste your key" required />
 				</label>
 				<label>
 					Model <span className="loci-modal__optional">{hint}</span>
-					<input value={model} onChange={(e) => setModel(e.target.value)} placeholder="Leave empty for the default" spellCheck={false} />
+					<input value={model} onChange={(e) => setModel(e.target.value)} placeholder={modelRequired ? 'Enter a model ID' : 'Leave empty for the default'} maxLength={120} required={modelRequired} spellCheck={false} />
 				</label>
 				<p className="loci-modal__fine">
-					Your key is stored only in this browser. With each question it goes to this site&rsquo;s server, which passes it straight to
-					the provider and never stores or logs it. For full privacy,{' '}
+					Your key stays in memory while this page is open. Refreshing or closing the page forgets it.
+					Each question sends it over HTTPS to Loci&rsquo;s server, which uses it to contact your provider.
+					Loci does not save it to a database or browser storage. Only enter a key on a device you trust. You can also{' '}
 					<a href={REPO_URL} target="_blank" rel="noreferrer">
 						run Loci on your own computer
 					</a>
@@ -78,7 +80,7 @@ export function KeyDialog({ onClose }: { onClose: () => void }) {
 						Cancel
 					</button>
 					<button type="submit" className="loci-primary loci-primary--sm" disabled={!key.trim()}>
-						Save
+						Use key
 					</button>
 				</div>
 			</form>

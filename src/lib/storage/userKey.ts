@@ -1,5 +1,5 @@
 'use client'
-/** A visitor's own API key for the hosted demo. Kept only in this browser's localStorage. */
+/** A visitor's API key lives only in this page's memory, never in browser storage. */
 
 export interface UserKey {
 	provider: 'anthropic' | 'openrouter' | 'openai' | 'deepseek' | 'gemini' | 'groq'
@@ -7,22 +7,24 @@ export interface UserKey {
 	model?: string
 }
 
-const KEY = 'loci:user-key'
+const LEGACY_KEY = 'loci:user-key'
+let currentKey: UserKey | null = null
 
-export function loadUserKey(): UserKey | null {
-	try {
-		const raw = localStorage.getItem(KEY)
-		return raw ? (JSON.parse(raw) as UserKey) : null
-	} catch {
-		return null
+/** Delete credentials saved by earlier versions without reading or migrating them. */
+export function removeLegacyUserKey() {
+	for (const storage of ['localStorage', 'sessionStorage'] as const) {
+		try { window[storage].removeItem(LEGACY_KEY) } catch {}
 	}
 }
 
+export function loadUserKey(): UserKey | null {
+	removeLegacyUserKey()
+	return currentKey ? { ...currentKey } : null
+}
+
 export function saveUserKey(value: UserKey | null) {
-	try {
-		if (value) localStorage.setItem(KEY, JSON.stringify(value))
-		else localStorage.removeItem(KEY)
-	} catch {}
+	removeLegacyUserKey()
+	currentKey = value ? { ...value } : null
 	window.dispatchEvent(new CustomEvent('loci:user-key'))
 }
 
