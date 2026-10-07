@@ -170,10 +170,10 @@ export function LessonPlayer({ id, question, onClose, inline = false }: { id: st
 			</aside>}
 			{!transcript && cue && <button className="loci-player__caption" aria-label="Expand transcript" aria-expanded={false} title="Show full transcript" onClick={() => setTranscript(true)} dangerouslySetInnerHTML={{ __html: renderRich(captionAt(captionParts(cue.text, captionLimit), (time - cue.start) / Math.max(1, cue.end - cue.start))) }} />}
 			<div className="loci-player__controls">
-                <button onClick={() => seek(position.current - 10000)} className="loci-player__skip" aria-label="Rewind 10 seconds" title="Back 10 seconds"><SkipIcon /><b>10</b></button>
+                <button onClick={() => seek(position.current - 10000)} className="loci-player__skip" aria-label="Rewind 10 seconds" title="Back 10 seconds"><SkipIcon seconds={10} /></button>
                 <button className="loci-player__play" onClick={togglePlay} aria-label={playing ? 'Pause explanation' : 'Play explanation'}>{playing ? <PauseIcon /> : <PlayIcon />}</button>
                 <input aria-label="Explanation timeline" type="range" min="0" max={Math.ceil(lesson.duration)} step="1" value={Math.ceil(time)} onChange={(e) => seek(Number(e.target.value))} />
-                <button onClick={() => seek(position.current + 10000)} className="loci-player__skip" aria-label="Forward 10 seconds" title="Forward 10 seconds"><SkipIcon forward /><b>10</b></button>
+                <button onClick={() => seek(position.current + 10000)} className="loci-player__skip" aria-label="Forward 10 seconds" title="Forward 10 seconds"><SkipIcon forward seconds={10} /></button>
                 <span className="loci-player__time">{clock(time)} / {clock(lesson.duration)}</span>
                 <details className="loci-player__menu"><summary aria-label="Playback options" title="Playback options"><MoreIcon /></summary><div>
                  <label>Speed<select aria-label="Playback speed" value={rate} onChange={(e) => { const next = Number(e.target.value); if (audioRef.current) audioRef.current.playbackRate = next; seeking.current = true; setRate(next) }}>{[0.5, 0.75, 1, 1.25, 1.5, 2].map((r) => <option key={r} value={r}>{r}×</option>)}</select></label>
