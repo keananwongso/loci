@@ -42,6 +42,8 @@ function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onL
 	const editor = useEditor()
 	const [voiceOut, setVoiceOut] = useState(false)
 	const [loading, setLoading] = useState<string | null>(null)
+	const [keyTab, setKeyTab] = useState<'ai' | 'voice'>('ai')
+ const [voiceNotice, setVoiceNotice] = useState('')
 	const [keyDialog, setKeyDialog] = useState(false)
 	const [replay, setReplay] = useState<Turn | null>(null)
 	const [ownNotes, setOwnNotes] = useState(false)
@@ -53,9 +55,11 @@ function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onL
 	const voiceMode = useValue('tour-voice-mode', () => tutorPresence.get().mode, [])
 
 	useEffect(() => {
-		const open = () => setKeyDialog(true)
+		const open = () => { setKeyTab('ai'); setKeyDialog(true) }
+  const voice = () => { setKeyTab('voice'); setKeyDialog(true) }
 		window.addEventListener('loci:open-key-dialog', open)
-		return () => window.removeEventListener('loci:open-key-dialog', open)
+  window.addEventListener('loci:open-voice-dialog', voice)
+		return () => { window.removeEventListener('loci:open-key-dialog', open); window.removeEventListener('loci:open-voice-dialog', voice) }
 	}, [])
 	const fileRef = useRef<HTMLInputElement>(null)
 	const tutor = useTutor(editor, voiceOut, library.active)
@@ -67,7 +71,7 @@ function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onL
 	}, [])
 
 	// Which voice answers (Fish Audio or the browser's), checked whenever voice is turned on.
-	const [voiceProvider, setVoiceProvider] = useState<'fish' | 'browser' | null>(null)
+	const [voiceProvider, setVoiceProvider] = useState<'fish' | 'elevenlabs' | 'browser' | null>(null)
 	useEffect(() => {
 		// The demo's pre-rendered clips (acknowledgements included) load first, so they aren't synthesized.
 		if (voiceOut)
@@ -76,6 +80,13 @@ function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onL
 				warmAcks()
 			})
 	}, [voiceOut])
+
+ useEffect(() => {
+  const changed = () => { setVoiceNotice(''); void checkSpeechProvider().then(setVoiceProvider) }
+  const fallback = (event: Event) => { setVoiceProvider('browser'); setVoiceNotice((event as CustomEvent<{ message: string }>).detail.message) }
+  window.addEventListener('loci:voice-key', changed); window.addEventListener('loci:voice-fallback', fallback)
+  return () => { window.removeEventListener('loci:voice-key', changed); window.removeEventListener('loci:voice-fallback', fallback) }
+ }, [])
 
 	const toggleVoice = () => {
 		setVoiceOut((v) => {
@@ -267,7 +278,8 @@ function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onL
 			))}
 			{!replay && tour.phase !== 'running' && <TopicLesson busy={tutor.busy || Boolean(loading) || tour.speaking} requestedTopic={requestedTopic} requestKey={topicRequest} onPlanning={setPlanning} onQuota={tutor.updateQuota} onTeach={(question, lesson) => tutor.ask(question, { lesson })} />}
 			{materialAdded && !replay && <div className="loci-material-added" onPointerDown={e => e.stopPropagation()}><span>Material added</span><button onClick={() => { setMaterialAdded(false); window.dispatchEvent(new Event('loci:focus-prompt')) }}>Ask about this</button><button onClick={() => { setMaterialAdded(false); setRequestedTopic(''); setTopicRequest(n => n + 1) }}>Teach me a topic</button><button aria-label="Dismiss material actions" onClick={() => setMaterialAdded(false)}>×</button></div>}
-			{loading && <div className="loci-toast">{loading}</div>}
+			{voiceNotice && <div className="loci-voice-notice" role="status" onPointerDown={e=>e.stopPropagation()}><span>{voiceNotice} Using browser voice.</span><button onClick={()=>{setKeyTab('voice');setKeyDialog(true)}}>Use your own voice key</button><button aria-label="Dismiss voice notice" onClick={()=>setVoiceNotice('')}>×</button></div>}
+   {loading && <div className="loci-toast">{loading}</div>}
 			{!replay && (record ? (
 				<TourRecord tour={tour} busy={tutor.busy || planning} model={tutor.status.model} onRedo={tutor.undoLastTurn} />
 			) : (
@@ -291,7 +303,7 @@ function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onL
 					freeLeft={tutor.status.hosted && !tutor.userKey ? tutor.status.quota?.remaining : undefined}
 				/>
 			</div>
-			{keyDialog && <KeyDialog onClose={() => setKeyDialog(false)} />}
+			{keyDialog && <KeyDialog initialTab={keyTab} onClose={() => setKeyDialog(false)} />}
 			{ownNotes && (
 				<OwnProblem
 					onClose={() => setOwnNotes(false)}

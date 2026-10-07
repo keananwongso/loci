@@ -2403,3 +2403,11 @@ button {
  .loci-topbar:has(.loci-board-library) ~ .loci-topic { left:60px; width:calc(100vw - 76px); top:116px; }
  .loci-topbar:has(.loci-board-library) ~ .loci-empty { padding-left:112px; }
 }
+.loci-key-settings { width:min(460px,100%); max-height:calc(100dvh - 32px); overflow:auto; border-radius:var(--radius-card-lg); background:var(--loci-surface); box-shadow:var(--loci-shadow-lg); }
+.loci-key-settings > nav { display:flex; padding:12px 24px 0; gap:8px; }
+.loci-key-settings > nav button { flex:1; padding:9px; border:0; border-radius:8px; background:transparent; color:var(--loci-ink-2); font:inherit; cursor:pointer; }
+.loci-key-settings > nav button[aria-pressed='true'] { background:var(--loci-hover); color:var(--loci-ink); }
+.loci-key-settings .loci-modal__card { width:100%; box-shadow:none; padding-top:20px; }
+.loci-key-settings .loci-modal__actions { flex-wrap:wrap; }
+.loci-voice-notice { position:absolute; top:76px; right:16px; max-width:340px; z-index:16; padding:12px; display:flex; flex-wrap:wrap; align-items:center; gap:8px; background:var(--loci-surface); box-shadow:var(--loci-shadow); border-radius:12px; font:12px/1.5 var(--loci-sans); }
+.loci-voice-notice button { padding:6px 8px; border:1px solid var(--loci-line); border-radius:6px; background:transparent; color:var(--loci-ink); font:inherit; cursor:pointer; }

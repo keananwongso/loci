@@ -93,6 +93,32 @@ describe('paid public endpoints', () => {
 		expect(state.tutor).not.toHaveBeenCalled()
 	})
 
+	it('uses a Fish voice key without requiring owner credits, quota storage or authentication', async () => {
+  vi.stubEnv('FISH_API_KEY', '')
+  state.unavailable = true
+  const response = await speech(req('speech', JSON.stringify({text:'A longer voice answer'}), {'x-loci-voice-key':'test-only-own-key','x-loci-voice-provider':'fish'}))
+  expect(response.status).toBe(200)
+  await response.arrayBuffer()
+  expect(state.speech).toHaveBeenCalledWith('A longer voice answer', expect.objectContaining({apiKey:'test-only-own-key',model:'s2-pro'}), expect.any(AbortSignal))
+ })
+ it('rejects invalid voice settings before owner synthesis and never falls back to the owner key', async () => {
+  const response = await speech(req('speech', JSON.stringify({text:'Hello'}), {'x-loci-voice-key':'test-secret','x-loci-voice-provider':'unknown'}))
+  expect(response.status).toBe(400)
+  expect(await response.text()).not.toContain('test-secret')
+  expect(state.speech).not.toHaveBeenCalled()
+ })
+ it('keeps echoed voice credentials out of responses and logs', async () => {
+  const log = vi.spyOn(console,'error').mockImplementation(()=>{})
+  try {
+   const {FishError} = await import('@/lib/voice/fish')
+   state.speech.mockRejectedValue(new FishError(401,'test-secret echoed'))
+   const response = await speech(req('speech', JSON.stringify({text:'Hello'}), {'x-loci-voice-key':'test-secret','x-loci-voice-provider':'fish'}))
+   expect(response.status).toBe(401)
+   expect(await response.text()).not.toContain('test-secret')
+   expect(JSON.stringify(log.mock.calls)).not.toContain('test-secret')
+   expect(state.speech).toHaveBeenCalledTimes(1)
+  } finally {log.mockRestore()}
+ })
 	it('distinguishes a signed-in free user from an anonymous visitor independently of billing', async () => {
 		state.signedIn = true
 		vi.stubEnv('LOCI_DEMO_LIMITS', 'off')

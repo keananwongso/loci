@@ -9,7 +9,7 @@ interface Props {
 	library?: React.ReactNode
 	status: TutorStatus
 	voiceOut: boolean
-	voiceProvider: 'fish' | 'browser' | null
+	voiceProvider: 'fish' | 'elevenlabs' | 'browser' | null
 	onToggleVoice: () => void
 	onClear: () => void
 	onSample: () => void
@@ -41,7 +41,7 @@ export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear
 			<span className="loci-topbar__divider" aria-hidden />
 			<button className="loci-icon-btn" data-active={voiceOut} onClick={onToggleVoice} title={
 					voiceOut
-						? `Loci speaks its answers${voiceProvider === 'fish' ? ' (Fish Audio)' : voiceProvider === 'browser' ? " (your browser's voice)" : ''}. Click to turn off.`
+						? `Loci speaks its answers${voiceProvider === 'fish' ? ' (Fish Audio)' : voiceProvider === 'elevenlabs' ? ' (ElevenLabs)' : voiceProvider === 'browser' ? " (your browser's voice)" : ''}. Click to turn off.`
 						: 'Voice mode: Loci speaks its answers'
 				}>
 				<SpeakerIcon off={!voiceOut} />
@@ -87,6 +87,7 @@ export function TopBar({ status, voiceOut, voiceProvider, onToggleVoice, onClear
 						>
 							Use your own API key…
 						</button>
+						<button role="menuitem" onClick={() => { setMenu(false); window.dispatchEvent(new CustomEvent('loci:open-voice-dialog')) }}>Use your own voice key…</button>
 						<button
 							role="menuitem"
 							disabled={busy}

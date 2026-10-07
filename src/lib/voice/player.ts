@@ -7,6 +7,7 @@
  * that follow a sentence are drawn as it is spoken.
  * Without a Fish key, or if a request fails, the browser's built-in voice is used instead.
  */
+import { loadVoiceKey, voiceKeyHeaders } from '@/lib/storage/voiceKey'
 import { toSpoken } from './spoken'
 import { measureVoice, setSynthSpeaking } from './level'
 import { canSpeak, speak, stopSpeaking } from './speech'
@@ -46,14 +47,14 @@ let stopCurrent: (() => void) | null = null
 /** Fish Audio is set up on the server (known once checkSpeechProvider has run). */
 export const hasFish = () => provider === 'fish'
 
-export async function checkSpeechProvider(): Promise<'fish' | 'browser'> {
+export async function checkSpeechProvider(): Promise<'fish' | 'elevenlabs' | 'browser'> {
 	try {
 		const res = await fetch('/api/speech')
 		provider = (await res.json()).provider === 'fish' ? 'fish' : 'browser'
 	} catch {
 		provider = 'browser'
 	}
-	return provider
+	return loadVoiceKey()?.provider || provider
 }
 
 /** Read a response body into an AudioStream; resolves at the first chunk (null if it never comes). */
@@ -96,23 +97,25 @@ export function prepareSpeech(text: string): PreparedSpeech {
 	const spoken = toSpoken(text)
 	const controller = new AbortController()
 	const clip = staticVoice.get(text.trim())
-	if (clip) {
+	if (clip && !loadVoiceKey()) {
 		const audio = fetch(clip, { signal: controller.signal })
 			.then((r) => (r.ok && r.body ? streamAudio(r) : null))
 			.catch(() => null)
 		return { spoken, audio, controller, recording: recordedAudio(audio) }
 	}
 	const audio =
-		provider === 'fish' && spoken
+		(loadVoiceKey() || provider === 'fish') && spoken
 			? fetch('/api/speech', {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
+					headers: { 'Content-Type': 'application/json', ...voiceKeyHeaders() },
 					body: JSON.stringify({ text: spoken.slice(0, 1500) }),
 					signal: controller.signal,
 				})
 					.then(async (r) => {
 						if (r.ok && r.body) return streamAudio(r)
-						console.warn('[loci] speech fell back to the browser voice:', (await r.json().catch(() => ({}))).error)
+						const error = (await r.json().catch(() => ({}))).error || 'Voice request failed.'
+      window.dispatchEvent(new CustomEvent('loci:voice-fallback', { detail: { message: error } }))
+      console.warn('[loci] speech fell back to the browser voice:', error)
 						return null
 					})
 					.catch(() => null)

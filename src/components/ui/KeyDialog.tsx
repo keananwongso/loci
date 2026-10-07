@@ -1,4 +1,5 @@
 'use client'
+import { VoiceKeyForm } from './VoiceKeyForm'
 import { useState } from 'react'
 import { loadUserKey, saveUserKey, type UserKey } from '@/lib/storage/userKey'
 
@@ -14,7 +15,8 @@ const PROVIDERS: Array<{ id: UserKey['provider']; label: string; hint: string }>
 export const REPO_URL = 'https://github.com/keananwongso/loci'
 
 /** Lets a visitor use their own API key: unlimited questions, any supported provider. */
-export function KeyDialog({ onClose }: { onClose: () => void }) {
+export function KeyDialog({ onClose, initialTab = 'ai' }: { onClose: () => void; initialTab?: 'ai' | 'voice' }) {
+	const [tab, setTab] = useState(initialTab)
 	const existing = loadUserKey()
 	const [provider, setProvider] = useState<UserKey['provider']>(existing?.provider ?? 'anthropic')
 	const [key, setKey] = useState(existing?.key ?? '')
@@ -24,7 +26,9 @@ export function KeyDialog({ onClose }: { onClose: () => void }) {
 
 	return (
 		<div className="loci-modal" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-			<form
+			<div className="loci-key-settings" role="dialog" aria-label="API key settings" aria-modal="true" onKeyDown={e => { if (e.key === 'Escape') onClose(); e.stopPropagation() }}>
+    <nav aria-label="Key type"><button type="button" aria-pressed={tab === 'ai'} onClick={()=>setTab('ai')}>AI model</button><button type="button" aria-pressed={tab === 'voice'} onClick={()=>setTab('voice')}>Voice</button></nav>
+    {tab === 'voice' ? <VoiceKeyForm onClose={onClose} /> : <form
 				className="loci-modal__card"
 				onPointerDown={(e) => e.stopPropagation()}
 				onKeyDown={(e) => e.stopPropagation()}
@@ -83,7 +87,8 @@ export function KeyDialog({ onClose }: { onClose: () => void }) {
 						Use key
 					</button>
 				</div>
-			</form>
+			</form>}
+   </div>
 		</div>
 	)
 }

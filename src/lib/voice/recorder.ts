@@ -79,7 +79,7 @@ export function startRecording(onInterim?: (text: string) => void, hasBrowserWor
 
 /** Fish Audio transcript of a clip, or null when transcription is unavailable or fails. */
 export async function transcribe(clip: Blob, timeoutMs = 8000, signal?: AbortSignal): Promise<string | null> {
-	if (!hasFish() && (await within(checkSpeechProvider(), 1500, 'browser' as const)) !== 'fish') return null
+	if (!hasFish()) { await within(checkSpeechProvider(), 1500, 'browser' as const); if (!hasFish()) return null }
 	const controller = new AbortController()
 	const abort = () => controller.abort()
 	if (signal?.aborted) return null

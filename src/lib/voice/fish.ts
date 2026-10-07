@@ -61,6 +61,7 @@ export async function fishSpeech(text: string, config: FishConfig, signal?: Abor
 	if (config.voiceId) payload.reference_id = config.voiceId
 	const res = await (config.fetch ?? fetch)(FISH_URL, {
 		method: 'POST',
+		redirect: 'error',
 		signal,
 		headers: { Authorization: `Bearer ${config.apiKey}`, 'Content-Type': 'application/msgpack', model: config.model },
 		body: encode(payload),
@@ -95,6 +96,7 @@ export async function fishTranscribe(audio: Blob, config: FishConfig, signal?: A
 	form.append('language', 'en')
 	const res = await (config.fetch ?? fetch)(FISH_ASR_URL, {
 		method: 'POST',
+		redirect: 'error',
 		signal,
 		headers: { Authorization: `Bearer ${config.apiKey}` },
 		body: form,
