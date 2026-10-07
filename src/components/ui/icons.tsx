@@ -124,3 +124,7 @@ export const TrashIcon = () => <Icon><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13
 export const SkipIcon = ({ forward = false }: { forward?: boolean }) => <Icon style={forward ? { transform: 'scaleX(-1)' } : undefined}><path d="M4 9V4m0 5h5M4 9a8 8 0 1 1-1 7" /></Icon>
 export const PlayIcon = () => <Icon><path d="m9 5 11 7-11 7z" fill="currentColor" stroke="none" /></Icon>
 export const PauseIcon = () => <Icon><path d="M9 6v12M15 6v12" strokeWidth={3} /></Icon>
+
+export const KeyboardIcon = () => (
+ <Icon><rect x="2" y="5" width="20" height="14" rx="3" /><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M7 15h10" /></Icon>
+)

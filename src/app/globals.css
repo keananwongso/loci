@@ -2420,3 +2420,15 @@ button {
 .loci-speech-controls svg { width: 18px; height: 18px; }
 .loci-speech-controls span { font-size: 12px; color: #777; }
 html[data-loci-speech-paused] .loci-shape * { animation-play-state: paused !important; }
+
+/* Voice needs only a hold button and a mode switch; typing uses the full composer. */
+.loci-prompt[data-typing='false'] { align-self: center; width: fit-content; max-width: 100%; padding: 6px; border-radius: 999px; }
+.loci-prompt[data-typing='false'] .loci-prompt__meta { position: absolute; bottom: calc(100% + 10px); right: 0; width: max-content; max-width: min(700px, calc(100vw - 100px)); padding: 0; }
+.loci-prompt[data-typing='false'] .loci-prompt__meta:has(.loci-topic) { min-width: 140px; }
+.loci-prompt[data-typing='false'] .loci-topic__toggle { background: var(--loci-surface); }
+.loci-prompt .loci-prompt__context[hidden], .loci-prompt .loci-prompt__voice-hint[hidden] { display: none; }
+.loci-prompt[data-typing='false'] .loci-prompt__controls { gap: 6px; }
+.loci-prompt[data-typing='false'] .loci-prompt__voice-hint { max-width: 220px; padding: 0 6px; }
+.loci-prompt__switch { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border-radius: 50%; }
+.loci-prompt__switch:hover { background: var(--loci-hover); }
+.loci-prompt__switch svg { width: 20px; height: 20px; }

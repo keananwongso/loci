@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useEditor, useValue } from '@/lib/whiteboard'
 import { describeSelection } from '../selection'
 import { heard, tutorPresence, talkKeysLabel } from '@/lib/canvas/presence'
-import { LayersIcon, MicIcon, PageIcon, SendIcon, StopIcon } from './icons'
+import { KeyboardIcon, LayersIcon, MicIcon, PageIcon, SendIcon, StopIcon } from './icons'
 
 interface Props {
 	busy: boolean
@@ -73,9 +73,9 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft, pro, 
 	}
 
 	return (
-		<div className="loci-prompt" onPointerDown={(e) => e.stopPropagation()} data-listening={listening} data-typing={typing}>
+		<div className="loci-prompt" onPointerDown={(e) => e.stopPropagation()} data-listening={listening} data-typing={typing || Boolean(talkDisabled)}>
 			<div className="loci-prompt__meta">
-				<div className="loci-prompt__context" data-active={hasSelection} title="What Loci will look at">
+				<div hidden={!hasSelection && !typing && !talkDisabled} className="loci-prompt__context" data-active={hasSelection} title="What Loci will look at">
 					{hasSelection ? <PageIcon /> : <LayersIcon />}
 					<span>{context}</span>
 				</div>
@@ -104,7 +104,7 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft, pro, 
 								if (e.key === 'Escape') { e.preventDefault(); setTyping(false) }
 							}}
 						/>
-						{!talkDisabled && <button className="loci-prompt__switch" onClick={() => setTyping(false)}>Use voice</button>}
+						{!talkDisabled && <button className="loci-prompt__switch" aria-label="Switch to voice" title="Switch to voice" onClick={() => setTyping(false)}><MicIcon /></button>}
 						{!busy && <button className="loci-send" onClick={submit} disabled={!text.trim() || Boolean(disabledReason)} title="Ask (Enter)" aria-label="Ask"><SendIcon /></button>}
 					</>
 				) : (
@@ -126,10 +126,10 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft, pro, 
 							<MicIcon />
 							<span>{listening ? 'Listening…' : transcribing ? 'Transcribing…' : <>Hold <kbd title={keys === '⌃ + ⌥' ? 'Control + Option' : keys}>{keys}</kbd> to talk</>}</span>
 						</button>
-						<div className="loci-prompt__voice-hint" role="status" aria-live="polite">
+						<div hidden={!listening && !transcribing && !disabledReason} className="loci-prompt__voice-hint" role="status" aria-live="polite">
 							{listening || transcribing ? <><span className="loci-prompt__heard">{transcript || (listening ? 'Ask about your notes' : 'Finishing your question')}</span><small>{listening ? 'Release to send' : 'Sending when ready'}</small></> : <span>{disabledReason ?? (talkDisabled ? 'Type a new question to leave replay' : 'Point at your notes while you talk')}</span>}
 						</div>
-						<button className="loci-prompt__switch" onClick={() => setTyping(true)}>Type instead</button>
+						<button className="loci-prompt__switch" aria-label="Switch to typing" title="Type a question (/)" disabled={listening || transcribing} onClick={() => setTyping(true)}><KeyboardIcon /></button>
 					</>
 				)}
 				{busy && <button className="loci-send loci-send--stop" onClick={onStop} title="Stop" aria-label="Stop"><StopIcon /></button>}
