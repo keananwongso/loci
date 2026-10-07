@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('./level', () => ({ openMic: vi.fn(async () => ({})), releaseMic: vi.fn() }))
 vi.mock('./player', () => ({ hasFish: () => true, checkSpeechProvider: async () => 'fish' }))
-import { startRecording } from './recorder'
+import { startRecording, transcribe } from './recorder'
+import { saveVoiceKey } from '@/lib/storage/voiceKey'
 
 class Recorder {
 	static current: Recorder
@@ -19,9 +20,12 @@ class Recorder {
 beforeEach(() => {
 	vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] })
 	vi.stubGlobal('MediaRecorder', Recorder)
+	vi.stubGlobal('window', { dispatchEvent: vi.fn() })
+	vi.stubGlobal('CustomEvent', class { constructor(public type: string) {} })
+	saveVoiceKey(null)
 	vi.spyOn(console, 'warn').mockImplementation(() => {})
 })
-afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
+afterEach(() => { saveVoiceKey(null); vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
 describe('transcript previews during recording', () => {
 	it('sends cumulative audio while held, caps previews at two, and preserves the full final recording', async () => {
@@ -72,4 +76,18 @@ describe('transcript previews during recording', () => {
 		await vi.advanceTimersByTimeAsync(0)
 		expect(update).not.toHaveBeenCalled()
 	})
+})
+
+it('sends personal Fish transcription headers for both page-only and saved references', async () => {
+ const send = vi.fn(async (_url: string, _init?: RequestInit) => Response.json({ text: 'test words' }))
+ vi.stubGlobal('fetch', send)
+ saveVoiceKey({ provider: 'fish', key: 'page-key' })
+ expect(await transcribe(new Blob(['audio']))).toBe('test words')
+ expect(send.mock.calls[0][1]?.headers).toMatchObject({ 'x-loci-voice-key': 'page-key', 'x-loci-voice-provider': 'fish' })
+ saveVoiceKey({ provider: 'fish', key: '', saved: true })
+ await transcribe(new Blob(['audio']))
+ expect(send.mock.calls[1][1]?.headers).toMatchObject({ 'x-loci-saved-voice': '1' })
+ saveVoiceKey({ provider: 'elevenlabs', key: 'eleven-key', voiceId: 'voice' })
+ await transcribe(new Blob(['audio']))
+ expect(send.mock.calls[2][1]?.headers).toEqual({ 'Content-Type': '' })
 })

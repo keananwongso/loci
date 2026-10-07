@@ -2,6 +2,7 @@
 import { BrandLogo } from '@/components/ui/BrandLogo'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { clearSavedKeyStatus } from '@/lib/storage/savedKeys'
 import { saveVoiceKey } from '@/lib/storage/voiceKey'
 import { saveUserKey } from '@/lib/storage/userKey'
 
@@ -126,7 +127,7 @@ export default function AccountPage() {
 			const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined })
 			const data = await res.json()
 			if (!res.ok) throw new Error(data.error || 'Please try again.')
-			if (path === '/api/auth/logout') { saveUserKey(null); saveVoiceKey(null) }
+			if (path === '/api/auth/logout') { saveUserKey(null); saveVoiceKey(null); clearSavedKeyStatus() }
 			if (data.url) { window.location.assign(data.url); return }
 			if (data.sent) setNotice('Check your email for a sign-in link. Open it in this browser.')
 			else await load()

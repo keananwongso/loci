@@ -2546,3 +2546,6 @@ html[data-loci-speech-paused] .loci-shape * { animation-play-state: paused !impo
 .loci-player__skip svg { width: 18px; height: 18px; flex: none; }
 .loci-landing__account a.loci-landing__dashboard { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border-radius: 50%; }
 .loci-landing__dashboard svg, .loci-corner a[aria-label='Your dashboard'] svg { width: 22px; height: 22px; display: block; }
+.loci-modal__card label.loci-key-remember { display: flex; align-items: center; gap: 9px; }
+.loci-key-remember input[type='checkbox'] { width: 16px; height: 16px; margin: 0; accent-color: var(--loci-ink); }
+.loci-key-saved { margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--loci-taupe); font-size: 12px; color: var(--loci-ink-2); }

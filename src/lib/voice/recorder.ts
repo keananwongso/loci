@@ -92,7 +92,7 @@ export async function transcribe(clip: Blob, timeoutMs = 8000, signal?: AbortSig
 		if (controller.signal.aborted) return null
 		const res = await fetch('/api/transcribe', { method: 'POST', body: audio, headers: { 'Content-Type': audio.type, ...(loadVoiceKey()?.provider === 'fish' ? voiceKeyHeaders() : {}) }, signal: controller.signal })
 		if (!res.ok) {
-			onFailure?.(res.status === 429 ? 'Transcription allowance reached. Type your question instead.' : 'Could not transcribe your recording. Try typing instead.')
+			onFailure?.(res.status === 429 ? (loadVoiceKey()?.provider === 'fish' ? 'Your Fish Audio quota or rate limit was reached. Check your provider account.' : 'Transcription allowance reached. Type your question instead.') : 'Could not transcribe your recording. Try typing instead.')
 			console.warn('[loci] Fish transcription failed:', (await res.json().catch(() => ({}))).error ?? res.status)
 			return null
 		}
