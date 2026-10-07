@@ -82,7 +82,7 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft, pro, 
 		<div className="loci-prompt" onPointerDown={(e) => e.stopPropagation()} data-learning={learning} data-listening={listening} data-typing={typing || Boolean(talkDisabled)}>
 			{hint && !learning && <div className="loci-input-onboarding" role="tooltip"><span>Hold the mic to ask, type with the keyboard, or add your study materials.</span><button aria-label="Dismiss input tip" onClick={dismissHint}>×</button></div>}
 			<div className="loci-prompt__meta">
-				<div hidden={!hasSelection && !typing && !talkDisabled} className="loci-prompt__context" data-active={hasSelection} title="What Loci will look at">
+				<div hidden={!hasSelection} className="loci-prompt__context" data-active={hasSelection} title="What Loci will look at">
 					{hasSelection ? <PageIcon /> : <LayersIcon />}
 					<span>{context}</span>
 				</div>
@@ -110,7 +110,7 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft, pro, 
 								if (e.key === 'Escape') { e.preventDefault(); setTyping(false) }
 							}}
 						/>
-						{!talkDisabled && <button className="loci-prompt__switch" aria-label="Switch to voice" title="Switch to voice" onClick={() => setTyping(false)}><MicIcon /><span>Voice</span></button>}
+						{!talkDisabled && <button className="loci-prompt__switch" aria-label="Switch to voice" title="Switch to voice" onClick={() => setTyping(false)}><MicIcon /></button>}
 						{!busy && <button className="loci-send" onClick={submit} disabled={!text.trim() || Boolean(disabledReason)} title="Ask (Enter)" aria-label="Ask"><SendIcon /></button>}
 					</>
 				) : (

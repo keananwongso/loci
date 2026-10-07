@@ -154,10 +154,11 @@ export function LessonPlayer({ id, question, onClose, inline = false }: { id: st
 		{error && <p className="loci-player__error" role="alert">{error}</p>}
 		{lesson ? <>
 			{transcript && <aside className="loci-player__transcript" aria-label="Clickable transcript">
+				<button className="loci-player__collapse" onClick={() => setTranscript(false)}>Hide transcript</button>
 				{lesson.cues.map((cue, index) => <button key={index} data-active={time >= cue.start && time < cue.end} onClick={() => seek(cue.start)}><time>{clock(cue.start)}</time><span dangerouslySetInnerHTML={{ __html: renderRich(cue.text) }} /></button>)}
 				{!lesson.cues.length && <p>This explanation has drawing only.</p>}
 			</aside>}
-			{!transcript && cue && <p className="loci-player__caption" dangerouslySetInnerHTML={{ __html: renderRich(cue.text) }} />}
+			{!transcript && cue && <button className="loci-player__caption" aria-label="Expand transcript" aria-expanded={false} title="Show full transcript" onClick={() => setTranscript(true)} dangerouslySetInnerHTML={{ __html: renderRich(cue.text) }} />}
 			<div className="loci-player__controls">
                 <button onClick={() => seek(position.current - 10000)} className="loci-player__skip" aria-label="Rewind 10 seconds" title="Back 10 seconds"><SkipIcon /><b>10</b></button>
                 <button className="loci-player__play" onClick={togglePlay} aria-label={playing ? 'Pause explanation' : 'Play explanation'}>{playing ? <PauseIcon /> : <PlayIcon />}</button>

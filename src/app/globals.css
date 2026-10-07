@@ -2518,3 +2518,17 @@ html[data-loci-speech-paused] .loci-shape * { animation-play-state: paused !impo
 .loci-input-onboarding { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); width: min(340px, calc(100vw - 100px)); display: flex; align-items: flex-start; gap: 8px; padding: 12px 14px; border-radius: 12px; background: var(--loci-surface); box-shadow: var(--loci-shadow-lg); font-size: 12px; line-height: 1.5; color: var(--loci-ink-3); }
 .loci-input-onboarding button { flex: none; border: 0; background: transparent; font: inherit; cursor: pointer; }
 .loci-study-menu[data-open='false']:not(:has(.loci-topic[data-open='true'])) { display: none; }
+
+/* One-line preview and a single-row composer keep the notes visible. */
+.loci-player__caption { display: block; width: 100%; border: 0; background: transparent; font: inherit; font-size: 13px; padding: 10px 14px 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.loci-player__caption:hover { color: var(--loci-ink); }
+.loci-player__controls { padding: 8px 10px; }
+.loci-dock { gap: 8px; }
+.loci-prompt[data-typing='true'] { padding: 6px 8px; border-radius: 24px; }
+.loci-prompt__meta:not(:has(.loci-prompt__context:not([hidden]), .loci-prompt__quota)) { display: none; }
+.loci-prompt[data-typing='true'] .loci-prompt__controls { gap: 6px; }
+.loci-prompt[data-typing='true'] .loci-prompt__switch { width: 34px; height: 34px; padding: 0; background: transparent; }
+.loci-prompt[data-learning='true'][data-typing='true'] .loci-study-control { position: fixed; right: 16px; bottom: 86px; padding: 6px; border-radius: 26px; background: var(--loci-surface); box-shadow: var(--loci-shadow-lg); }
+.loci-prompt[data-learning='true'] .loci-study-menu { right: calc(100% + 12px); bottom: 0; }
+.loci-prompt[data-learning='true'] .loci-topic__panel { position: fixed; right: 88px; bottom: 86px; transform: none; }
+.loci-player__transcript .loci-player__collapse { justify-content: flex-end; padding: 4px 6px; font-size: 11px; color: var(--loci-ink-3); }

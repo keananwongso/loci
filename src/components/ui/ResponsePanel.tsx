@@ -97,7 +97,7 @@ export function ResponsePanel({ turns, busy, status, onUndo, onReplay, voice }: 
 		)
 	}
 	if (!last) return null
-	if (!open) {
+	if (!open || (!busy && last.lessonId)) {
 		const line = last.said.at(-1)
 		return <div className="loci-captions">
 			{line && (busy || !last.lessonId) && <p key={line} className="loci-caption" aria-live="polite">{line}</p>}
