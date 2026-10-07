@@ -3,7 +3,7 @@ import { useState, useSyncExternalStore, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import { BrandLogo } from './ui/BrandLogo'
 
-const MOBILE_QUERY = '(max-width: 767px), (hover: none) and (pointer: coarse)'
+const MOBILE_QUERY = '(max-width: 767px) and (hover: none) and (pointer: coarse)'
 const subscribe = (notify: () => void) => {
 	const media = window.matchMedia(MOBILE_QUERY)
 	media.addEventListener('change', notify)
