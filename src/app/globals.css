@@ -374,11 +374,11 @@ button {
 }
 
 .loci-prompt:focus-within {
-	box-shadow: var(--loci-shadow-lg), 0 0 0 1px var(--loci-ink);
+	box-shadow: 0 2px 8px #00000006, 0 12px 36px -10px #00000028;
 }
 
 .loci-prompt[data-listening='true'] {
-	box-shadow: var(--loci-shadow-lg), 0 0 0 1px var(--loci-ink), 0 0 0 5px var(--loci-taupe);
+	box-shadow: 0 4px 12px #00000008, 0 14px 40px -10px #00000030, 0 0 0 4px var(--loci-taupe);
 }
 
 .loci-prompt__context {
@@ -2457,3 +2457,5 @@ html[data-loci-speech-paused] .loci-shape * { animation-play-state: paused !impo
 .loci-board-sidebar__groups .loci-sidebar-delete-space { width: 24px; height: 24px; padding: 0; justify-content: center; flex: none; }
 .loci-board-sidebar__groups [data-drop='true'] { outline: 2px solid var(--color-violet-spark); outline-offset: -2px; }
 .loci-sidebar-board-row[data-drop='true'] { outline: none; border-top: 2px solid var(--color-violet-spark); }
+
+.loci-prompt[data-typing='true'] .loci-prompt__switch { display: inline-flex; gap: 6px; width: auto; padding: 0 12px; background: var(--loci-taupe); border-radius: 999px; color: var(--loci-ink-2); }

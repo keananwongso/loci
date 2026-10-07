@@ -21,7 +21,7 @@ export function VoiceKeyForm({ onClose }: { onClose: () => void }) {
   } catch (error) { setMessage(error instanceof Error ? error.message : 'Voice test failed.') }
   finally { setTesting(false) }
  }
- return <form className="loci-modal__card" onPointerDown={e=>e.stopPropagation()} onKeyDown={e=>e.stopPropagation()} onSubmit={e=>{ e.preventDefault(); saveVoiceKey({provider, key:key.trim(), voiceId:voiceId.trim() || undefined, model:model.trim() || undefined}); onClose() }}>
+ return <form className="loci-modal__card" onPointerDown={e=>e.stopPropagation()} onKeyDown={e=>{if(e.key !== 'Escape')e.stopPropagation()}} onSubmit={e=>{ e.preventDefault(); saveVoiceKey({provider, key:key.trim(), voiceId:voiceId.trim() || undefined, model:model.trim() || undefined}); onClose() }}>
   <h2>Use your own voice key</h2>
   <p className="loci-modal__lede">Pay your voice provider directly. Spoken answers use your provider’s allowance instead of Loci’s.</p>
   <label>Provider<select value={provider} onChange={e=>{setProvider(e.target.value as VoiceKey['provider']);setKey('');setVoiceId('');setModel('');setMessage('')}}><option value="fish">Fish Audio</option><option value="elevenlabs">ElevenLabs</option></select></label>

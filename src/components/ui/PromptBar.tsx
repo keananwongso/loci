@@ -104,7 +104,7 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft, pro, 
 								if (e.key === 'Escape') { e.preventDefault(); setTyping(false) }
 							}}
 						/>
-						{!talkDisabled && <button className="loci-prompt__switch" aria-label="Switch to voice" title="Switch to voice" onClick={() => setTyping(false)}><MicIcon /></button>}
+						{!talkDisabled && <button className="loci-prompt__switch" aria-label="Switch to voice" title="Switch to voice" onClick={() => setTyping(false)}><MicIcon /><span>Voice</span></button>}
 						{!busy && <button className="loci-send" onClick={submit} disabled={!text.trim() || Boolean(disabledReason)} title="Ask (Enter)" aria-label="Ask"><SendIcon /></button>}
 					</>
 				) : (

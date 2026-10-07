@@ -33,7 +33,7 @@ export function KeyDialog({ onClose, initialTab = 'ai' }: { onClose: () => void;
     <div hidden={tab !== 'ai'}><form
 				className="loci-modal__card"
 				onPointerDown={(e) => e.stopPropagation()}
-				onKeyDown={(e) => e.stopPropagation()}
+				onKeyDown={(e) => { if (e.key !== 'Escape') e.stopPropagation() }}
 				onSubmit={(e) => {
 					e.preventDefault()
 					saveUserKey(key.trim() ? { provider, key: key.trim(), model: model.trim() || undefined } : null)
