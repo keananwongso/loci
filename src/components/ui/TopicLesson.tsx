@@ -17,6 +17,14 @@ export function TopicLesson({ busy, requestedTopic, requestKey, onPlanning, onQu
  const stateJson = useValue('topic-progress', () => JSON.stringify(readTopic(editor)))
  const state = JSON.parse(stateJson) as TopicState | null
  const [open, setOpen] = useState(false)
+ const panelRef = useRef<HTMLElement>(null)
+ useEffect(() => {
+  if (!open) return
+  const close = (event: PointerEvent) => { if (!panelRef.current?.contains(event.target as Node)) setOpen(false) }
+  const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { setOpen(false); panelRef.current?.querySelector<HTMLButtonElement>('button')?.focus() } }
+  document.addEventListener('pointerdown', close, true); document.addEventListener('keydown', escape, true)
+  return () => { document.removeEventListener('pointerdown', close, true); document.removeEventListener('keydown', escape, true) }
+ }, [open])
  const [editing, setEditing] = useState(false)
  const [topic, setTopic] = useState('')
  const [selected, setSelected] = useState<string[]>([])
@@ -86,9 +94,9 @@ export function TopicLesson({ busy, requestedTopic, requestKey, onPlanning, onQu
  }
  const busyNow = busy || planning
  const showSetup = editing || !state
- return <section className="loci-topic" data-open={open} onPointerDown={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()} aria-label="Topic lesson">
+ return <section ref={panelRef} className="loci-topic" data-open={open} onPointerDown={e => e.stopPropagation()} onWheel={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()} aria-label="Topic lesson">
   <button className="loci-topic__toggle" aria-expanded={open} aria-controls="loci-topic-panel" onClick={() => setOpen(v => !v)}>
-   <span>{state ? (state.complete ? 'Review topic' : `Lesson · ${state.current + 1}/${state.plan.sections.length}`) : 'Teach me a topic'}</span><span aria-hidden>{open ? '−' : '+'}</span>
+   <span>{state ? (state.complete ? 'Review topic' : `Lesson · ${state.current + 1}/${state.plan.sections.length}`) : 'Teach me a topic'}</span><span aria-hidden>{open ? '▾' : '▴'}</span>
   </button>
   {open && <div id="loci-topic-panel" className="loci-topic__panel">
    {showSetup ? <>

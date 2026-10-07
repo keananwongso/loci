@@ -278,7 +278,6 @@ function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onL
 			) : tour.phase === 'running' ? null : (
 				<EmptyState saved={Boolean(account)} onUpload={() => setAdding([])} onSample={tour.pack?.steps.length ? startTour : loadSample} loading={loading} />
 			))}
-			{!replay && tour.phase !== 'running' && <TopicLesson busy={tutor.busy || Boolean(loading) || tour.speaking} requestedTopic={requestedTopic} requestKey={topicRequest} onPlanning={setPlanning} onQuota={tutor.updateQuota} onTeach={(question, lesson) => tutor.ask(question, { lesson })} />}
 			{materialAdded && !replay && <div className="loci-material-added" onPointerDown={e => e.stopPropagation()}><span>Material added</span><button onClick={() => { setMaterialAdded(false); window.dispatchEvent(new Event('loci:focus-prompt')) }}>Ask about this</button><button onClick={() => { setMaterialAdded(false); setRequestedTopic(''); setTopicRequest(n => n + 1) }}>Teach me a topic</button><button aria-label="Dismiss material actions" onClick={() => setMaterialAdded(false)}>×</button></div>}
 			{voiceNotice && <div className="loci-voice-notice" role="status" onPointerDown={e=>e.stopPropagation()}><span>{voiceNotice} Using browser voice.</span><button onClick={()=>{setKeyTab('voice');setKeyDialog(true)}}>Use your own voice key</button><button aria-label="Dismiss voice notice" onClick={()=>setVoiceNotice('')}>×</button></div>}
    {loading && <div className="loci-toast">{loading}</div>}
@@ -296,6 +295,7 @@ function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onL
 			<div className="loci-dock">
 				{replay?.lessonId ? <LessonPlayer id={replay.lessonId} question={replay.question} onClose={() => setReplay(null)} /> : <ResponsePanel turns={tutor.turns} busy={tutor.busy || planning} status={tutor.status} onUndo={tutor.undoLastTurn} voice={voiceOut} onReplay={setReplay} />}
 				<PromptBar
+					topicControl={!replay && tour.phase !== 'running' && <TopicLesson busy={tutor.busy || Boolean(loading) || tour.speaking} requestedTopic={requestedTopic} requestKey={topicRequest} onPlanning={setPlanning} onQuota={tutor.updateQuota} onTeach={(question, lesson) => tutor.ask(question, { lesson })} />}
 					busy={tutor.busy || planning}
 					onAsk={(q, opts) => ask(q, opts)}
 					onStop={() => { tutor.stop(); if (planning) window.dispatchEvent(new Event('loci:cancel-topic-plan')) }}

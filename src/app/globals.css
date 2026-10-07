@@ -2306,9 +2306,9 @@ button {
 }
 
 /* Topic teaching lives alongside the canvas and folds away when you want more room. */
-.loci-topic { position: absolute; top: 76px; left: 72px; width: min(320px, calc(100vw - 88px)); border-radius: 14px; background: var(--loci-surface); box-shadow: var(--loci-shadow); font: 400 12px/1.5 var(--loci-sans); }
-.loci-topic__toggle { display: flex; justify-content: space-between; gap: 12px; width: 100%; padding: 11px 14px; border: 0; border-radius: 14px; background: transparent; color: var(--loci-ink-2); text-align: left; cursor: pointer; font: 500 12px/1.5 var(--loci-sans); }
-.loci-topic__panel { padding: 0 14px 16px; max-height: calc(100dvh - 250px); overflow-y: auto; overscroll-behavior: contain; }
+.loci-topic { position: relative; margin-left: auto; flex: none; font: 400 12px/1.5 var(--loci-sans); }
+.loci-topic__toggle { display: flex; justify-content: space-between; gap: 12px; width: 100%; padding: 4px 10px; border: 1px solid var(--loci-line); border-radius: 999px; background: transparent; color: var(--loci-ink-2); text-align: left; cursor: pointer; font: 500 12px/1.5 var(--loci-sans); }
+.loci-topic__panel { position: absolute; bottom: calc(100% + 24px); right: 0; width: min(400px, calc(100vw - 100px)); padding: 16px 20px 20px; max-height: min(640px, calc(100dvh - 220px)); overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--loci-line); border-radius: 20px; background: var(--loci-surface); box-shadow: var(--loci-shadow-lg); }
 .loci-topic h2 { font-size: 16px; font-weight: 600; margin: 8px 0; }
 .loci-topic h3 { font-size: 13px; margin: 16px 0 8px; }
 .loci-topic p { color: var(--loci-ink-3); margin: 8px 0 12px; }
@@ -2391,7 +2391,6 @@ button {
 .loci-sidebar-settings__content { padding-top:8px; }
 .loci-topbar:has(.loci-board-library) { left:76px; max-width:calc(100% - 92px); }
 .loci-topbar:has(.loci-board-library) ~ .loci-toolbar { left:76px; }
-.loci-topbar:has(.loci-board-library) ~ .loci-topic { left:136px; width:min(320px, calc(100vw - 152px)); }
 @media (max-width:640px) {
  .loci-nav-rail { width:48px; padding:8px 2px; }
  .loci-nav-rail button, .loci-nav-rail a { width:44px; }
@@ -2400,7 +2399,6 @@ button {
  .loci-topbar:has(.loci-board-library) { left:60px; max-width:calc(100% - 72px); padding-left:10px; }
  .loci-topbar:has(.loci-board-library) .loci-brand { display:none; }
  .loci-topbar:has(.loci-board-library) ~ .loci-toolbar { left:60px; }
- .loci-topbar:has(.loci-board-library) ~ .loci-topic { left:60px; width:calc(100vw - 76px); top:116px; }
  .loci-topbar:has(.loci-board-library) ~ .loci-empty { padding-left:112px; }
 }
 .loci-key-settings { width:min(460px,100%); max-height:calc(100dvh - 32px); overflow:auto; border-radius:var(--radius-card-lg); background:var(--loci-surface); box-shadow:var(--loci-shadow-lg); }

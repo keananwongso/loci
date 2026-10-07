@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useEditor, useValue } from '@/lib/whiteboard'
 import { describeSelection } from '../selection'
 import { heard, tutorPresence, talkKeysLabel } from '@/lib/canvas/presence'
@@ -7,6 +7,7 @@ import { LayersIcon, MicIcon, PageIcon, SendIcon, StopIcon } from './icons'
 
 interface Props {
 	busy: boolean
+	topicControl?: ReactNode
 	onAsk: (question: string, opts?: { spoken: true }) => void
 	onStop: () => void
 	disabledReason?: string
@@ -17,7 +18,7 @@ interface Props {
 
 const talk = (action: 'start' | 'end') => window.dispatchEvent(new Event(`loci:talk-${action}`))
 
-export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft, pro, talkDisabled }: Props) {
+export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft, pro, talkDisabled, topicControl }: Props) {
 	const editor = useEditor()
 	const [text, setText] = useState('')
 	const [typing, setTyping] = useState(false)
@@ -78,6 +79,7 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft, pro, 
 					{hasSelection ? <PageIcon /> : <LayersIcon />}
 					<span>{context}</span>
 				</div>
+				{topicControl}
 				{freeLeft !== undefined && (
 					<span className="loci-prompt__quota" data-empty={freeLeft === 0}>
 						{pro ? `${freeLeft} question${freeLeft === 1 ? '' : 's'} left this month` : freeLeft === 0 ? 'No free questions left today' : `${freeLeft} free question${freeLeft === 1 ? '' : 's'} left today`}
