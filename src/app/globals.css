@@ -2411,3 +2411,7 @@ button {
 .loci-key-settings .loci-modal__actions { flex-wrap:wrap; }
 .loci-voice-notice { position:absolute; top:76px; right:16px; max-width:340px; z-index:16; padding:12px; display:flex; flex-wrap:wrap; align-items:center; gap:8px; background:var(--loci-surface); box-shadow:var(--loci-shadow); border-radius:12px; font:12px/1.5 var(--loci-sans); }
 .loci-voice-notice button { padding:6px 8px; border:1px solid var(--loci-line); border-radius:6px; background:transparent; color:var(--loci-ink); font:inherit; cursor:pointer; }
+.loci-zoom-controls { position:absolute; right:16px; bottom:16px; display:flex; align-items:center; padding:4px; border-radius:10px; background:var(--loci-surface); box-shadow:var(--loci-shadow); font:12px var(--loci-sans); }
+.loci-zoom-controls button { min-width:32px; height:32px; border:0; border-radius:6px; background:transparent; color:var(--loci-ink); font:inherit; cursor:pointer; }
+.loci-zoom-controls button:hover { background:var(--loci-hover); }
+.loci-zoom-controls button:disabled { opacity:.35; cursor:not-allowed; }

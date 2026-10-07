@@ -13,6 +13,7 @@ import { EmptyState } from './ui/EmptyState'
 import { TopBar } from './ui/TopBar'
 import { StylePanel } from './ui/StylePanel'
 import { HoldToTalk } from './ui/HoldToTalk'
+import { ZoomControls } from './ui/ZoomControls'
 import { KeyDialog } from './ui/KeyDialog'
 import { OwnProblem } from './ui/OwnProblem'
 import { TopicLesson } from './ui/TopicLesson'
@@ -270,6 +271,7 @@ function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onL
 				}}
 			/>
 			{!replay && <Toolbar onUpload={() => setAdding([])} />}
+   {!replay && <ZoomControls />}
 			{!replay && <HoldToTalk busy={tutor.busy || planning} onAsk={ask} onStop={() => { tutor.stop(); if (planning) window.dispatchEvent(new Event('loci:cancel-topic-plan')) }} disabled={Boolean(disabledReason)} voice={voiceOut} />}
 			{!replay && (tour.phase === 'start' ? (
 				<TourStart tour={tour} overBoard={editor.getCurrentPageShapeIds().size > 0} />

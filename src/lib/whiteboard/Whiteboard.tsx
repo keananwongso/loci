@@ -1123,6 +1123,10 @@ export function Whiteboard({
 					onlyRenderVisibleElements={false}
 					nodesConnectable={false}
 					zoomOnDoubleClick={false}
+     panOnScroll
+     panOnScrollSpeed={1}
+     zoomOnScroll={false}
+     zoomActivationKeyCode={['Meta', 'Control']}
 					zoomOnPinch={
 						!['draw', 'geo', 'arrow', 'text', 'loci-region', 'eraser'].includes(
 							editor.tool
