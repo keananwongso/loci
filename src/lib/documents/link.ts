@@ -5,6 +5,8 @@ import { MATERIAL, type MaterialShape } from '@/lib/canvas/shape-types'
 import { ingestFiles, PAGE_WIDTH } from '@/lib/canvas/ingest'
 import { putBlob, randomKey } from '@/lib/storage/blobs'
 import type { MaterialRole } from './roles'
+import { articlePages } from './article-pages'
+import type { ArticleBlock } from './article'
 import type { TextItem } from '@/lib/tutor/types'
 
 /** Render an article as text pages so existing highlights and source citations work unchanged. */
@@ -39,6 +41,23 @@ export async function ingestArticle(editor: Editor, title: string, text: string,
  if (ids.length) { editor.select(ids[0]); editor.zoomToBounds(editor.getShapePageBounds(ids[0])!, { inset: 100 }) }
  return ids
 }
+async function ingestTextbook(editor: Editor, title: string, blocks: ArticleBlock[], macros: string, role: MaterialRole, provenance: { url: string; fetchedAt: string }) {
+ const doc = randomKey('article'), ids: string[] = []
+ const bounds = editor.getCurrentPageShapes().map(s => editor.getShapePageBounds(s)).filter(b => b !== undefined)
+ const x = bounds.length ? Math.max(...bounds.map(b => b!.maxX)) + 200 : 0
+ let y = 0
+ try {
+  await articlePages(blocks, macros, async (blob, height, textItems) => {
+   const blobKey = randomKey('article-page'); await putBlob(blobKey, blob)
+   const id = createShapeId(), h = height * PAGE_WIDTH / 1200
+   editor.createShape<MaterialShape>({ id, type: MATERIAL, x, y, meta: { role, doc, ...provenance }, props: { w: PAGE_WIDTH, h, blobKey, kind: 'image', name: title.slice(0, 300), page: ids.length + 1, pageCount: 1, pixelW: 1200, pixelH: height, textItems } })
+   ids.push(id); y += h + 56
+  })
+ } catch (error) { editor.deleteShapes(ids); throw error }
+ editor.updateShapes(ids.map(id => ({ id, type: MATERIAL, props: { pageCount: ids.length } })))
+ if (ids.length) { editor.select(ids[0]); editor.zoomToBounds(editor.getShapePageBounds(ids[0])!, { inset: 100 }) }
+ return ids
+}
 export async function ingestLink(editor: Editor, url: string, role: MaterialRole, signal: AbortSignal, progress: (text: string | null) => void) {
  progress('Opening your link…')
  try {
@@ -53,6 +72,7 @@ export async function ingestLink(editor: Editor, url: string, role: MaterialRole
    if (!ids.length) throw new Error('The linked PDF could not be imported. Download it and upload it instead.')
    return ids
   }
+  if (data.blocks) return await ingestTextbook(editor, data.title, data.blocks, data.macros || '', role, { url: data.url, fetchedAt: data.fetchedAt })
   return await ingestArticle(editor, data.title, data.text, role, { url: data.url, fetchedAt: data.fetchedAt })
  } finally { progress(null) }
 }

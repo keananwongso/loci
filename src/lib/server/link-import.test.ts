@@ -20,6 +20,16 @@ describe('public source import', () => {
   expect(result.text).not.toContain('ignore previous')
   expect(result.text).toContain('\n\n')
  })
+ it('imports the enclosing textbook section, including later definitions and diagrams', () => {
+  const html = String.raw`<title>Textbook</title><div id="latex-macros">\(\newcommand{\vv}{\mathbf{v}}\)</div><main><h2>Directional derivatives</h2><div class="para">Start with the rate of change of a function in a chosen direction, measured at a point.</div><article><h5>Definition 1</h5><div class="para">First definition \(D_{\vv}f\).</div></article><article><h5>Definition 2</h5><div class="para">The later definition must also be included.</div></article><img src="figs/gradient.svg"></main>`
+  const result = articleText(Buffer.from(html))
+  expect(result.title).toBe('Directional derivatives')
+  expect(result.text).toContain('Start with')
+  expect(result.text).toContain('later definition')
+  expect(result.text).not.toContain('newcommand')
+  expect(result.macros).toContain('newcommand')
+  expect(result.blocks).toContainEqual({ kind: 'image', text: 'Textbook diagram', src: 'figs/gradient.svg' })
+ })
  it('reports pages with no usable content instead of inventing a source', () => {
   expect(() => articleText(Buffer.from('<body><script>render()</script></body>'))).toThrow(/too little/)
  })

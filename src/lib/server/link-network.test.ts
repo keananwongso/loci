@@ -32,6 +32,19 @@ describe('link import network boundary', () => {
   await expect(importLink('https://public.example/notes', new AbortController().signal)).rejects.toThrow(/Private/)
   expect(net.calls).toHaveLength(1)
  })
+ it('embeds relative textbook diagrams through checked sockets', async () => {
+  net.replies.push({ type: 'text/html', text: '<main><p>' + 'Readable textbook content '.repeat(10) + '</p><img src="figs/gradient.svg"></main>' }, { type: 'image/svg+xml', text: '<svg xmlns="http://www.w3.org/2000/svg"></svg>' })
+  const result = await importLink('https://public.example/chapter/notes', new AbortController().signal)
+  expect(net.calls[1].url.href).toBe('https://public.example/chapter/figs/gradient.svg')
+  expect(result.kind).toBe('article')
+  if (result.kind === 'article' && 'blocks' in result) expect(result.blocks[1].src).toMatch(/^data:image\/svg\+xml;base64,/)
+ })
+ it('blocks private addresses in textbook images', async () => {
+  net.replies.push({ type: 'text/html', text: '<main><p>' + 'Readable textbook content '.repeat(10) + '</p><img src="https://internal.example/secret"></main>' })
+  net.dns.mockResolvedValueOnce([{ address: '1.1.1.1', family: 4 }]).mockResolvedValueOnce([{ address: '10.0.0.1', family: 4 }])
+  await expect(importLink('https://public.example/notes', new AbortController().signal)).rejects.toThrow(/Private/)
+  expect(net.calls).toHaveLength(1)
+ })
  it('bounds downloads before accepting oversized bodies', async () => {
   net.replies.push({ length: 11 * 1024 * 1024 })
   await expect(importLink('https://public.example/notes', new AbortController().signal)).rejects.toThrow(/10 MB/)
