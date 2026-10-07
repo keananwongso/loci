@@ -78,7 +78,8 @@ export function HoldToTalk({ busy, onAsk, onStop, disabled, voice }: Props) {
 		const spoke = Boolean(clip && clip.size > 3000)
 		const browserText = await browserWords
 		// Fish is more accurate; if the browser already heard words, don't wait long for it.
-		const fish = spoke ? await transcribe(clip!, browserText.trim() ? 3500 : 7000) : null
+		let transcriptionFailure = ''
+		const fish = spoke ? await transcribe(clip!, browserText.trim() ? 3500 : 7000, undefined, (message) => { transcriptionFailure = message }) : null
 		const transcript = (fish ?? browserText).trim()
 		heard.set(transcript)
 		markTime('transcript ready')
@@ -97,7 +98,7 @@ export function HoldToTalk({ busy, onAsk, onStop, disabled, voice }: Props) {
 			// Pointed at something but said nothing: type the question instead.
 			setBuddyStatus('')
 			window.dispatchEvent(new CustomEvent('loci:focus-prompt'))
-		} else if (spoke) setBuddyStatus("Didn't catch that. Hold and try again?", 3000)
+		} else if (spoke) setBuddyStatus(transcriptionFailure || "Didn't catch that. Hold and try again?", transcriptionFailure ? 6000 : 3000)
 		else if (!clip) setBuddyStatus("Couldn't use your mic. Check the browser's mic permission.", 4000)
 		else setBuddyStatus('')
 	}, [editor])

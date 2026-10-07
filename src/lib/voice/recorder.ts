@@ -78,7 +78,7 @@ export function startRecording(onInterim?: (text: string) => void, hasBrowserWor
 }
 
 /** Fish Audio transcript of a clip, or null when transcription is unavailable or fails. */
-export async function transcribe(clip: Blob, timeoutMs = 8000, signal?: AbortSignal): Promise<string | null> {
+export async function transcribe(clip: Blob, timeoutMs = 8000, signal?: AbortSignal, onFailure?: (message: string) => void): Promise<string | null> {
 	if (!hasFish()) { await within(checkSpeechProvider(), 1500, 'browser' as const); if (!hasFish()) return null }
 	const controller = new AbortController()
 	const abort = () => controller.abort()
@@ -91,6 +91,7 @@ export async function transcribe(clip: Blob, timeoutMs = 8000, signal?: AbortSig
 		if (controller.signal.aborted) return null
 		const res = await fetch('/api/transcribe', { method: 'POST', body: audio, headers: { 'Content-Type': audio.type }, signal: controller.signal })
 		if (!res.ok) {
+			onFailure?.(res.status === 429 ? 'Transcription allowance reached. Type your question instead.' : 'Could not transcribe your recording. Try typing instead.')
 			console.warn('[loci] Fish transcription failed:', (await res.json().catch(() => ({}))).error ?? res.status)
 			return null
 		}
