@@ -2544,3 +2544,5 @@ html[data-loci-speech-paused] .loci-shape * { animation-play-state: paused !impo
 /* Skip intervals are in tooltips; only timeline position displays numbers. */
 .loci-player__controls .loci-player__skip { display: flex; align-items: center; justify-content: center; width: 30px; }
 .loci-player__skip svg { width: 18px; height: 18px; flex: none; }
+.loci-landing__account a.loci-landing__dashboard { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border-radius: 50%; }
+.loci-landing__dashboard svg, .loci-corner a[aria-label='Your dashboard'] svg { width: 22px; height: 22px; display: block; }

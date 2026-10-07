@@ -1,7 +1,7 @@
 'use client'
 import { BrandLogo } from '@/components/ui/BrandLogo'
 import { useEffect, useRef, useState } from 'react'
-import { MoreIcon, SpeakerIcon } from './icons'
+import { MoreIcon, SpeakerIcon, PersonIcon } from './icons'
 import type { TutorStatus } from '../useTutor'
 
 interface Props {
@@ -114,14 +114,13 @@ function AccountCorner({ account, status }: { account?: Props['account']; status
 	if (account) return (
 		<nav className="loci-corner" aria-label="Account" onPointerDown={stop}>
 			{account.pro && <span className="loci-corner__badge">Pro</span>}
-			<a href="/account">Account</a>
+			<a href="/home" aria-label="Your dashboard" title="Your boards and spaces"><PersonIcon /></a>
 		</nav>
 	)
 	if (!status.accounts) return null
 	if (status.signedIn) return (
 		<nav className="loci-corner" aria-label="Account" onPointerDown={stop}>
-			<a href="/home">Your boards</a>
-			<a href="/account">{status.pro ? 'Pro · Account' : 'Account'}</a>
+			<a href="/home" aria-label="Your dashboard" title="Your boards and spaces"><PersonIcon /></a>
 		</nav>
 	)
 	return (

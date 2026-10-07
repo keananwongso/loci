@@ -1,11 +1,12 @@
 'use client'
+import { PersonIcon } from '@/components/ui/icons'
 import { BrandLogo } from '@/components/ui/BrandLogo'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { tourDone } from './useTour'
 import { REPO_URL } from '@/components/ui/KeyDialog'
 
-export default function Landing({ accounts, billing }: { accounts: boolean; billing: boolean }) {
+export default function Landing({ accounts, billing, signedIn = false }: { accounts: boolean; billing: boolean; signedIn?: boolean }) {
 	const [returning, setReturning] = useState(false)
 	useEffect(() => { try { setReturning(tourDone() || Boolean(localStorage.getItem('loci:workspaces:v1'))) } catch {} }, [])
 	return (
@@ -15,7 +16,7 @@ export default function Landing({ accounts, billing }: { accounts: boolean; bill
 					<BrandLogo />
 				</a>
 				{accounts && <div className="loci-landing__account">
-					<a className="loci-landing__cta" href="/account">Get started</a>
+					<a className={signedIn ? "loci-landing__dashboard" : "loci-landing__cta"} href={signedIn ? "/home" : "/account"} aria-label={signedIn ? "Your dashboard" : undefined} title={signedIn ? "Your boards and spaces" : undefined}>{signedIn ? <PersonIcon /> : "Get started"}</a>
 				</div>}
 			</nav>
 			<section className="loci-landing__hero">

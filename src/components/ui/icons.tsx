@@ -132,3 +132,5 @@ export const KeyboardIcon = () => (
 )
 
 export const BookIcon = () => (<Icon><path d="M12 5v15M12 5C9 3 5 3 2 4v15c3-1 7-1 10 1 3-2 7-2 10-1V4c-3-1-7-1-10 1Z" /></Icon>)
+
+export const PersonIcon = () => <Icon><circle cx="12" cy="8" r="3.5" /><path d="M5 21v-2a7 7 0 0 1 14 0v2" /></Icon>
