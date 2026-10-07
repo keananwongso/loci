@@ -2498,3 +2498,23 @@ html[data-loci-speech-paused] .loci-shape * { animation-play-state: paused !impo
 .loci-dock-notice button:first-of-type { text-decoration: underline; text-underline-offset: 3px; }
 .loci-dock-notice button:last-child { width: 24px; height: 24px; text-decoration: none; border-radius: 50%; }
 .loci-dock-notice button:last-child:hover { background: var(--loci-hover); }
+
+/* After learning starts, the canvas keeps only transport along its bottom edge. */
+.loci-dock { left: 0; right: 0; margin: 0 auto; transform: none; }
+.loci-prompt[data-learning='true'][data-typing='false'] { position: fixed; right: 16px; bottom: 86px; width: 52px; padding: 6px; border-radius: 26px; }
+.loci-prompt[data-learning='true'][data-typing='false'] .loci-prompt__controls { flex-direction: column; gap: 6px; }
+.loci-prompt[data-learning='true'][data-typing='false'] .loci-prompt__talk { width: 40px; min-height: 40px; padding: 0; }
+.loci-prompt[data-learning='true'][data-typing='false'] .loci-prompt__talk > span { display: none; }
+.loci-prompt[data-learning='true'][data-typing='false'] .loci-prompt__meta { display: none; }
+.loci-prompt[data-learning='true'][data-typing='false'] .loci-prompt__voice-hint:not([hidden]) { position: absolute; right: calc(100% + 12px); bottom: 0; width: 240px; padding: 12px; border-radius: 12px; background: var(--loci-surface); box-shadow: var(--loci-shadow-lg); }
+.loci-study-control { position: relative; flex: none; }
+.loci-study-menu { position: absolute; right: 0; bottom: calc(100% + 12px); width: 220px; padding: 6px; border: 1px solid var(--loci-line); border-radius: 12px; background: var(--loci-surface); box-shadow: var(--loci-shadow-lg); }
+.loci-study-menu > button { width: 100%; padding: 10px; text-align: left; border: 0; border-radius: 8px; background: transparent; color: var(--loci-ink-2); cursor: pointer; font: inherit; font-size: 12px; }
+.loci-study-menu > button:hover { background: var(--loci-hover); }
+.loci-study-menu .loci-topic__toggle { width: 100%; display: flex; gap: 8px; justify-content: flex-start; border-radius: 8px; padding: 10px; }
+.loci-study-menu .loci-topic__toggle::after { content: 'Teach me a topic'; font-size: 12px; }
+.loci-prompt[data-learning='true'][data-typing='false'] .loci-study-menu { right: calc(100% + 12px); bottom: 0; }
+.loci-prompt[data-learning='true'][data-typing='false'] .loci-topic__panel { position: fixed; right: 88px; bottom: 86px; transform: none; }
+.loci-input-onboarding { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); width: min(340px, calc(100vw - 100px)); display: flex; align-items: flex-start; gap: 8px; padding: 12px 14px; border-radius: 12px; background: var(--loci-surface); box-shadow: var(--loci-shadow-lg); font-size: 12px; line-height: 1.5; color: var(--loci-ink-3); }
+.loci-input-onboarding button { flex: none; border: 0; background: transparent; font: inherit; cursor: pointer; }
+.loci-study-menu[data-open='false']:not(:has(.loci-topic[data-open='true'])) { display: none; }

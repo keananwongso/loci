@@ -3,11 +3,13 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useEditor, useValue } from '@/lib/whiteboard'
 import { describeSelection } from '../selection'
 import { heard, tutorPresence, talkKeysLabel } from '@/lib/canvas/presence'
-import { KeyboardIcon, LayersIcon, MicIcon, PageIcon, SendIcon, StopIcon } from './icons'
+import { BookIcon, KeyboardIcon, LayersIcon, MicIcon, PageIcon, SendIcon, StopIcon } from './icons'
 
 interface Props {
 	busy: boolean
 	topicControl?: ReactNode
+	learning?: boolean
+	onUploadStudy?: () => void
 	onAsk: (question: string, opts?: { spoken: true }) => void
 	onStop: () => void
 	disabledReason?: string
@@ -18,10 +20,14 @@ interface Props {
 
 const talk = (action: 'start' | 'end') => window.dispatchEvent(new Event(`loci:talk-${action}`))
 
-export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft, pro, talkDisabled, topicControl }: Props) {
+export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft, pro, talkDisabled, topicControl, learning = false, onUploadStudy }: Props) {
 	const editor = useEditor()
 	const [text, setText] = useState('')
 	const [typing, setTyping] = useState(false)
+	const [studyOpen, setStudyOpen] = useState(false)
+	const [hint, setHint] = useState(false)
+	useEffect(() => { try { setHint(!localStorage.getItem('loci:input-hint-seen')) } catch {} }, [])
+	const dismissHint = () => { setHint(false); try { localStorage.setItem('loci:input-hint-seen', '1') } catch {} }
 	const inputRef = useRef<HTMLTextAreaElement>(null)
 	const voiceRef = useRef<HTMLButtonElement>(null)
 	const context = useValue('selection-label', () => describeSelection(editor), [editor])
@@ -73,7 +79,8 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft, pro, 
 	}
 
 	return (
-		<div className="loci-prompt" onPointerDown={(e) => e.stopPropagation()} data-listening={listening} data-typing={typing || Boolean(talkDisabled)}>
+		<div className="loci-prompt" onPointerDown={(e) => e.stopPropagation()} data-learning={learning} data-listening={listening} data-typing={typing || Boolean(talkDisabled)}>
+			{hint && !learning && <div className="loci-input-onboarding" role="tooltip"><span>Hold the mic to ask, type with the keyboard, or add your study materials.</span><button aria-label="Dismiss input tip" onClick={dismissHint}>×</button></div>}
 			<div className="loci-prompt__meta">
 				<div hidden={!hasSelection && !typing && !talkDisabled} className="loci-prompt__context" data-active={hasSelection} title="What Loci will look at">
 					{hasSelection ? <PageIcon /> : <LayersIcon />}
@@ -112,10 +119,11 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft, pro, 
 							ref={voiceRef}
 							className="loci-prompt__talk"
 							aria-label="Hold to talk"
+							title="Hold to talk: release to send your question"
 							aria-keyshortcuts="Control+Alt Space Enter"
 							data-active={listening}
 							disabled={Boolean(disabledReason) || transcribing || talkDisabled}
-							onPointerDown={(e) => { if (e.button !== 0) return; e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); talk('start') }}
+							onPointerDown={(e) => { if (e.button !== 0) return; e.preventDefault(); dismissHint(); e.currentTarget.setPointerCapture(e.pointerId); talk('start') }}
 							onPointerUp={() => talk('end')}
 							onPointerCancel={() => talk('end')}
 							onLostPointerCapture={() => talk('end')}
@@ -128,10 +136,13 @@ export function PromptBar({ busy, onAsk, onStop, disabledReason, freeLeft, pro, 
 						<div hidden={!listening && !transcribing && !disabledReason} className="loci-prompt__voice-hint" role="status" aria-live="polite">
 							{listening || transcribing ? <><span className="loci-prompt__heard">{transcript || (listening ? 'Ask about your notes' : 'Finishing your question')}</span><small>{listening ? 'Release to send' : 'Sending when ready'}</small></> : <span>{disabledReason ?? (talkDisabled ? 'Type a new question to leave replay' : 'Point at your notes while you talk')}</span>}
 						</div>
-						<button className="loci-prompt__switch" aria-label="Switch to typing" title="Type a question (/)" disabled={listening || transcribing} onClick={() => setTyping(true)}><KeyboardIcon /></button>
+						<button className="loci-prompt__switch" aria-label="Switch to typing" title="Type a question (/)" disabled={listening || transcribing} onClick={() => { dismissHint(); setTyping(true) }}><KeyboardIcon /></button>
 					</>
 				)}
-				{topicControl}
+                <div className="loci-study-control">
+                 <button className="loci-prompt__switch" aria-label="Study materials and lessons" title="Study materials & lessons: add notes, PDF or link, or learn a topic" aria-expanded={studyOpen} onClick={()=>{dismissHint();setStudyOpen(!studyOpen)}}><BookIcon /></button>
+                 <div className="loci-study-menu" data-open={studyOpen}><button onClick={()=>{setStudyOpen(false);onUploadStudy?.()}}>Upload notes, PDF or link</button>{topicControl}</div>
+                </div>
 				{busy && <button className="loci-send loci-send--stop" onClick={onStop} title="Stop" aria-label="Stop"><StopIcon /></button>}
 			</div>
 		</div>

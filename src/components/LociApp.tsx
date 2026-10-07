@@ -295,6 +295,8 @@ function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onL
 			{voiceNotice && <div className="loci-dock-notice" role="status" onPointerDown={e=>e.stopPropagation()}><span>{voiceNotice} Using browser voice.</span><button onClick={()=>{setKeyTab('voice');setKeyDialog(true)}}>Use your key</button><button aria-label="Dismiss voice notice" onClick={()=>setVoiceNotice('')}>×</button></div>}
 				{replay?.lessonId ? <LessonPlayer id={replay.lessonId} question={replay.question} onClose={() => setReplay(null)} /> : <ResponsePanel turns={tutor.turns} busy={tutor.busy || planning} status={tutor.status} onUndo={tutor.undoLastTurn} voice={voiceOut} onReplay={setReplay} />}
 				<PromptBar
+					learning={tutor.turns.length > 0 || Boolean(replay)}
+					onUploadStudy={() => setAdding([])}
 					topicControl={!replay && tour.phase !== 'running' && <TopicLesson busy={tutor.busy || Boolean(loading) || tour.speaking} requestedTopic={requestedTopic} requestKey={topicRequest} onPlanning={setPlanning} onQuota={tutor.updateQuota} onTeach={(question, lesson) => tutor.ask(question, { lesson })} />}
 					busy={tutor.busy || planning}
 					onAsk={(q, opts) => ask(q, opts)}
