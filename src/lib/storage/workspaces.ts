@@ -24,3 +24,37 @@ export const conversationKey = (id: string) => id === 'default' ? 'board-default
 export function shouldStartLesson(requested: boolean, seen: boolean, hasWork: boolean) {
 	return requested && !seen && !hasWork
 }
+
+/** Manual ordering is a browser preference; account membership still comes from the server. */
+const ORDER_KEY = 'loci:workspace-order:v1'
+export function rememberWorkspaceOrder(library: WorkspaceLibrary) {
+ localStorage.setItem(ORDER_KEY, JSON.stringify({ boards: library.boards.map(b=>b.id), spaces: (library.spaces ?? []).map(s=>s.id) }))
+}
+export function applyWorkspaceOrder(library: WorkspaceLibrary): WorkspaceLibrary {
+ try {
+  const order = JSON.parse(localStorage.getItem(ORDER_KEY) || 'null')
+  const sort = <T extends {id:string}>(items:T[], ids:unknown):T[] => {
+   if (!Array.isArray(ids)) return items
+   const positions = new Map(ids.map((id,index)=>[id,index]))
+   return [...items].sort((a,b)=>(positions.get(a.id) ?? Infinity)-(positions.get(b.id) ?? Infinity))
+  }
+  return { ...library, boards: sort(library.boards, order?.boards), spaces: sort(library.spaces ?? [], order?.spaces) }
+ } catch { return library }
+}
+export function moveWorkspace(library: WorkspaceLibrary, id:string, spaceId:string|null, beforeId?:string): WorkspaceLibrary {
+ const board = library.boards.find(b=>b.id===id)
+ if (!board || (spaceId && !library.spaces?.some(s=>s.id===spaceId)) || id===beforeId) return library
+ const boards = library.boards.filter(b=>b.id!==id)
+ const target = beforeId ? boards.findIndex(b=>b.id===beforeId) : -1
+ boards.splice(target<0 ? boards.length : target,0,{...board,spaceId})
+ return {...library,boards}
+}
+export function removeWorkspace(library:WorkspaceLibrary,id:string):WorkspaceLibrary {
+ if (!library.boards.some(b=>b.id===id)) return library
+ let boards=library.boards.filter(b=>b.id!==id)
+ if (!boards.length) boards=[{id:crypto.randomUUID(),name:'My board',updatedAt:Date.now()}]
+ return {...library,boards,active:library.active===id ? boards[0].id : library.active}
+}
+export function removeSpace(library:WorkspaceLibrary,id:string):WorkspaceLibrary {
+ return {...library,spaces:library.spaces?.filter(s=>s.id!==id),boards:library.boards.map(b=>b.spaceId===id ? {...b,spaceId:null} : b)}
+}

@@ -69,3 +69,5 @@ export function reportCloudError(err: unknown) {
 	const message = err instanceof Error ? err.message : 'Could not save to your account.'
 	window.dispatchEvent(new CustomEvent('loci:cloud-error', { detail: message }))
 }
+
+export const deleteSpace = (id: string) => call(`/api/spaces/${id}`, { method: 'DELETE' })

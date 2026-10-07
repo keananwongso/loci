@@ -23,10 +23,10 @@ import { AddMaterial } from './ui/AddMaterial'
 import { TourCoach, TourEnd, TourRecord, TourStart } from './ui/Tour'
 import { useTutor } from './useTutor'
 import { useTour, tourDone } from './useTour'
-import { canvasKey, readWorkspaces, writeWorkspaces, shouldStartLesson, type WorkspaceLibrary } from '@/lib/storage/workspaces'
+import { canvasKey, readWorkspaces, writeWorkspaces, shouldStartLesson, applyWorkspaceOrder, rememberWorkspaceOrder, type WorkspaceLibrary } from '@/lib/storage/workspaces'
 import { BoardLibrary } from './ui/BoardLibrary'
 import { useCloudSync, type SyncState } from './useCloudSync'
-import { CloudError, createBoard, createSpace, listBoards, updateBoard } from '@/lib/storage/cloud'
+import { CloudError, createBoard, createSpace, listBoards, updateBoard, deleteBoard, deleteSpace } from '@/lib/storage/cloud'
 import { ACCEPTED_TYPES, ingestFiles } from '@/lib/canvas/ingest'
 import { tutorPresence } from '@/lib/canvas/presence'
 import { REGION } from '@/lib/canvas/shape-types'
@@ -215,12 +215,12 @@ function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onL
 		const url = new URL(window.location.href)
 		url.searchParams.set('replay', '1')
 		window.history.replaceState(null, '', url)
-		onLibrary({ active: id, boards: [...library.boards, { id, name: 'Demo lesson', updatedAt: Date.now() }] })
+		onLibrary({ ...library, active: id, boards: [...library.boards, { id, name: 'Demo lesson', updatedAt: Date.now() }] })
 	}
 
 	const newBoard = () => {
 		const id = crypto.randomUUID()
-		onLibrary({ active: id, boards: [...library.boards, { id, name: `Board ${library.boards.length + 1}`, updatedAt: Date.now(), spaceId: library.boards.find(b => b.id === library.active)?.spaceId }] })
+		onLibrary({ ...library, active: id, boards: [...library.boards, { id, name: `Board ${library.boards.length + 1}`, updatedAt: Date.now(), spaceId: library.boards.find(b => b.id === library.active)?.spaceId }] })
 	}
 
 	const disabledReason = tutor.status.checked && !tutor.status.configured ? 'Connect a model to ask questions' : undefined
@@ -256,7 +256,7 @@ function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onL
 				onToggleVoice={toggleVoice}
 				onClear={newBoard}
 				busy={planning || tutor.busy || Boolean(loading) || tour.speaking || Boolean(replay)}
-				library={<BoardLibrary onUpload={() => setAdding([])} library={library} account={Boolean(account)} disabled={planning || tutor.busy || Boolean(loading) || tour.speaking || Boolean(replay)} onSelect={(active) => onLibrary({ ...library, active })} onNew={newBoard} onNewSpace={(name) => onLibrary({ ...library, spaces: [...(library.spaces ?? []), { id: crypto.randomUUID(), name }] })} onMove={(spaceId) => onLibrary({ ...library, boards: library.boards.map(b => b.id === library.active ? { ...b, spaceId } : b) })} onRename={(name) => onLibrary({ ...library, boards: library.boards.map((b) => b.id === library.active ? { ...b, name } : b) })} />}
+				library={<BoardLibrary onUpload={() => setAdding([])} library={library} account={Boolean(account)} disabled={planning || tutor.busy || Boolean(loading) || tour.speaking || Boolean(replay)} onChange={onLibrary} onSelect={(active) => onLibrary({ ...library, active })} onNew={newBoard} onNewSpace={(name) => onLibrary({ ...library, spaces: [...(library.spaces ?? []), { id: crypto.randomUUID(), name }] })} onMove={(spaceId) => onLibrary({ ...library, boards: library.boards.map(b => b.id === library.active ? { ...b, spaceId } : b) })} onRename={(name) => onLibrary({ ...library, boards: library.boards.map((b) => b.id === library.active ? { ...b, name } : b) })} />}
 				onSample={loadSample}
 				onTour={tour.pack?.steps.length ? startTour : undefined}
 				onEraseDrawings={() => {
@@ -381,7 +381,7 @@ export default function LociApp({ boardId }: { boardId?: string } = {}) {
 		if (!boardId) { setLibrary(readWorkspaces()); return }
 		const only = { active: boardId, boards: [{ id: boardId, name: 'Board', updatedAt: Date.now() }] }
 		listBoards()
-			.then(({ boards, spaces }) => setLibrary({ active: boardId, spaces, boards: boards.length ? boards.map((b) => ({ id: b.id, name: b.name, spaceId: b.space_id, updatedAt: Date.parse(b.updated_at) })) : only.boards }))
+			.then(({ boards, spaces }) => setLibrary(applyWorkspaceOrder({ active: boardId, spaces, boards: boards.length ? boards.map((b) => ({ id: b.id, name: b.name, spaceId: b.space_id, updatedAt: Date.parse(b.updated_at) })) : only.boards })))
 			.catch(() => setLibrary(only))
 	}, [boardId])
 	const changeLibrary = (next: WorkspaceLibrary) => {
@@ -389,6 +389,18 @@ export default function LociApp({ boardId }: { boardId?: string } = {}) {
 			try { writeWorkspaces(next); setLibrary(next) } catch { setStorageError(true) }
 			return
 		}
+
+		const removedBoard = library?.boards.find(b => !next.boards.some(n => n.id === b.id))
+		if (removedBoard) {
+			void deleteBoard(removedBoard.id).then(async () => {
+				if (!library?.boards.some(b => b.id === next.active)) {
+					const created = await createBoard('My board'); router.replace(`/board/${created.id}`)
+				} else { setLibrary(next); if (removedBoard.id === boardId) router.replace(`/board/${next.active}`) }
+			}).catch(err => setAccountError(err instanceof Error ? err.message : 'Could not delete the board.'))
+			return
+		}
+		const removedSpace = library?.spaces?.find(s => !next.spaces?.some(n => n.id === s.id))
+		if (removedSpace) { void deleteSpace(removedSpace.id).then(() => setLibrary(next)).catch(err => setAccountError(err instanceof Error ? err.message : 'Could not delete the space.')); return }
 		const addedSpace = next.spaces?.find(s => !library?.spaces?.some(old => old.id === s.id))
 		if (addedSpace) { void createSpace(addedSpace.name).then(space => setLibrary(current => current ? { ...current, spaces: [...(current.spaces ?? []), space] } : current)).catch(err => setAccountError(err instanceof Error ? err.message : 'Could not create the space.')); return }
 		// Account boards: switching opens that board's page; a new id means a new board in the account.
@@ -400,8 +412,8 @@ export default function LociApp({ boardId }: { boardId?: string } = {}) {
 				.catch((err) => setAccountError(err instanceof CloudError ? err.message : 'Could not create the board.'))
 			return
 		}
-		const renamed = next.boards.find((b) => b.id === next.active)
-		if (renamed) updateBoard(renamed.id, { name: renamed.name, spaceId: renamed.spaceId ?? null }).then(() => setLibrary(next)).catch(() => setAccountError('Could not rename the board.'))
+		const changed = next.boards.filter(b => { const old = library?.boards.find(o => o.id === b.id); return old && (old.name !== b.name || old.spaceId !== b.spaceId) })
+		void Promise.all(changed.map(b => updateBoard(b.id, {name:b.name,spaceId:b.spaceId ?? null}))).then(() => { try { rememberWorkspaceOrder(next) } catch {} setLibrary(next) }).catch(() => setAccountError('Could not update the boards.'))
 	}
 
 

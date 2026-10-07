@@ -2439,3 +2439,21 @@ html[data-loci-speech-paused] .loci-shape * { animation-play-state: paused !impo
 .loci-key-settings .loci-modal__card { animation: none; min-height: 100%; }
 .loci-key-settings__body > div:not([hidden]) { min-height: 100%; display: flex; }
 .loci-key-settings .loci-modal__actions { margin-top: auto; }
+
+.loci-sidebar-drag-hint { font-size: 11px; color: var(--loci-ink-3); margin: 0 0 12px; }
+.loci-sidebar-board-row { display: flex; flex-wrap: wrap; position: relative; border-radius: 8px; cursor: grab; }
+.loci-sidebar-board-row > button:first-child { flex: 1; min-width: 0; width: auto; }
+.loci-board-sidebar__groups .loci-sidebar-row-menu { width: 30px; padding: 4px; justify-content: center; flex: none; }
+.loci-sidebar-row-menu svg { width: 16px; }
+.loci-sidebar-board-actions { width: 100%; padding: 8px; border: 1px solid var(--loci-line); border-radius: 8px; background: var(--loci-surface); cursor: default; }
+.loci-sidebar-board-actions label { font-size: 11px; }
+.loci-sidebar-board-actions select { width: 100%; margin: 4px 0; }
+.loci-sidebar-board-actions > div { display: flex; gap: 4px; }
+.loci-board-sidebar__groups .loci-sidebar-board-actions button { font-size: 11px; padding: 7px; }
+.loci-board-sidebar__groups .loci-sidebar-delete { color: #b42318; }
+.loci-board-sidebar__groups summary { display: flex; align-items: center; gap: 6px; }
+.loci-board-sidebar__groups summary::before { content: '▸'; }
+.loci-board-sidebar__groups details[open] > summary::before { content: '▾'; }
+.loci-board-sidebar__groups .loci-sidebar-delete-space { width: 24px; height: 24px; padding: 0; justify-content: center; flex: none; }
+.loci-board-sidebar__groups [data-drop='true'] { outline: 2px solid var(--color-violet-spark); outline-offset: -2px; }
+.loci-sidebar-board-row[data-drop='true'] { outline: none; border-top: 2px solid var(--color-violet-spark); }
