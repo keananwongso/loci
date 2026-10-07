@@ -2532,3 +2532,6 @@ html[data-loci-speech-paused] .loci-shape * { animation-play-state: paused !impo
 .loci-prompt[data-learning='true'] .loci-study-menu { right: calc(100% + 12px); bottom: 0; }
 .loci-prompt[data-learning='true'] .loci-topic__panel { position: fixed; right: 88px; bottom: 86px; transform: none; }
 .loci-player__transcript .loci-player__collapse { justify-content: flex-end; padding: 4px 6px; font-size: 11px; color: var(--loci-ink-3); }
+
+/* Captions wrap naturally: never crop speech or replace its ending with an ellipsis. */
+.loci-player__caption { white-space: normal; overflow: visible; text-overflow: clip; max-height: none; line-height: 1.5; overflow-wrap: anywhere; text-wrap: pretty; }
