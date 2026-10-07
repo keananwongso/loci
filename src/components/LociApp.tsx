@@ -244,7 +244,7 @@ function Shell({ library, onLibrary, account }: { library: WorkspaceLibrary; onL
 				onToggleVoice={toggleVoice}
 				onClear={newBoard}
 				busy={planning || tutor.busy || Boolean(loading) || tour.speaking || Boolean(replay)}
-				library={<BoardLibrary library={library} account={Boolean(account)} disabled={planning || tutor.busy || Boolean(loading) || tour.speaking || Boolean(replay)} onSelect={(active) => onLibrary({ ...library, active })} onNew={newBoard} onNewSpace={(name) => onLibrary({ ...library, spaces: [...(library.spaces ?? []), { id: crypto.randomUUID(), name }] })} onMove={(spaceId) => onLibrary({ ...library, boards: library.boards.map(b => b.id === library.active ? { ...b, spaceId } : b) })} onRename={(name) => onLibrary({ ...library, boards: library.boards.map((b) => b.id === library.active ? { ...b, name } : b) })} />}
+				library={<BoardLibrary onUpload={() => setAdding([])} library={library} account={Boolean(account)} disabled={planning || tutor.busy || Boolean(loading) || tour.speaking || Boolean(replay)} onSelect={(active) => onLibrary({ ...library, active })} onNew={newBoard} onNewSpace={(name) => onLibrary({ ...library, spaces: [...(library.spaces ?? []), { id: crypto.randomUUID(), name }] })} onMove={(spaceId) => onLibrary({ ...library, boards: library.boards.map(b => b.id === library.active ? { ...b, spaceId } : b) })} onRename={(name) => onLibrary({ ...library, boards: library.boards.map((b) => b.id === library.active ? { ...b, name } : b) })} />}
 				onSample={loadSample}
 				onTour={tour.pack?.steps.length ? startTour : undefined}
 				onEraseDrawings={() => {
