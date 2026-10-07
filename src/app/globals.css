@@ -2493,3 +2493,8 @@ html[data-loci-speech-paused] .loci-shape * { animation-play-state: paused !impo
 .loci-player__transcript { border-color: var(--loci-line); }
 .loci-player__transcript button:hover, .loci-player__transcript button[data-active='true'] { background: var(--loci-hover); }
 .loci-player__transcript time, .loci-player > header > span { color: var(--loci-ink-3); }
+.loci-dock-notice { align-self: center; display: flex; align-items: center; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 560px; padding: 8px 12px; border-radius: 12px; background: var(--loci-surface); box-shadow: var(--loci-shadow); color: var(--loci-ink-3); font-size: 12px; }
+.loci-dock-notice button { padding: 3px 0; border: 0; background: transparent; color: var(--loci-ink); font: inherit; cursor: pointer; }
+.loci-dock-notice button:first-of-type { text-decoration: underline; text-underline-offset: 3px; }
+.loci-dock-notice button:last-child { width: 24px; height: 24px; text-decoration: none; border-radius: 50%; }
+.loci-dock-notice button:last-child:hover { background: var(--loci-hover); }
